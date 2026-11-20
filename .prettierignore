@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/lib
+**/package.json
+!/package.json
+blaym_jupyter
+eslint.config.mjs
+.venv
+# Agent protocol, specs and planning docs (not source; formatting owned by the user)
+.ai
+.claude
+AGENTS.md
+AGENT-ARCHITECTURE-HANDOFF.md
+CLAUDE.md
+docs/blaym-jupyter-langgraph-initial-plan.md

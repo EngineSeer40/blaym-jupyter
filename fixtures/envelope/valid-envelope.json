@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "eventId": "3f2b8c1e-5a7d-4e19-9c3b-1d2e4f6a8b0c",
+  "explorationId": "exploration-1",
+  "branchId": "branch-main",
+  "seq": 1,
+  "wallTimeMs": 1760000000000,
+  "originId": "origin-1",
+  "type": "s0_sample",
+  "payload": { "hello": "world" },
+  "causal": {
+    "executionId": "exec-1",
+    "cellId": "cell-1",
+    "sourceRevision": 1,
+    "langgraph": {
+      "threadId": "thread-1",
+      "checkpointId": "checkpoint-1",
+      "runId": "run-1",
+      "node": "node-1"
+    }
+  }
+}

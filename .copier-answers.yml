@@ -1,0 +1,16 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.7.0
+_src_path: https://github.com/jupyterlab/extension-template
+advanced: false
+author_email: engineseer40@gmail.com
+author_name: Gary Pate
+has_ai_rules: false
+has_binder: false
+has_settings: false
+kind: frontend-and-server
+labextension_name: blaym-jupyter
+project_short_description: History, replay and branching for Jupyter notebooks
+python_name: blaym_jupyter
+repository: ''
+test: true
+

@@ -1,0 +1,279 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "a",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "cellRevision": 1,
+    "runCount": 1,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "run_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "hi",
+    "chatTimeMs": 0,
+    "messageId": "q",
+    "sender": "user-1",
+    "senderKind": "person"
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "chat_message_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "gapId": "g1",
+    "reason": "no_client",
+    "source": "browser"
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "recording_gap_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "gapId": "g1"
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "recording_gap_ended",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "a-after-gap",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     },
+     {
+      "cellId": "c2",
+      "cellType": "code",
+      "code": "typed during the gap",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 6,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000006,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 3,
+       "body": "hi",
+       "chatTimeMs": 0,
+       "messageId": "q",
+       "sender": "user-1",
+       "senderKind": "person"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [
+      {
+       "gapId": "g1",
+       "reason": "no_client",
+       "source": "browser",
+       "startedTick": 4
+      }
+     ],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "a",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1,
+        "runCount": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 4,
+      "branchId": "main",
+      "lastEventTick": 4,
+      "tick": 4
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "running"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 3,
+       "body": "hi",
+       "chatTimeMs": 0,
+       "messageId": "q",
+       "sender": "user-1",
+       "senderKind": "person"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [
+      {
+       "endedTick": 5,
+       "gapId": "g1",
+       "reason": "no_client",
+       "source": "browser",
+       "startedTick": 4
+      }
+     ],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "a-after-gap",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "typed during the gap",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "main",
+      "lastEventTick": 6,
+      "tick": 6
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "running"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 6
+  }
+ ],
+ "name": "recording_gap_then_recovery_snapshot",
+ "source": "ADR 0005 (a gap never claims nothing happened); P4"
+}

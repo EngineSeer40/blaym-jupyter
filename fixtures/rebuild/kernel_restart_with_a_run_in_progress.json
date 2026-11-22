@@ -1,0 +1,339 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "loop()",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "kernelId": "kernel-1",
+    "kernelName": "python3",
+    "language": "python"
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "kernel_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "cellRevision": 1,
+    "runCount": 1,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "run_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "item": {
+     "contentHash": "sha256:9834a14ab9bcaa0f",
+     "mimeTypes": [
+      "text/plain"
+     ],
+     "outputType": "stream",
+     "preview": "partial",
+     "sizeBytes": 7,
+     "truncated": false
+    },
+    "outputIndex": 0,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "output_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "kernelId": "kernel-2",
+    "reason": "unknown"
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "kernel_restarted",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "loop(2)",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 6,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000006,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelId": "kernel-1",
+      "kernelName": "python3",
+      "language": "python",
+      "status": "running"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "loop()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:9834a14ab9bcaa0f",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "partial",
+            "sizeBytes": 7,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 4,
+      "branchId": "main",
+      "lastEventTick": 4,
+      "tick": 4
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 3,
+       "status": "running"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelId": "kernel-2",
+      "kernelName": "python3",
+      "language": "python",
+      "lastRestart": {
+       "kernelId": "kernel-2",
+       "reason": "unknown",
+       "tick": 5
+      },
+      "status": "running"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "loop()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:9834a14ab9bcaa0f",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "partial",
+            "sizeBytes": 7,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 5,
+      "branchId": "main",
+      "lastEventTick": 5,
+      "tick": 5
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 3,
+       "status": "unfinished"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 5
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelId": "kernel-2",
+      "kernelName": "python3",
+      "language": "python",
+      "lastRestart": {
+       "kernelId": "kernel-2",
+       "reason": "unknown",
+       "tick": 5
+      },
+      "status": "running"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "loop(2)",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:9834a14ab9bcaa0f",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "partial",
+            "sizeBytes": 7,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 2,
+        "runCount": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "main",
+      "lastEventTick": 6,
+      "tick": 6
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 3,
+       "status": "unfinished"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 6
+  }
+ ],
+ "name": "kernel_restart_with_a_run_in_progress",
+ "source": "ADR 0005 (a restart leaves a running cell visibly unfinished); P4"
+}

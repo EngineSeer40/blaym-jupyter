@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "jupyter_server>=2.13.0,<3",
-    "pydantic>=2",
+    "blaym-jupyter-types",
 ]
 dynamic = ["version", "description", "authors", "urls", "keywords"]
 
@@ -32,18 +32,19 @@ dynamic = ["version", "description", "authors", "urls", "keywords"]
 dev = [
     "jupyterlab>=4",
     "jupyter-builder>=1.2.0",
-    # Pinned: generated contract output depends on these exact versions (contracts:check).
-    "datamodel-code-generator==0.99.0",
-    "black==26.10.1",
-    "isort==8.0.1",
 ]
 test = [
     "coverage",
     "pytest",
     "pytest-asyncio",
     "pytest-cov",
-    "pytest-jupyter[server]>=0.6.0"
+    "pytest-jupyter[server]>=0.6.0",
+    "hypothesis==6.170.17",
 ]
+
+# Development: contracts come from the sibling repository (ADR 0006).
+[tool.uv.sources]
+blaym-jupyter-types = { path = "../blaym-jupyter-types", editable = true }
 
 [tool.hatch.version]
 source = "nodejs"

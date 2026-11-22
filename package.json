@@ -36,8 +36,6 @@
         "build:lib": "tsc --sourceMap",
         "build:lib:prod": "tsc",
         "clean": "jlpm clean:lib",
-        "contracts:generate": "scripts/generate-contracts.sh blaym_jupyter/contracts/_generated.py",
-        "contracts:check": "scripts/check-contracts.sh",
         "clean:lib": "rimraf lib tsconfig.tsbuildinfo",
         "clean:lintcache": "rimraf .eslintcache .stylelintcache",
         "clean:labextension": "rimraf blaym_jupyter/labextension blaym_jupyter/_version.py",

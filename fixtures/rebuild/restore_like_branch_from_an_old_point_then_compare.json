@@ -1,0 +1,645 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "load()",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     },
+     {
+      "cellId": "c2",
+      "cellType": "code",
+      "code": "plot()",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "cellRevision": 1,
+    "runCount": 1,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "run_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "item": {
+     "contentHash": "sha256:d9d1f239ce22e651",
+     "mimeTypes": [
+      "text/plain"
+     ],
+     "outputType": "stream",
+     "preview": "1000 rows",
+     "sizeBytes": 9,
+     "truncated": false
+    },
+    "outputIndex": 0,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "output_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "runId": "run-1",
+    "status": "ok"
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "run_finished",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "load(bad=True)",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c2",
+    "code": "plot(broken)",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 6,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000006,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "41c87ee8-2c36-5181-84d1-d95395f2869b",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "cellRevision": 2,
+    "runCount": 2,
+    "runId": "run-2"
+   },
+   "schemaVersion": 2,
+   "tick": 7,
+   "type": "run_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000007,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "3b945989-6bc8-56d7-aa18-00f6f3218a3f",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "item": {
+     "contentHash": "sha256:14b36d7e04c3dc59",
+     "mimeTypes": [
+      "text/plain"
+     ],
+     "outputType": "stream",
+     "preview": "0 rows",
+     "sizeBytes": 6,
+     "truncated": false
+    },
+    "outputIndex": 0,
+    "runId": "run-2"
+   },
+   "schemaVersion": 2,
+   "tick": 8,
+   "type": "output_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000008,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "ec62917c-15d4-5372-9b46-ed3b35aabec9",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "runId": "run-2",
+    "status": "error"
+   },
+   "schemaVersion": 2,
+   "tick": 9,
+   "type": "run_finished",
+   "userId": "local",
+   "wallTimeMs": 1760000000009,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "restored",
+   "eventId": "797f8b5c-2cf1-5bdd-96bb-6c4b17884990",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "name": "restored",
+    "parentBranchId": "main",
+    "parentTick": 4
+   },
+   "schemaVersion": 2,
+   "tick": 10,
+   "type": "branch_point_created",
+   "userId": "local",
+   "wallTimeMs": 1760000000010,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "restored",
+   "eventId": "889c40b7-8319-5c83-a6e8-8f942bf583d9",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c2",
+    "code": "plot(fixed)",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 11,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000011,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "8d5a5fc8-497f-58e4-a5fe-a339770a750b",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "load(bad=True, more=1)",
+    "revision": 3
+   },
+   "schemaVersion": 2,
+   "tick": 12,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000012,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "restored",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "load()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:d9d1f239ce22e651",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "1000 rows",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot()",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 5,
+      "branchId": "restored",
+      "lastEventTick": 10,
+      "tick": 10
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "endedTick": 4,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "ok"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 10
+  },
+  {
+   "branchId": "restored",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "load()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:d9d1f239ce22e651",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "1000 rows",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot(fixed)",
+        "metadata": {},
+        "outputs": [],
+        "revision": 2
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "restored",
+      "lastEventTick": 11,
+      "tick": 11
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "endedTick": 4,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "ok"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 11
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "load(bad=True, more=1)",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:d9d1f239ce22e651",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "1000 rows",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         },
+         {
+          "items": [
+           {
+            "contentHash": "sha256:14b36d7e04c3dc59",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "0 rows",
+            "sizeBytes": 6,
+            "truncated": false
+           }
+          ],
+          "runId": "run-2"
+         }
+        ],
+        "revision": 3,
+        "runCount": 2
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot(broken)",
+        "metadata": {},
+        "outputs": [],
+        "revision": 2
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 10,
+      "branchId": "main",
+      "lastEventTick": 12,
+      "tick": 12
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "endedTick": 4,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "ok"
+      },
+      {
+       "cellId": "c1",
+       "cellRevision": 2,
+       "endedTick": 9,
+       "runCount": 2,
+       "runId": "run-2",
+       "startedTick": 7,
+       "status": "error"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 12
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "load(bad=True)",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:d9d1f239ce22e651",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "1000 rows",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 2,
+        "runCount": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot()",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 5,
+      "branchId": "main",
+      "lastEventTick": 5,
+      "tick": 5
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "endedTick": 4,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "ok"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 5
+  },
+  {
+   "branchId": "restored",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "load()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:d9d1f239ce22e651",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "1000 rows",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot(fixed)",
+        "metadata": {},
+        "outputs": [],
+        "revision": 2
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "restored",
+      "lastEventTick": 11,
+      "tick": 11
+     },
+     "runs": [
+      {
+       "cellId": "c1",
+       "cellRevision": 1,
+       "endedTick": 4,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 2,
+       "status": "ok"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 11
+  }
+ ],
+ "name": "restore_like_branch_from_an_old_point_then_compare",
+ "source": "final scenario multi-file-restore-seek-live-desync-online; P6 (restore, then seek and live)"
+}

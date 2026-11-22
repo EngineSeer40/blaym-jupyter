@@ -1,0 +1,372 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "m0",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "m1",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "m2",
+    "revision": 3
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "m3",
+    "revision": 4
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "B",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "name": "B",
+    "parentBranchId": "main",
+    "parentTick": 3
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "branch_point_created",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "B",
+   "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "b1",
+    "revision": 4
+   },
+   "schemaVersion": 2,
+   "tick": 6,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000006,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "B",
+   "eventId": "41c87ee8-2c36-5181-84d1-d95395f2869b",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "b2",
+    "revision": 5
+   },
+   "schemaVersion": 2,
+   "tick": 7,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000007,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "B",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "b2",
+        "metadata": {},
+        "outputs": [],
+        "revision": 5
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "B",
+      "lastEventTick": 7,
+      "tick": 7
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 7
+  },
+  {
+   "branchId": "B",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "m1",
+        "metadata": {},
+        "outputs": [],
+        "revision": 2
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 2,
+      "branchId": "B",
+      "lastEventTick": 2,
+      "tick": 2
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 2
+  },
+  {
+   "branchId": "B",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "m2",
+        "metadata": {},
+        "outputs": [],
+        "revision": 3
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 3,
+      "branchId": "B",
+      "lastEventTick": 3,
+      "tick": 4
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "B",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "b1",
+        "metadata": {},
+        "outputs": [],
+        "revision": 4
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 5,
+      "branchId": "B",
+      "lastEventTick": 6,
+      "tick": 6
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 6
+  },
+  {
+   "branchId": "B",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "b2",
+        "metadata": {},
+        "outputs": [],
+        "revision": 5
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "B",
+      "lastEventTick": 7,
+      "tick": 7
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 7
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "m3",
+        "metadata": {},
+        "outputs": [],
+        "revision": 4
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 4,
+      "branchId": "main",
+      "lastEventTick": 4,
+      "tick": 4
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  }
+ ],
+ "name": "jump_back_before_the_branch_existed_then_forward",
+ "source": "slices S3b rule 2; Dup 3 (seek back past a branch start)"
+}

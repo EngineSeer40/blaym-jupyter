@@ -1,0 +1,243 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "m0",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "m1",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "from-the-start",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "name": "from-the-start",
+    "parentBranchId": "main",
+    "parentTick": 1
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "branch_point_created",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "from-the-start",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c1",
+    "code": "b1",
+    "revision": 2
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "cell_source_changed",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "from-the-start",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "m0",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 2,
+      "branchId": "from-the-start",
+      "lastEventTick": 3,
+      "tick": 3
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 3
+  },
+  {
+   "branchId": "from-the-start",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "b1",
+        "metadata": {},
+        "outputs": [],
+        "revision": 2
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 3,
+      "branchId": "from-the-start",
+      "lastEventTick": 4,
+      "tick": 4
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "m1",
+        "metadata": {},
+        "outputs": [],
+        "revision": 2
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 2,
+      "branchId": "main",
+      "lastEventTick": 2,
+      "tick": 4
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "from-the-start",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "m0",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 1,
+      "branchId": "from-the-start",
+      "lastEventTick": 1,
+      "tick": 1
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 1
+  }
+ ],
+ "name": "branch_point_at_the_very_first_event",
+ "source": "slices S3b rule 2; B10 (branch before any edit)"
+}

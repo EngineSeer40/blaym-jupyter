@@ -1,0 +1,461 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "x",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "plot it",
+    "chatTimeMs": 0,
+    "messageId": "q1",
+    "sender": "user-1",
+    "senderKind": "person"
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "chat_message_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "Sure",
+    "chatTimeMs": 0,
+    "messageId": "a1",
+    "sender": "claude",
+    "senderKind": "agent"
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "chat_message_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "Sure, here",
+    "messageId": "a1"
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "chat_message_updated",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "Sure, here is the plot",
+    "messageId": "a1"
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "chat_message_updated",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "thanks",
+    "chatTimeMs": 0,
+    "messageId": "q2",
+    "sender": "user-1",
+    "senderKind": "person"
+   },
+   "schemaVersion": 2,
+   "tick": 6,
+   "type": "chat_message_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000006,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "plot it",
+       "chatTimeMs": 0,
+       "messageId": "q1",
+       "sender": "user-1",
+       "senderKind": "person"
+      },
+      {
+       "addedTick": 3,
+       "body": "Sure",
+       "chatTimeMs": 0,
+       "messageId": "a1",
+       "sender": "claude",
+       "senderKind": "agent"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 3,
+      "branchId": "main",
+      "lastEventTick": 3,
+      "tick": 3
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 3
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "plot it",
+       "chatTimeMs": 0,
+       "messageId": "q1",
+       "sender": "user-1",
+       "senderKind": "person"
+      },
+      {
+       "addedTick": 3,
+       "body": "Sure, here",
+       "chatTimeMs": 0,
+       "messageId": "a1",
+       "sender": "claude",
+       "senderKind": "agent"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 4,
+      "branchId": "main",
+      "lastEventTick": 4,
+      "tick": 4
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "plot it",
+       "chatTimeMs": 0,
+       "messageId": "q1",
+       "sender": "user-1",
+       "senderKind": "person"
+      },
+      {
+       "addedTick": 3,
+       "body": "Sure, here is the plot",
+       "chatTimeMs": 0,
+       "messageId": "a1",
+       "sender": "claude",
+       "senderKind": "agent"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 5,
+      "branchId": "main",
+      "lastEventTick": 5,
+      "tick": 5
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 5
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "plot it",
+       "chatTimeMs": 0,
+       "messageId": "q1",
+       "sender": "user-1",
+       "senderKind": "person"
+      },
+      {
+       "addedTick": 3,
+       "body": "Sure, here is the plot",
+       "chatTimeMs": 0,
+       "messageId": "a1",
+       "sender": "claude",
+       "senderKind": "agent"
+      },
+      {
+       "addedTick": 6,
+       "body": "thanks",
+       "chatTimeMs": 0,
+       "messageId": "q2",
+       "sender": "user-1",
+       "senderKind": "person"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 6,
+      "branchId": "main",
+      "lastEventTick": 6,
+      "tick": 6
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 6
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "plot it",
+       "chatTimeMs": 0,
+       "messageId": "q1",
+       "sender": "user-1",
+       "senderKind": "person"
+      },
+      {
+       "addedTick": 3,
+       "body": "Sure, here",
+       "chatTimeMs": 0,
+       "messageId": "a1",
+       "sender": "claude",
+       "senderKind": "agent"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 4,
+      "branchId": "main",
+      "lastEventTick": 4,
+      "tick": 4
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 4
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "plot it",
+       "chatTimeMs": 0,
+       "messageId": "q1",
+       "sender": "user-1",
+       "senderKind": "person"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 2,
+      "branchId": "main",
+      "lastEventTick": 2,
+      "tick": 2
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 2
+  }
+ ],
+ "name": "streamed_chat_reply_jumping_between_updates",
+ "source": "probe A (a reply grows through updates of one message); Dup 21 style repeats"
+}

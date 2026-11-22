@@ -274,5 +274,31 @@
   }
  ],
  "name": "edit_a_cell_while_it_runs",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "runSpans": [
+     {
+      "endedTick": 5,
+      "runId": "run-1",
+      "startedTick": 2
+     }
+    ]
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 5,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "slices S3b rule 6; probe B question 6 (the kernel runs the code as it was sent)"
 }

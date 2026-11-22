@@ -457,5 +457,26 @@
   }
  ],
  "name": "streamed_chat_reply_jumping_between_updates",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 6,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "probe A (a reply grows through updates of one message); Dup 21 style repeats"
 }

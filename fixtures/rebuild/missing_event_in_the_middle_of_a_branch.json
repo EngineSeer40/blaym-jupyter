@@ -252,5 +252,34 @@
   }
  ],
  "name": "missing_event_in_the_middle_of_a_branch",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "B",
+    "name": "B",
+    "ownTicks": [
+     4,
+     5
+    ],
+    "parentBranchId": "main",
+    "parentTick": 3,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 5,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "P7, Dup 21 (a hole in the sequence is reported, not skipped)"
 }

@@ -463,5 +463,37 @@
   }
  ],
  "name": "create_branch_work_jump_return",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     8
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "try",
+    "name": "try",
+    "ownTicks": [
+     4,
+     5,
+     6,
+     7
+    ],
+    "parentBranchId": "main",
+    "parentTick": 2,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 8,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "slices S3b rule 5; Dup 1, Dup 2, Dup 5, B5, B8 (stale state after switch and return)"
 }

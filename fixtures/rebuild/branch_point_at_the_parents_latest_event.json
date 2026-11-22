@@ -290,5 +290,36 @@
   }
  ],
  "name": "branch_point_at_the_parents_latest_event",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     7
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "from-latest",
+    "name": "from-latest",
+    "ownTicks": [
+     5,
+     6
+    ],
+    "parentBranchId": "main",
+    "parentTick": 4,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 7,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "B5, B8 (branch from the live head, then the parent carries on)"
 }

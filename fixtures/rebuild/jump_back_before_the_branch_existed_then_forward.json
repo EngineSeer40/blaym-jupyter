@@ -368,5 +368,36 @@
   }
  ],
  "name": "jump_back_before_the_branch_existed_then_forward",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "B",
+    "name": "B",
+    "ownTicks": [
+     5,
+     6,
+     7
+    ],
+    "parentBranchId": "main",
+    "parentTick": 3,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 7,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "slices S3b rule 2; Dup 3 (seek back past a branch start)"
 }

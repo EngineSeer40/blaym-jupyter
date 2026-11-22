@@ -239,5 +239,33 @@
   }
  ],
  "name": "branch_point_at_the_very_first_event",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "from-the-start",
+    "name": "from-the-start",
+    "ownTicks": [
+     3,
+     4
+    ],
+    "parentBranchId": "main",
+    "parentTick": 1,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 4,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "slices S3b rule 2; B10 (branch before any edit)"
 }

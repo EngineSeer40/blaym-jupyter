@@ -258,5 +258,24 @@
   }
  ],
  "name": "outside_change_mid_history_then_more_edits",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4
+    ],
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 4,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "product brief (changed outside Jupyter); S5 recorder"
 }

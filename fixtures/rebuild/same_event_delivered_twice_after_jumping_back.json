@@ -374,5 +374,27 @@
   }
  ],
  "name": "same_event_delivered_twice_after_jumping_back",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7
+    ],
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 7,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "Dup 16, Dup 19 (a repeat after a seek must not rewind or duplicate)"
 }

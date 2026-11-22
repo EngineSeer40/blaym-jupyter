@@ -283,5 +283,36 @@
   }
  ],
  "name": "child_shows_parent_at_the_branch_point",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     4,
+     5,
+     6
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "child",
+    "name": "child",
+    "ownTicks": [
+     3,
+     7
+    ],
+    "parentBranchId": "main",
+    "parentTick": 2,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 7,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "B10, B11, S16, final scenario first-branch-switch-preselects-child-online"
 }

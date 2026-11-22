@@ -36,6 +36,12 @@ describe('shared rebuild fixtures', () => {
           errors: []
         });
       });
+      const outline = validateContract('HistoryOutline', data.outline);
+      expect({
+        file,
+        ok: outline.ok,
+        errors: outline.ok ? [] : outline.errors
+      }).toEqual({ file, ok: true, errors: [] });
       data.expectations.forEach((ex: { result: unknown }, i: number) => {
         const r = validateContract('RebuildResult', ex.result);
         expect({

@@ -811,5 +811,46 @@
   }
  ],
  "name": "jump_to_and_around_a_snapshot_boundary",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     8,
+     9,
+     10
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "B",
+    "name": "B",
+    "ownTicks": [
+     11,
+     12,
+     13,
+     14,
+     15,
+     16,
+     17
+    ],
+    "parentBranchId": "main",
+    "parentTick": 5,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 17,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "Dup 7, S29 (one stated boundary rule); snapshots every 3 own events"
 }

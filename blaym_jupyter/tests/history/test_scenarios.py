@@ -8,9 +8,9 @@ Every `expect_at` is checked against the reference rebuilder AND the real `Rebui
 must agree exactly; the expectation is also recorded.
 
 Fixtures: every scenario writes `fixtures/rebuild/<name>.json` with
-`{name, source, events, expectations: [{branchId, tick, result}]}`, where `events`
+`{name, source, events, expectations: [{branchId, tick, result}], outline}`, where `events`
 are the events as delivered (duplicates included, dropped ones left out) and `result`
-is the answer at that moment. Task 8 validates the files in both languages. The files
+is the answer at that moment. `outline` is the history outline of everything delivered. Task 8 validates the files in both languages. The files
 are generated, never edited by hand. Regenerate them after changing a scenario with
 
     python -m blaym_jupyter.tests.history.test_scenarios --write
@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from blaym_jupyter.history import Rebuilder, reference_rebuild
+from blaym_jupyter.history import Rebuilder, outline, reference_rebuild
 from blaym_jupyter.tests.history.scenario import Scenario
 
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "fixtures" / "rebuild"
@@ -88,6 +88,7 @@ class Recorded(Scenario):
             "source": self.source,
             "events": [e.model_dump(mode="json", exclude_none=True) for e in self.arrivals],
             "expectations": self.expectations,
+            "outline": dump(outline(self.arrivals)),
         }
 
 

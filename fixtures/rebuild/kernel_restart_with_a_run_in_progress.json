@@ -335,5 +335,32 @@
   }
  ],
  "name": "kernel_restart_with_a_run_in_progress",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5,
+     6
+    ],
+    "runSpans": [
+     {
+      "endedTick": 5,
+      "runId": "run-1",
+      "startedTick": 3
+     }
+    ]
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 6,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "ADR 0005 (a restart leaves a running cell visibly unfinished); P4"
 }

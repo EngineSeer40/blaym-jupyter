@@ -459,5 +459,52 @@
   }
  ],
  "name": "two_children_of_one_parent_worked_alternately",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     7,
+     10,
+     13
+    ],
+    "runSpans": []
+   },
+   {
+    "branchId": "X",
+    "name": "X",
+    "ownTicks": [
+     3,
+     5,
+     8,
+     11,
+     14
+    ],
+    "parentBranchId": "main",
+    "parentTick": 2,
+    "runSpans": []
+   },
+   {
+    "branchId": "Y",
+    "name": "Y",
+    "ownTicks": [
+     4,
+     6,
+     9,
+     12
+    ],
+    "parentBranchId": "main",
+    "parentTick": 2,
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 14,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
  "source": "online-general-06 (isolation); Dup 26"
 }

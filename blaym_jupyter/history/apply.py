@@ -19,7 +19,7 @@ Readings of the contract made here (each is documented where it applies):
   new history); only the position moves.
 * A snapshot replaces the notebook, keeps runs, chat and gaps, and sets the
   kernel name and language.
-* `changed_outside_jupyter` replaces the notebook and sets `lastOutsideChange`.
+* `changed_outside_editor` replaces the notebook and sets `lastOutsideChange`.
 * `output_added`, `output_replaced` and `outputs_cleared` for a run that never started
   are `invalid_event` / `unknown_run`.
 * `position.tick` is the tick asked for; here it equals the event's tick, and
@@ -31,7 +31,7 @@ Readings of the contract made here (each is documented where it applies):
 * An output event whose `cellId` differs from the run's cell is `invalid_event` /
   `run_cell_mismatch`; it is checked after `unknown_cell` / `unknown_run` (a run that
   never started) and before anything is applied.
-* A `notebook_snapshot` or `changed_outside_jupyter` that drops a cell moves that
+* A `notebook_snapshot` or `changed_outside_editor` that drops a cell moves that
   cell's groups of still-running runs to `detachedOutputs`, as `cell_deleted` does.
 * `kernel_restarted` marks every `running` run `unfinished` (no `endedTick`).
 
@@ -157,7 +157,12 @@ def _cell_inserted(s, ev):
             code=p.code,
             revision=p.revision,
             metadata=deepcopy(p.metadata) if p.metadata is not None else {},
-            outputs=[],
+            # Pasted outputs belong to no run: one group named after this event.
+            outputs=(
+                [RunOutputs(runId=f"pasted:{ev.eventId}", items=[i.model_copy(deep=True) for i in p.outputs])]
+                if p.outputs
+                else []
+            ),
         ),
     )
 
@@ -336,10 +341,11 @@ def _copied(s, ev):
 
 def _chat_added(s, ev):
     p = ev.payload
-    if any(m.messageId == p.messageId for m in s.chat):
-        raise _bad(ev, "duplicate_id", f"chat message {p.messageId} added twice")
+    if any(m.chatSource == p.chatSource and m.messageId == p.messageId for m in s.chat):
+        raise _bad(ev, "duplicate_id", f"chat message {p.chatSource}/{p.messageId} added twice")
     s.chat.append(
         ChatMessageState(
+            chatSource=p.chatSource,
             messageId=p.messageId,
             sender=p.sender,
             senderKind=p.senderKind,
@@ -354,10 +360,10 @@ def _chat_added(s, ev):
 def _chat_updated(s, ev):
     p = ev.payload
     for m in s.chat:
-        if m.messageId == p.messageId:
+        if m.chatSource == p.chatSource and m.messageId == p.messageId:
             m.body = p.body
             return
-    raise _bad(ev, "unknown_message", f"chat_message_updated for unknown message {p.messageId}")
+    raise _bad(ev, "unknown_message", f"chat_message_updated for unknown message {p.chatSource}/{p.messageId}")
 
 
 def _branch_point(s, ev):
@@ -399,7 +405,7 @@ _HANDLERS: dict[str, Callable] = {
     "kernel_restarted": _kernel_restarted,
     "notebook_renamed": _renamed,
     "notebook_copied": _copied,
-    "changed_outside_jupyter": _outside,
+    "changed_outside_editor": _outside,
     "chat_message_added": _chat_added,
     "chat_message_updated": _chat_updated,
     "branch_point_created": _branch_point,

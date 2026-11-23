@@ -1,0 +1,188 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "x",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "from jupyter ai",
+    "chatSource": "jupyter-ai",
+    "chatTimeMs": 0,
+    "messageId": "m1",
+    "sender": "user-1",
+    "senderKind": "person"
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "chat_message_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "from copilot",
+    "chatSource": "vscode-copilot",
+    "chatTimeMs": 0,
+    "messageId": "m1",
+    "sender": "user-1",
+    "senderKind": "person"
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "chat_message_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "from jupyter ai, grown",
+    "chatSource": "jupyter-ai",
+    "messageId": "m1"
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "chat_message_updated",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "body": "copilot too",
+    "chatSource": "vscode-copilot",
+    "messageId": "m1"
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "chat_message_updated",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [
+      {
+       "addedTick": 2,
+       "body": "from jupyter ai",
+       "chatSource": "jupyter-ai",
+       "chatTimeMs": 0,
+       "messageId": "m1",
+       "sender": "user-1",
+       "senderKind": "person"
+      },
+      {
+       "addedTick": 3,
+       "body": "from copilot",
+       "chatSource": "vscode-copilot",
+       "chatTimeMs": 0,
+       "messageId": "m1",
+       "sender": "user-1",
+       "senderKind": "person"
+      }
+     ],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 3,
+      "branchId": "main",
+      "lastEventTick": 3,
+      "tick": 3
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 3
+  }
+ ],
+ "name": "same_message_id_in_two_chat_sources",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "runSpans": []
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 5,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
+ "source": "S3c Proposal 9: message ids are unique within a chat source, never across sources"
+}

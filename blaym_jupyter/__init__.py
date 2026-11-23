@@ -7,7 +7,6 @@ except ImportError:
     import warnings
     warnings.warn("Importing 'blaym_jupyter' outside a proper installation.")
     __version__ = "dev"
-from .routes import setup_route_handlers
 
 
 def _jupyter_labextension_paths():
@@ -31,6 +30,8 @@ def _load_jupyter_server_extension(server_app):
     server_app: jupyterlab.labapp.LabApp
         JupyterLab application instance
     """
+    from .routes import setup_route_handlers
+
     setup_route_handlers(server_app.web_app)
     name = "blaym_jupyter"
     server_app.log.info(f"Registered {name} server extension")

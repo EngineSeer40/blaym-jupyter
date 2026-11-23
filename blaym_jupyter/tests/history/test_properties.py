@@ -219,7 +219,7 @@ def _extend(events, branch, rnd):
     for i in range(rnd.randint(1, 4)):
         if rnd.random() < 0.7:
             out.append(s._emit("chat_message_added", {
-                "messageId": f"isolation-test-{i}", "sender": "user-1",
+                "chatSource": "jupyter-ai", "messageId": f"isolation-test-{i}", "sender": "user-1",
                 "senderKind": "person", "body": f"added {i}", "chatTimeMs": 0}, branch=branch))
         else:
             out.append(s._emit("kernel_restarted", {"kernelId": f"k-{i}", "reason": "unknown"},
@@ -354,7 +354,7 @@ def test_rule_12_edges_appear_in_the_state_where_they_happened(h):
             assert s.kernel.lastRestart is not None and s.kernel.lastRestart.tick == restarts[-1].tick
         else:
             assert s.kernel.lastRestart is None
-        outside = [e for e in line if e.type == "changed_outside_jupyter"]
+        outside = [e for e in line if e.type == "changed_outside_editor"]
         assert (s.lastOutsideChange.tick if s.lastOutsideChange else None) == (
             outside[-1].tick if outside else None)
         finished = {e.payload.runId for e in line if e.type == "run_finished"}

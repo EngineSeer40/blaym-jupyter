@@ -53,6 +53,7 @@
    "originId": "origin-1",
    "payload": {
     "body": "hi",
+    "chatSource": "jupyter-ai",
     "chatTimeMs": 0,
     "messageId": "q",
     "sender": "user-1",
@@ -143,6 +144,7 @@
       {
        "addedTick": 3,
        "body": "hi",
+       "chatSource": "jupyter-ai",
        "chatTimeMs": 0,
        "messageId": "q",
        "sender": "user-1",
@@ -208,6 +210,7 @@
       {
        "addedTick": 3,
        "body": "hi",
+       "chatSource": "jupyter-ai",
        "chatTimeMs": 0,
        "messageId": "q",
        "sender": "user-1",

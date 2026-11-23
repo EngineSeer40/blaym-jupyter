@@ -122,13 +122,16 @@ class Scenario:
         """A recovery snapshot after a gap (same event as `start`)."""
         return self.start(cells=cells, path=path)
 
-    def insert(self, cell_id, code="", index=None, cell_type="code"):
+    def insert(self, cell_id, code="", index=None, cell_type="code", outputs=None):
+        """`outputs`: previews of a pasted cell's outputs (no run)."""
         revs = self._current_revisions()
         index = len(revs) if index is None else index
         revs[cell_id] = 1
-        return self._emit("cell_inserted", {
-            "cellId": cell_id, "index": index, "cellType": cell_type,
-            "code": code, "revision": 1}, revs=revs)
+        payload = {"cellId": cell_id, "index": index, "cellType": cell_type,
+                   "code": code, "revision": 1}
+        if outputs:
+            payload["outputs"] = [output_item(t) for t in outputs]
+        return self._emit("cell_inserted", payload, revs=revs)
 
     def delete(self, cell_id):
         revs = self._current_revisions()
@@ -170,7 +173,7 @@ class Scenario:
 
     def outside_change(self, cells, path="analysis.ipynb"):
         cell_list = [self._cell(c, code) for c, code in cells]
-        return self._emit("changed_outside_jupyter", {
+        return self._emit("changed_outside_editor", {
             "path": path, "notebookMetadata": {}, "kernelName": "python3",
             "language": "python", "cells": cell_list},
             revs={c["cellId"]: 1 for c in cell_list}, authorHint="outside")
@@ -223,13 +226,14 @@ class Scenario:
         return self._emit("kernel_restarted", {"kernelId": kernel_id, "reason": reason},
                           revs=self._current_revisions())
 
-    def chat(self, message_id, body, sender="user-1", kind="person", chat_time_ms=0):
+    def chat(self, message_id, body, sender="user-1", kind="person", chat_time_ms=0,
+             source="jupyter-ai"):
         return self._emit("chat_message_added", {
-            "messageId": message_id, "sender": sender, "senderKind": kind,
+            "chatSource": source, "messageId": message_id, "sender": sender, "senderKind": kind,
             "body": body, "chatTimeMs": chat_time_ms}, revs=self._current_revisions())
 
-    def chat_update(self, message_id, body):
-        return self._emit("chat_message_updated", {"messageId": message_id, "body": body},
+    def chat_update(self, message_id, body, source="jupyter-ai"):
+        return self._emit("chat_message_updated", {"chatSource": source, "messageId": message_id, "body": body},
                           revs=self._current_revisions())
 
     def gap_start(self, gap_id="gap-1", source="browser", reason="no_client"):

@@ -1,0 +1,418 @@
+{
+ "events": [
+  {
+   "branchId": "main",
+   "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cells": [
+     {
+      "cellId": "c1",
+      "cellType": "code",
+      "code": "x",
+      "metadata": {},
+      "outputs": [],
+      "revision": 1
+     }
+    ],
+    "kernelName": "python3",
+    "language": "python",
+    "notebookMetadata": {},
+    "path": "analysis.ipynb"
+   },
+   "schemaVersion": 2,
+   "tick": 1,
+   "type": "notebook_snapshot",
+   "userId": "local",
+   "wallTimeMs": 1760000000001,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c2",
+    "cellType": "code",
+    "code": "plot()",
+    "index": 1,
+    "outputs": [
+     {
+      "contentHash": "sha256:290c1899a985ec38",
+      "mimeTypes": [
+       "text/plain"
+      ],
+      "outputType": "stream",
+      "preview": "old chart",
+      "sizeBytes": 9,
+      "truncated": false
+     }
+    ],
+    "revision": 1
+   },
+   "schemaVersion": 2,
+   "tick": 2,
+   "type": "cell_inserted",
+   "userId": "local",
+   "wallTimeMs": 1760000000002,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c2",
+    "cellRevision": 1,
+    "runCount": 1,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 3,
+   "type": "run_started",
+   "userId": "local",
+   "wallTimeMs": 1760000000003,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "db7e7458-e798-51d1-b8b7-25f47d354527",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "cellId": "c2",
+    "item": {
+     "contentHash": "sha256:858d40c4a308c525",
+     "mimeTypes": [
+      "text/plain"
+     ],
+     "outputType": "stream",
+     "preview": "new chart",
+     "sizeBytes": 9,
+     "truncated": false
+    },
+    "outputIndex": 0,
+    "runId": "run-1"
+   },
+   "schemaVersion": 2,
+   "tick": 4,
+   "type": "output_added",
+   "userId": "local",
+   "wallTimeMs": 1760000000004,
+   "workspaceId": "local"
+  },
+  {
+   "branchId": "main",
+   "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+   "explorationId": "exploration-1",
+   "originId": "origin-1",
+   "payload": {
+    "runId": "run-1",
+    "status": "ok"
+   },
+   "schemaVersion": 2,
+   "tick": 5,
+   "type": "run_finished",
+   "userId": "local",
+   "wallTimeMs": 1760000000005,
+   "workspaceId": "local"
+  }
+ ],
+ "expectations": [
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:290c1899a985ec38",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "old chart",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "pasted:c9224789-88fc-562e-a565-d84c450d0a34"
+         }
+        ],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 2,
+      "branchId": "main",
+      "lastEventTick": 2,
+      "tick": 2
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 2
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:290c1899a985ec38",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "old chart",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "pasted:c9224789-88fc-562e-a565-d84c450d0a34"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 3,
+      "branchId": "main",
+      "lastEventTick": 3,
+      "tick": 3
+     },
+     "runs": [
+      {
+       "cellId": "c2",
+       "cellRevision": 1,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 3,
+       "status": "running"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 3
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot()",
+        "metadata": {},
+        "outputs": [
+         {
+          "items": [
+           {
+            "contentHash": "sha256:290c1899a985ec38",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "old chart",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "pasted:c9224789-88fc-562e-a565-d84c450d0a34"
+         },
+         {
+          "items": [
+           {
+            "contentHash": "sha256:858d40c4a308c525",
+            "mimeTypes": [
+             "text/plain"
+            ],
+            "outputType": "stream",
+            "preview": "new chart",
+            "sizeBytes": 9,
+            "truncated": false
+           }
+          ],
+          "runId": "run-1"
+         }
+        ],
+        "revision": 1,
+        "runCount": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 5,
+      "branchId": "main",
+      "lastEventTick": 5,
+      "tick": 5
+     },
+     "runs": [
+      {
+       "cellId": "c2",
+       "cellRevision": 1,
+       "endedTick": 5,
+       "runCount": 1,
+       "runId": "run-1",
+       "startedTick": 3,
+       "status": "ok"
+      }
+     ],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 5
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 1,
+      "branchId": "main",
+      "lastEventTick": 1,
+      "tick": 1
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 1
+  }
+ ],
+ "name": "pasted_cell_with_outputs_then_run_it",
+ "outline": {
+  "branches": [
+   {
+    "branchId": "main",
+    "name": "main",
+    "ownTicks": [
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "runSpans": [
+     {
+      "endedTick": 5,
+      "runId": "run-1",
+      "startedTick": 3
+     }
+    ]
+   }
+  ],
+  "explorationId": "exploration-1",
+  "highestTick": 5,
+  "rootBranchId": "main",
+  "schemaVersion": 2
+ },
+ "source": "S3c Proposal 7: a cell can arrive with outputs and no run (paste, AI tool)"
+}

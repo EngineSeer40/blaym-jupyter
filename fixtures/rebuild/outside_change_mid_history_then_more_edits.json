@@ -85,7 +85,7 @@
    },
    "schemaVersion": 2,
    "tick": 3,
-   "type": "changed_outside_jupyter",
+   "type": "changed_outside_editor",
    "userId": "local",
    "wallTimeMs": 1760000000003,
    "workspaceId": "local"

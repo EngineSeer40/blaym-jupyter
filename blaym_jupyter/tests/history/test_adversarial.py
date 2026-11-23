@@ -57,7 +57,7 @@ def oracle_model(line):
     for e in line:
         p = e.payload
         t = e.type
-        if t in ("notebook_snapshot", "changed_outside_jupyter"):
+        if t in ("notebook_snapshot", "changed_outside_editor"):
             new_ids = {c.cellId for c in p.cells}
             for cid in order:
                 if cid not in new_ids:
@@ -83,9 +83,9 @@ def oracle_model(line):
         elif t == "cell_source_changed":
             cells[p.cellId] = p.code
         elif t == "chat_message_added":
-            chat[p.messageId] = p.body
+            chat[(p.chatSource, p.messageId)] = p.body
         elif t == "chat_message_updated":
-            chat[p.messageId] = p.body
+            chat[(p.chatSource, p.messageId)] = p.body
         elif t == "run_started":
             runs[p.runId] = "running"
             run_cell[p.runId] = p.cellId
@@ -126,7 +126,7 @@ def cross_check(events, positions=None):
         s = r.state
         cells, chat, runs, outputs, det = oracle_model(line)
         assert [(c.cellId, c.code) for c in s.notebook.cells] == cells, f"{b}@{t}"
-        assert {m.messageId: m.body for m in s.chat} == chat, f"{b}@{t}"
+        assert {(m.chatSource, m.messageId): m.body for m in s.chat} == chat, f"{b}@{t}"
         assert {x.runId: x.status.root for x in s.runs} == runs, f"{b}@{t}"
         assert {c.cellId: [(g.runId, *_oracle_items(g)) for g in c.outputs]
                 for c in s.notebook.cells} == outputs, f"{b}@{t} outputs"

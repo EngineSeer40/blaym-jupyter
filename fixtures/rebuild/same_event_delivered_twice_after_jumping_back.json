@@ -120,6 +120,7 @@
    "originId": "origin-1",
    "payload": {
     "body": "hello",
+    "chatSource": "jupyter-ai",
     "chatTimeMs": 0,
     "messageId": "q",
     "sender": "user-1",
@@ -139,6 +140,7 @@
    "originId": "origin-1",
    "payload": {
     "body": "hello",
+    "chatSource": "jupyter-ai",
     "chatTimeMs": 0,
     "messageId": "q",
     "sender": "user-1",
@@ -206,6 +208,7 @@
       {
        "addedTick": 7,
        "body": "hello",
+       "chatSource": "jupyter-ai",
        "chatTimeMs": 0,
        "messageId": "q",
        "sender": "user-1",
@@ -332,6 +335,7 @@
       {
        "addedTick": 7,
        "body": "hello",
+       "chatSource": "jupyter-ai",
        "chatTimeMs": 0,
        "messageId": "q",
        "sender": "user-1",

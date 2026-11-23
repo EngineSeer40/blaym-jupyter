@@ -32,7 +32,7 @@ ALL_EVENT_TYPES = (
     "cell_source_changed", "cell_metadata_changed", "notebook_metadata_changed",
     "run_started", "run_finished", "output_added", "output_replaced", "outputs_cleared",
     "kernel_started", "kernel_restarted", "notebook_renamed", "notebook_copied",
-    "changed_outside_jupyter", "chat_message_added", "chat_message_updated",
+    "changed_outside_editor", "chat_message_added", "chat_message_updated",
     "branch_point_created", "recording_gap_started", "recording_gap_ended",
 )
 
@@ -279,7 +279,7 @@ def _act(b: _Builder, draw, name: str) -> None:
     elif name in ("restart", "restart_running"):
         if any(r.status.root == "running" for r in state.runs):
             b.tags.add("restart_with_unfinished_run")
-        s.kernel_restart(b.fresh("k"), reason=draw(st.sampled_from(["requested", "unknown"])))
+        s.kernel_restart(b.fresh("k"), reason=draw(st.sampled_from(["requested", "crash", "unknown"])))
     elif name == "rename":
         s.rename(state.notebook.path, draw(st.sampled_from(["a.ipynb", "b.ipynb", "d/c.ipynb"])))
     elif name == "copy":
@@ -293,15 +293,16 @@ def _act(b: _Builder, draw, name: str) -> None:
     elif name == "chat":
         s.chat(b.fresh("m"), _code(draw), sender=draw(st.sampled_from(["u1", "ai"])),
                kind=draw(st.sampled_from(["person", "agent"])),
-               chat_time_ms=draw(st.integers(0, 10**6)))
+               chat_time_ms=draw(st.integers(0, 10**6)),
+               source=draw(st.sampled_from(["jupyter-ai", "vscode-copilot"])))
     elif name == "chat_update":
         msg = draw(st.sampled_from(state.chat))
-        s.chat_update(msg.messageId, msg.body + draw(st.sampled_from(["a", " more", "\n"])))
+        s.chat_update(msg.messageId, source=msg.chatSource, body=msg.body + draw(st.sampled_from(["a", " more", "\n"])))
         b.tags.add("streamed_chat_update")
     elif name == "gap_start":
         s.gap_start(b.fresh("g"), source=draw(st.sampled_from(["browser", "kernel", "chat", "files", "service"])),
                     reason=draw(st.sampled_from(["no_client", "kernel_restart", "server_unavailable",
-                                                 "room_closed", "unknown"])))
+                                                 "source_closed", "unknown"])))
     elif name == "gap_end":
         s.gap_end(draw(st.sampled_from([g for g in state.gaps if g.endedTick is None])).gapId)
     elif name == "recover":

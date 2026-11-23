@@ -312,6 +312,18 @@ def kernel_restart_with_run_in_progress(s):
     assert st.runs[0].endedTick is None
 
 
+@scenario("kernel_crash_reported_by_editor_is_rebuilt_like_a_restart",
+          "S3c Proposal 2: `crash` is accepted and treated like any restart")
+def kernel_crash_rebuilt_like_restart(s):
+    s.start(cells=[("c1", "loop()")])                  # 1
+    s.kernel_start()                                   # 2
+    run = s.run("c1")                                  # 3
+    s.kernel_restart(reason="crash")                   # 4
+    s.expect_at("main", 4, runs={run: "unfinished"})
+    st = s.state_at("main", 4)
+    assert st.kernel.lastRestart.tick == 4 and st.kernel.lastRestart.reason.value == "crash"
+
+
 @scenario("outside_change_mid_history_then_more_edits",
           "product brief (changed outside Jupyter); S5 recorder")
 def outside_change_mid_history(s):
@@ -340,6 +352,43 @@ def streamed_chat_reply(s):
     s.expect_at("main", 6, chat=[("q1", "plot it"), ("a1", "Sure, here is the plot"), ("q2", "thanks")])
     s.expect_at("main", 4, chat=[("q1", "plot it"), ("a1", "Sure, here")])   # back to the middle
     s.expect_at("main", 2, chat=[("q1", "plot it")])
+
+
+@scenario("same_message_id_in_two_chat_sources",
+          "S3c Proposal 9: message ids are unique within a chat source, never across sources")
+def same_message_id_in_two_chat_sources(s):
+    s.start(cells=[("c1", "x")])                                       # 1
+    s.chat("m1", "from jupyter ai", source="jupyter-ai")               # 2
+    s.chat("m1", "from copilot", source="vscode-copilot")              # 3
+    s.chat_update("m1", "from jupyter ai, grown", source="jupyter-ai")  # 4
+    st = s.state_at("main", 4)
+    assert [(m.chatSource, m.messageId, m.body) for m in st.chat] == [
+        ("jupyter-ai", "m1", "from jupyter ai, grown"),
+        ("vscode-copilot", "m1", "from copilot"),
+    ]
+    s.expect_at("main", 3, chat=[("m1", "from jupyter ai"), ("m1", "from copilot")])
+    s.chat_update("m1", "copilot too", source="vscode-copilot")        # 5
+    st = s.state_at("main", 5)
+    assert [m.body for m in st.chat] == ["from jupyter ai, grown", "copilot too"]
+
+
+@scenario("pasted_cell_with_outputs_then_run_it",
+          "S3c Proposal 7: a cell can arrive with outputs and no run (paste, AI tool)")
+def pasted_cell_with_outputs_then_run_it(s):
+    s.start(cells=[("c1", "x")])                                       # 1
+    pasted = s.insert("c2", "plot()", outputs=["old chart"])           # 2 pasted with outputs
+    st = s.state_at("main", 2)
+    assert st.runs == []                                               # linked to no run
+    s.expect_at("main", 2, cells=[("c1", "x"), ("c2", "plot()")],
+                outputs={"c2": ["old chart"]})
+    run = s.run("c2")                                                  # 3
+    s.output(run, "new chart")                                         # 4
+    s.finish(run)                                                      # 5
+    s.expect_at("main", 3, outputs={"c2": ["old chart"]})
+    s.expect_at("main", 5, outputs={"c2": ["new chart"]}, runs={run: "ok"})
+    assert [g.runId for g in s.state_at("main", 5).notebook.cells[1].outputs] == [
+        f"pasted:{pasted.eventId}", run]                                              # the paste stays earlier
+    s.expect_at("main", 1, cells=[("c1", "x")])
 
 
 @scenario("recording_gap_then_recovery_snapshot",

@@ -1,0 +1,207 @@
+{
+ "version": 1,
+ "note": "Real outputs taken from probes/s3c/out/capture.file-after-save.json. `expect.inline` is the S4 rule (not truncated and sizeBytes equals the preview's UTF-8 length).",
+ "limits": {
+  "inlineBytes": 16384
+ },
+ "cases": [
+  {
+   "name": "stream, nbformat line list",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "name": "stdout",
+    "output_type": "stream",
+    "text": [
+     "hello\n",
+     "world\n"
+    ]
+   },
+   "expect": {
+    "inline": true,
+    "outputType": "stream",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "preview": "hello\nworld\n",
+    "truncated": false,
+    "sizeBytes": 12,
+    "searchText": null
+   }
+  },
+  {
+   "name": "execute_result text only is inline",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "data": {
+     "text/plain": [
+      "42"
+     ]
+    },
+    "execution_count": 1,
+    "metadata": {},
+    "output_type": "execute_result"
+   },
+   "expect": {
+    "inline": true,
+    "outputType": "execute_result",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "preview": "42",
+    "truncated": false,
+    "sizeBytes": 2,
+    "searchText": null
+   }
+  },
+  {
+   "name": "display_data text only is inline",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "data": {
+     "text/plain": [
+      "42"
+     ]
+    },
+    "metadata": {},
+    "output_type": "display_data"
+   },
+   "expect": {
+    "inline": true,
+    "outputType": "display_data",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "preview": "42",
+    "truncated": false,
+    "sizeBytes": 2,
+    "searchText": null
+   }
+  },
+  {
+   "name": "html table with text/plain",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "data": {
+     "text/html": [
+      "<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2</td></tr></table>"
+     ],
+     "text/plain": [
+      "   a  b\n",
+      "0  1  2"
+     ]
+    },
+    "metadata": {},
+    "output_type": "display_data"
+   },
+   "expect": {
+    "inline": false,
+    "outputType": "display_data",
+    "mimeTypes": [
+     "text/html",
+     "text/plain"
+    ],
+    "preview": "   a  b\n0  1  2",
+    "truncated": false,
+    "searchText": "a\nb"
+   }
+  },
+  {
+   "name": "plotly figure",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "data": {
+     "application/vnd.plotly.v1+json": {
+      "data": [
+       {
+        "name": "series A",
+        "type": "scatter",
+        "x": [
+         1,
+         2,
+         3
+        ],
+        "y": [
+         2,
+         1,
+         3
+        ]
+       }
+      ],
+      "layout": {
+       "title": {
+        "text": "Probe chart"
+       }
+      }
+     },
+     "text/plain": [
+      "Figure()"
+     ]
+    },
+    "metadata": {},
+    "output_type": "display_data"
+   },
+   "expect": {
+    "inline": false,
+    "outputType": "display_data",
+    "mimeTypes": [
+     "application/vnd.plotly.v1+json",
+     "text/plain"
+    ],
+    "preview": "Figure()",
+    "truncated": false,
+    "searchText": "Probe chart\nseries A"
+   }
+  },
+  {
+   "name": "png image",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "data": {
+     "image/png": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAEklEQVR4nGP4z8CAFWEXHbQSACj/P8Fu7N9hAAAAAElFTkSuQmCC",
+     "text/plain": [
+      "<Figure>"
+     ]
+    },
+    "metadata": {},
+    "output_type": "display_data"
+   },
+   "expect": {
+    "inline": false,
+    "outputType": "display_data",
+    "mimeTypes": [
+     "image/png",
+     "text/plain"
+    ],
+    "preview": "<Figure>",
+    "truncated": false,
+    "searchText": null
+   }
+  },
+  {
+   "name": "error with traceback",
+   "source": "probes/s3c capture.file-after-save",
+   "output": {
+    "ename": "ValueError",
+    "evalue": "probe error",
+    "output_type": "error",
+    "traceback": [
+     "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
+     "\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)",
+     "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[6]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'probe error'\u001b[39m)\n",
+     "\u001b[31mValueError\u001b[39m: probe error"
+    ]
+   },
+   "expect": {
+    "inline": true,
+    "outputType": "error",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "previewJoinedTraceback": true,
+    "truncated": false,
+    "searchTextStartsWith": "ValueError: probe error\n",
+    "searchTextHasNoEscapes": true
+   }
+  }
+ ]
+}

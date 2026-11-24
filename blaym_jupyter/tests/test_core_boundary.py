@@ -203,12 +203,13 @@ def test_matrix_helper_reads_absolute_and_relative_imports():
 
 
 def test_only_the_composition_point_imports_service():
-    """Nothing outside `service/` itself, `local.py` (the composition point), `testing/` and
-    `tests/` may import `blaym_jupyter.service`."""
+    """Nothing outside `service/` itself, `local.py` (the composition point), `api/` and
+    `adapters/jupyter/` (S5, section 2), `testing/` and `tests/` may import `blaym_jupyter.service`."""
     bad = []
     for path in sorted(PACKAGE.rglob("*.py")):
         rel = path.relative_to(PACKAGE).parts
-        if rel[0] in ("service", "testing", "tests") or rel == ("local.py",):
+        if rel[0] in ("service", "api", "testing", "tests") or rel[:2] == ("adapters", "jupyter") \
+                or rel == ("local.py",):
             continue
         if "service" in set(_package_imports(path)):
             bad.append(str(path.relative_to(ROOT)))
@@ -235,3 +236,156 @@ def test_only_the_service_and_the_composition_point_import_privacy():
         if "privacy" in set(_package_imports(path)):
             bad.append(str(path.relative_to(ROOT)))
     assert not bad, bad
+
+
+# -- the editor-neutral recording layer (S5, section 2 of the spec) ------------------------------
+
+RECORDING_FORBIDDEN_PARTS = {"service", "store", "history", "privacy", "api", "adapters", "local", "ports"}
+RECORDING_FORBIDDEN_MODULES = {
+    "jupyter_server", "jupyter_client", "tornado", "traitlets", "watchdog", "ipykernel", "sqlite3",
+    "jupyterlab", "notebook", "nbformat",
+}
+
+
+def _recording_violations(source: str, package: str = "blaym_jupyter.recording") -> list[str]:
+    """What `source`, a module of `recording/`, imports that it may not: another part of the
+    package than `recording`, a Jupyter or web library, SQLite, or any third party but the contracts."""
+    stdlib = set(sys.stdlib_module_names)
+    bad = []
+    for part in _parts_imported(source, package):
+        if part != "recording":
+            bad.append(f"blaym_jupyter.{part}")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        names = []
+        if isinstance(node, ast.Import):
+            names = [a.name.split(".")[0] for a in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names = [node.module.split(".")[0]]
+        for name in names:
+            if name in RECORDING_FORBIDDEN_MODULES or (
+                name not in stdlib and name not in ALLOWED_THIRD_PARTY and name != "blaym_jupyter"
+            ):
+                bad.append(name)
+    return bad
+
+
+def test_recording_imports_only_stdlib_contracts_and_itself():
+    bad = []
+    for path in sorted((PACKAGE / "recording").rglob("*.py")):
+        package = ".".join(path.relative_to(ROOT).with_suffix("").parts[:-1])
+        for name in _recording_violations(path.read_text(), package):
+            bad.append(f"{path.relative_to(ROOT)}: {name}")
+    assert not bad, bad
+
+
+def test_recording_boundary_bites():
+    """A planted forbidden import in `recording/` is seen, in every form."""
+    for source in [
+        "from blaym_jupyter.service import core",
+        "import blaym_jupyter.service.core",
+        "from ..service import core",
+        "from .. import service",
+        "from ..store.events import x",
+        "from ..history import apply",
+        "from ..privacy.redact import redact",
+        "from ..api import handle",
+        "from ..adapters.jupyter import host",
+        "import sqlite3",
+        "import tornado.web",
+        "from jupyter_server.base import handlers",
+        "import traitlets",
+        "from watchdog.observers import Observer",
+        "import ipykernel",
+        "import numpy",
+    ]:
+        assert _recording_violations(source), source
+    assert not _recording_violations(
+        "import json\nfrom pathlib import Path\nfrom blaym_jupyter_types import OutputItem\nfrom .metadata import apply_policy\nfrom . import ports"
+    )
+
+
+# -- the framework-free API dispatcher (S5, Task 8) -------------------------------------------------
+
+API_MAY_IMPORT_PARTS = {"api", "service", "recording", "ports"}  # `ports`: the blob errors only
+API_FORBIDDEN_MODULES = {
+    "tornado", "jupyter_server", "jupyter_client", "traitlets", "jupyterlab", "notebook", "flask",
+    "fastapi", "starlette", "aiohttp", "django", "sanic", "bottle", "falcon", "werkzeug", "sqlite3",
+    "watchdog", "ipykernel",
+}
+
+
+def _api_violations(source: str, package: str = "blaym_jupyter.api") -> list[str]:
+    """What `source`, a module of `api/`, imports that it may not: a part of the package other than
+    `api`, `service`, `recording` (and `ports`), a web framework, SQLite, or any third party but
+    the contracts and pydantic (the contracts' own base)."""
+    stdlib = set(sys.stdlib_module_names)
+    bad = [f"blaym_jupyter.{p}" for p in _parts_imported(source, package) if p not in API_MAY_IMPORT_PARTS]
+    for node in ast.walk(ast.parse(source)):
+        names = []
+        if isinstance(node, ast.Import):
+            names = [a.name.split(".")[0] for a in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names = [node.module.split(".")[0]]
+        for name in names:
+            if name in API_FORBIDDEN_MODULES or (
+                name not in stdlib and name not in ALLOWED_THIRD_PARTY | {"pydantic", "blaym_jupyter"}
+            ):
+                bad.append(name)
+    return bad
+
+
+def test_api_imports_only_stdlib_contracts_service_and_recording():
+    bad = []
+    for path in sorted((PACKAGE / "api").rglob("*.py")):
+        package = ".".join(path.relative_to(ROOT).with_suffix("").parts[:-1])
+        for name in _api_violations(path.read_text(), package):
+            bad.append(f"{path.relative_to(ROOT)}: {name}")
+    assert not bad, bad
+
+
+def test_api_boundary_bites():
+    """A planted forbidden import in `api/` is seen, in every form."""
+    for source in [
+        "import tornado.web",
+        "from tornado import web",
+        "from jupyter_server.base.handlers import APIHandler",
+        "import aiohttp",
+        "import flask",
+        "from fastapi import FastAPI",
+        "import sqlite3",
+        "from ..store.events import x",
+        "from blaym_jupyter.store import blobs",
+        "from ..adapters.jupyter import host",
+        "from .. import local",
+        "from ..history import apply",
+        "from ..privacy.redact import redact",
+        "import numpy",
+    ]:
+        assert _api_violations(source), source
+    assert not _api_violations(
+        "import json\nfrom blaym_jupyter_types import OutputItem\nfrom ..service.core import Service\n"
+        "from ..recording.registry import Registry\nfrom . import codec\nfrom pydantic import BaseModel"
+    )
+
+
+# -- the Jupyter adapter (S5, Task 9) ---------------------------------------------------------------
+
+
+def test_only_the_extension_entry_points_import_adapters():
+    """Nothing outside `adapters/`, `__init__.py` and `routes.py` (the extension entry points,
+    which import it lazily or only when the server loads the extension) and `tests/` may import
+    `blaym_jupyter.adapters`."""
+    bad = []
+    for path in sorted(PACKAGE.rglob("*.py")):
+        rel = path.relative_to(PACKAGE).parts
+        if rel[0] in ("adapters", "tests") or rel in (("__init__.py",), ("routes.py",)):
+            continue
+        if "adapters" in set(_package_imports(path)):
+            bad.append(str(path.relative_to(ROOT)))
+    assert not bad, bad
+
+
+def test_adapters_boundary_bites():
+    assert "adapters" in set(_parts_imported("from ..adapters.jupyter import host", "blaym_jupyter.service"))
+    assert "adapters" in set(_parts_imported("import blaym_jupyter.adapters.jupyter", "blaym_jupyter.api"))

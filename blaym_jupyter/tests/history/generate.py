@@ -99,8 +99,9 @@ class InvalidHistory:
 class _Builder:
     """Builds a valid history step by step, tracking the state of every branch line."""
 
-    def __init__(self, shape: str):
+    def __init__(self, shape: str, service_safe: bool = False):
         self.shape = shape
+        self.service_safe = service_safe
         self.s = Scenario()
         self.lines: dict[str, list] = {}  # branch -> [(tick, state)] along its whole line
         self.bp_tick: dict[str, int] = {}
@@ -190,6 +191,8 @@ def _applicable(b: _Builder, step: int) -> list[str]:
         names += ["chat_update", "chat_update"]
     if any(g.endedTick is None for g in st_.gaps):
         names += ["gap_end", "gap_end", "recover"]
+    if b.service_safe and running:  # the service refuses a snapshot or outside change during a run (S5-T)
+        names = [n for n in names if n not in ("outside", "recover")]
     if len(b.order) > 1:
         names += ["switch", "switch"]
     if len(b.order) - 1 < b.max_branches and step >= 1:
@@ -363,8 +366,8 @@ def _branch(b: _Builder, draw) -> None:
     b.create_branch(parent, tick, b.fresh("b"))
 
 
-def _build(draw, shape: str, n: int) -> _Builder:
-    b = _Builder(shape)
+def _build(draw, shape: str, n: int, service_safe: bool = False) -> _Builder:
+    b = _Builder(shape, service_safe)
     cells = [(f"s{i}", _code(draw)) for i in range(draw(st.integers(0, 3)))]
     b.s.start(cells=cells)
     b.track()
@@ -379,15 +382,17 @@ def _finish(b: _Builder) -> History:
 
 
 @st.composite
-def histories(draw, shapes=SHAPES, max_events: int = 80) -> History:
-    """A valid history: the reference answers `ok` at every tick on every branch."""
+def histories(draw, shapes=SHAPES, max_events: int = 80, service_safe: bool = False) -> History:
+    """A valid history: the reference answers `ok` at every tick on every branch.
+    `service_safe` (opt-in) never emits a non-first snapshot or outside change while a run is
+    running on the current branch: the service refuses those (S5-T); the rebuilder accepts them."""
     shape = draw(st.sampled_from(shapes))
     bands = [st.integers(0, min(8, max_events))]
     if max_events > 9:
         bands.append(st.integers(9, min(30, max_events)))
     if max_events > 31:
         bands.append(st.integers(31, max_events))
-    b = _build(draw, shape, draw(st.one_of(*bands)))
+    b = _build(draw, shape, draw(st.one_of(*bands)), service_safe)
     return _finish(b)
 
 

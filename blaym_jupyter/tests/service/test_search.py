@@ -158,7 +158,7 @@ DOCS_SEEN = {"n": 0}
 
 
 @hsettings(deadline=None)
-@given(h=histories(shapes=("one", "nested", "siblings", "before_parent", "first", "mixed"), max_events=40),
+@given(h=histories(shapes=("one", "nested", "siblings", "before_parent", "first", "mixed"), max_events=40, service_safe=True),
        seed=st.integers(0, 10_000), every=st.booleans())
 def test_rebuild_equals_incremental_for_generated_histories(h, seed, every):
     rig, idx = make(index_every_edit=every, interval=5)

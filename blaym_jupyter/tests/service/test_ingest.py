@@ -229,7 +229,7 @@ def _browser_gap(e):
 
 
 @settings(max_examples=150)
-@given(h=histories(shapes=("none",), max_events=40), seed=st.integers(0, 10**6), invalid=st.booleans())
+@given(h=histories(shapes=("none",), max_events=40, service_safe=True), seed=st.integers(0, 10**6), invalid=st.booleans())
 def test_generated_single_branch_histories_through_the_service(h, seed, invalid):
     rnd = random.Random(seed)
     rig = Rig(interval=5)

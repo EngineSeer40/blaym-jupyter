@@ -1,0 +1,225 @@
+{
+ "version": 1,
+ "note": "Hand-written cases.",
+ "limits": {
+  "inlineBytes": 16384
+ },
+ "cases": [
+  {
+   "name": "vega-lite chart",
+   "output": {
+    "output_type": "display_data",
+    "data": {
+     "application/vnd.vegalite.v5+json": {
+      "title": "Sales by region",
+      "mark": "bar",
+      "encoding": {
+       "x": {
+        "field": "region",
+        "type": "nominal"
+       },
+       "y": {
+        "field": "sales",
+        "type": "quantitative",
+        "title": "Total sales"
+       }
+      }
+     },
+     "text/plain": "alt.Chart(...)"
+    },
+    "metadata": {}
+   },
+   "expect": {
+    "inline": false,
+    "mimeTypes": [
+     "application/vnd.vegalite.v5+json",
+     "text/plain"
+    ],
+    "preview": "alt.Chart(...)",
+    "searchText": "Sales by region\nregion\nsales\nTotal sales"
+   }
+  },
+  {
+   "name": "data resource table",
+   "output": {
+    "output_type": "display_data",
+    "data": {
+     "application/vnd.dataresource+json": {
+      "schema": {
+       "fields": [
+        {
+         "name": "index",
+         "type": "integer"
+        },
+        {
+         "name": "price",
+         "type": "number"
+        }
+       ]
+      },
+      "data": [
+       {
+        "index": 0,
+        "price": 1.5
+       }
+      ]
+     },
+     "text/plain": "<pandas>"
+    },
+    "metadata": {}
+   },
+   "expect": {
+    "inline": false,
+    "preview": "<pandas>",
+    "searchText": "index\nprice"
+   }
+  },
+  {
+   "name": "html table with caption",
+   "output": {
+    "output_type": "execute_result",
+    "execution_count": 3,
+    "data": {
+     "text/html": "<table><caption>Totals &amp; means</caption><thead><tr><th>col A</th><th> col\n B </th></tr></thead></table>"
+    },
+    "metadata": {}
+   },
+   "expect": {
+    "inline": false,
+    "mimeTypes": [
+     "text/html"
+    ],
+    "preview": "[text/html]",
+    "searchText": "Totals & means\ncol A\ncol B"
+   }
+  },
+  {
+   "name": "image only gets a label",
+   "output": {
+    "output_type": "display_data",
+    "data": {
+     "image/png": "AAAA"
+    },
+    "metadata": {}
+   },
+   "expect": {
+    "inline": false,
+    "preview": "[image/png]",
+    "truncated": false,
+    "searchText": null
+   }
+  },
+  {
+   "name": "text with output metadata is not inline",
+   "output": {
+    "output_type": "display_data",
+    "data": {
+     "text/plain": "x"
+    },
+    "metadata": {
+     "needs_background": "light"
+    }
+   },
+   "expect": {
+    "inline": false,
+    "preview": "x",
+    "truncated": false
+   }
+  },
+  {
+   "name": "empty display data",
+   "output": {
+    "output_type": "display_data",
+    "data": {},
+    "metadata": {}
+   },
+   "expect": {
+    "inline": false,
+    "mimeTypes": [],
+    "preview": "[no content]"
+   }
+  },
+  {
+   "name": "error without traceback",
+   "output": {
+    "output_type": "error",
+    "ename": "KeyError",
+    "evalue": "'a'",
+    "traceback": []
+   },
+   "expect": {
+    "inline": true,
+    "preview": "KeyError: 'a'",
+    "searchText": "KeyError: 'a'"
+   }
+  },
+  {
+   "name": "stream over the inline limit goes to a blob",
+   "limits": {
+    "inlineBytes": 10
+   },
+   "output": {
+    "output_type": "stream",
+    "name": "stderr",
+    "text": "0123456789ABCDEF"
+   },
+   "expect": {
+    "inline": false,
+    "preview": "0123456789",
+    "truncated": true,
+    "mimeTypes": [
+     "text/plain"
+    ]
+   }
+  },
+  {
+   "name": "stream exactly at the inline limit is inline",
+   "limits": {
+    "inlineBytes": 10
+   },
+   "output": {
+    "output_type": "stream",
+    "name": "stdout",
+    "text": "0123456789"
+   },
+   "expect": {
+    "inline": true,
+    "preview": "0123456789",
+    "truncated": false,
+    "sizeBytes": 10
+   }
+  },
+  {
+   "name": "the inline cut never splits a character",
+   "limits": {
+    "inlineBytes": 5
+   },
+   "output": {
+    "output_type": "stream",
+    "name": "stdout",
+    "text": "ééé"
+   },
+   "expect": {
+    "inline": false,
+    "preview": "éé",
+    "truncated": true
+   }
+  },
+  {
+   "name": "bad json in a chart does not fail",
+   "output": {
+    "output_type": "display_data",
+    "data": {
+     "application/vnd.plotly.v1+json": "{not json",
+     "text/plain": "fig"
+    },
+    "metadata": {}
+   },
+   "expect": {
+    "inline": false,
+    "preview": "fig",
+    "searchText": null
+   }
+  }
+ ]
+}

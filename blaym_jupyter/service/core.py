@@ -20,6 +20,15 @@ Rules in one place (decisions B, C, F, G of the spec):
   an inline output whose redacted preview is over the inline limit moves to a blob), then blob
   and duplicate checks, then a dry run of the event on the
   cached tip state of the target branch with `history.apply.step`, then one commit per event;
+* locks, always taken in this order and never the other way round: the history's recording
+  lock (`_lock_for`: ingest, branch creation, the active-branch switch, recovery, search
+  rebuild), then the history's hydration lock (loading it from disk), then its small rebuilder
+  lock (`exp.rlock`, held only to add committed events to the rebuilder and to read from it).
+  Reads (`state_at`, `outline`, `events_since`, `resolve_cell_revision`, `cell_revisions`)
+  never take the recording lock and never touch the cached tip (`exp.tips`, changed in place by
+  a write's dry run): they see only what the rebuilder and the revision index hold, which is
+  filled after a commit. Heavy derived reads copy the committed event list under the small
+  lock and walk it outside;
 * an invalid event is never stored: it is refused with the typed rebuild result and one
   service gap is opened on the branch (the next `notebook_snapshot` closes it in its own commit);
 * `HistoryAdvanced` is computed from the committed event and the tip state before it, and
@@ -54,6 +63,12 @@ from blaym_jupyter_types import (
     OutlineBranch,
     OutlineRequest,
     PutBlobResponse,
+    ResolveCellRevisionCodeDiffers,
+    ResolveCellRevisionOk,
+    ResolveCellRevisionRequest,
+    ResolveCellRevisionResponse,
+    ResolveCellRevisionUnknownCell,
+    ResolveCellRevisionUnknownHistory,
     RebuildMissingEvents,
     RebuildOk,
     RecorderEvent,
@@ -69,6 +84,7 @@ from blaym_jupyter_types import (
     StoreLimits,
 )
 
+from blaym_jupyter.history import build_outline
 from blaym_jupyter.history.apply import Failure, step
 from blaym_jupyter.ports.auth import Authorizer
 from blaym_jupyter.ports.blobs import BlobLimits, BlobStore, check_exploration_id, content_hash_of
@@ -91,6 +107,7 @@ from .indexing import TEXT_LIMIT, cut_text, documents_for, needs_state, truncate
 from .lease import RecorderLease
 from .notify import Callback, Notifier
 from .recovery import RecoveryReport, recover
+from .revisions import RevisionIndex, code_hash
 
 RETRY_SLEEPS = (0.05, 0.1, 0.2)
 CHAT_MAX_BYTES = 1_048_576
@@ -128,6 +145,11 @@ class _Exp:
         self.last_tick: dict[str, int] = {}  # per branch: the tick of its last event
         self.tips: dict[str, Any] = {}  # per branch: the state at that last event (lazy)
         self.tip_tick = 0
+        self.rlock = threading.Lock()  # the small rebuilder lock: rebuilder, committed, last_tick, tip_tick, branches, active
+        self.committed: list = []  # every committed event, as given to the rebuilder (copied for heavy reads)
+        self.outline_cache: tuple[int, Any] | None = None  # (len(committed), OutlineResult)
+        self.revisions = RevisionIndex()
+        self.ilock = threading.Lock()  # guards `revisions`
 
 
 def _comparable(ev) -> dict:
@@ -213,6 +235,7 @@ class Service:
         self._exps: dict[str, _Exp] = {}
         self._lock = threading.Lock()  # guards the table of per-history locks only
         self._locks: dict[str, threading.RLock] = {}
+        self._hydration_locks: dict[str, threading.Lock] = {}
         self.recovery_report: RecoveryReport | None = None
 
     def _lock_for(self, exploration_id: str) -> threading.RLock:
@@ -220,6 +243,10 @@ class Service:
         history never interleave; different histories do not wait for each other."""
         with self._lock:
             return self._locks.setdefault(exploration_id, threading.RLock())
+
+    def _hydration_lock_for(self, exploration_id: str) -> threading.Lock:
+        with self._lock:
+            return self._hydration_locks.setdefault(exploration_id, threading.Lock())
 
     def recover(self) -> RecoveryReport:
         """Run the recovery rules of `service/recovery.py` over every history and keep the
@@ -269,17 +296,31 @@ class Service:
 
     def state_at(self, credential: Any, request: StateAtRequest):
         self._require(credential)
-        with self._lock_for(request.explorationId):
-            exp = self._exp(request.explorationId)
-            if exp is None:
-                return RebuildMissingEvents(status="missing_events", firstMissingTick=1)
+        exp = self._exp(request.explorationId)
+        if exp is None:
+            return RebuildMissingEvents(status="missing_events", firstMissingTick=1)
+        with exp.rlock:
             return exp.rebuilder.state_at(request.branchId, request.tick)
+
+    def _outline_of(self, exp: _Exp, committed: list):
+        """The outline result of a copied event list, walked outside every lock; cached by length."""
+        cached = exp.outline_cache
+        if cached is not None and cached[0] == len(committed):
+            return cached[1]
+        result = build_outline(committed)
+        with exp.rlock:
+            if exp.outline_cache is None or exp.outline_cache[0] < len(committed):
+                exp.outline_cache = (len(committed), result)
+        return result
 
     def outline(self, credential: Any, request: OutlineRequest) -> HistoryOutline | None:
         self._require(credential)
-        with self._lock_for(request.explorationId):
-            exp = self._exp(request.explorationId)
-            return None if exp is None else exp.rebuilder.outline()
+        exp = self._exp(request.explorationId)
+        if exp is None:
+            return None
+        with exp.rlock:
+            committed = list(exp.committed)
+        return self._outline_of(exp, committed).outline
 
     # -- search -------------------------------------------------------------------
 
@@ -296,7 +337,8 @@ class Service:
         for ev in events:
             state = None
             if needs_state(ev, self._index_every_edit):
-                result = exp.rebuilder.state_at(ev.branchId, ev.tick)
+                with exp.rlock:
+                    result = exp.rebuilder.state_at(ev.branchId, ev.tick)
                 state = result.state if isinstance(result, RebuildOk) else None
             docs.extend(documents_for(ev, state, index_every_edit=self._index_every_edit,
                                       text_limit=self._index_bytes))
@@ -333,18 +375,33 @@ class Service:
         exp = self._exps.get(exploration_id)
         if exp is not None:
             return exp
-        record = self._events.exploration(exploration_id)
-        if record is None:
-            return None
-        exp = _Exp(record.user_id, record.workspace_id, record.active_branch_id, self._interval)
-        events = self._events.events_for(exploration_id)
-        exp.rebuilder.add(events)
-        for ev in events:  # tick order, so the last one seen is the branch's last
-            exp.last_tick[ev.branchId] = ev.tick
-        exp.tip_tick = self._events.tip_tick(exploration_id)
-        exp.branches = {b.branch_id: b for b in self._events.branches(exploration_id)}
-        self._exps[exploration_id] = exp
-        return exp
+        with self._hydration_lock_for(exploration_id):  # loading does SQLite I/O: its own lock
+            exp = self._exps.get(exploration_id)
+            if exp is not None:
+                return exp
+            record = self._events.exploration(exploration_id)
+            if record is None:
+                return None
+            exp = _Exp(record.user_id, record.workspace_id, record.active_branch_id, self._interval)
+            events = self._events.events_for(exploration_id)
+            exp.rebuilder.add(events)
+            exp.committed.extend(events)
+            for ev in events:  # tick order, so the last one seen is the branch's last
+                exp.last_tick[ev.branchId] = ev.tick
+            exp.tip_tick = self._events.tip_tick(exploration_id)
+            exp.branches = {b.branch_id: b for b in self._events.branches(exploration_id)}
+            for branch in exp.branches:
+                self._replay_revisions(exp, branch)
+            self._exps[exploration_id] = exp
+            return exp
+
+    @staticmethod
+    def _replay_revisions(exp: _Exp, branch_id: str) -> None:
+        """Rebuild one branch's revision index from its line of committed events."""
+        with exp.rlock:
+            line = exp.rebuilder.line_events(branch_id)
+        with exp.ilock:
+            exp.revisions.replay(branch_id, line or [])
 
     def _tip(self, exp: _Exp, branch_id: str):
         state = exp.tips.get(branch_id)
@@ -352,7 +409,8 @@ class Service:
             last = exp.last_tick.get(branch_id)
             if last is None:
                 raise _TipFailure(RebuildMissingEvents(status="missing_events", firstMissingTick=1))
-            result = exp.rebuilder.state_at(branch_id, last)
+            with exp.rlock:
+                result = exp.rebuilder.state_at(branch_id, last)
             if not isinstance(result, RebuildOk):
                 raise _TipFailure(result)
             state = exp.tips[branch_id] = result.state
@@ -410,6 +468,18 @@ class Service:
             return _refused(eid, "invalid_event", "the event belongs to another history than the request")
         if clean["type"] in _NOT_FOR_RECORDERS:
             return _refused(eid, "invalid_event", "branch points are made by the service")
+
+        # S5-T, before any side effect (no blob, no event, no gap): replacing the notebook would orphan the
+        # output of the run in progress. An event id already stored goes on to the duplicate check instead.
+        if (exp is not None and clean["type"] in ("notebook_snapshot", "changed_outside_editor")
+                and self._events.find_event(exploration_id, eid) is None):
+            try:
+                running = any(r.status.root == "running" for r in self._tip(exp, target).runs)
+            except _TipFailure:
+                running = False  # the normal path reports an unreadable tip
+            if running:
+                return _refused(eid, "run_in_progress",
+                                "a cell is running; the notebook cannot be replaced until it ends")
 
         # redaction first: everything compared or stored below is the hidden text
         try:
@@ -470,12 +540,12 @@ class Service:
             state = step(None, BlaymEvent.model_validate({**mapping, "tick": 1}).root)
         except Failure as failure:
             return _refused(eid, "invalid_event", _failure_detail(failure.result), failure.result)
-        stored = self._append(exploration_id, [mapping], branches=[BranchRecord(root)], active_branch_id=root)
-        exp = _Exp(event.userId, event.workspaceId, root, self._interval)
-        exp.branches[root] = BranchRecord(root)
-        exp.tips[root] = state
-        self._exps[exploration_id] = exp
-        self._record(exp, exploration_id, root, stored, [(None, None)] * len(stored))
+        with self._hydration_lock_for(exploration_id):  # a read must not hydrate a half-made history
+            stored = self._append(exploration_id, [mapping], branches=[BranchRecord(root)], active_branch_id=root)
+            exp = _Exp(event.userId, event.workspaceId, root, self._interval)
+            exp.branches[root] = BranchRecord(root)
+            exp.tips[root] = state
+            self._record(exp, exploration_id, root, stored, [(None, None)] * len(stored), register=True)
         return _accepted(eid, root, stored[0].tick, False)
 
     def _ingest_next(self, exp: _Exp, exploration_id: str, target: str, event, eid: str):
@@ -574,12 +644,21 @@ class Service:
         self._record(exp, exploration_id, branch_id, stored, infos)
         return stored
 
-    def _record(self, exp: _Exp, exploration_id: str, branch_id: str, stored: list, infos: list) -> None:
-        """After a commit: the rebuilder gets the events, then (and only then) subscribers hear."""
-        exp.rebuilder.add(stored)
-        for ev in stored:
-            exp.last_tick[ev.branchId] = ev.tick
-        exp.tip_tick = stored[-1].tick
+    def _record(self, exp: _Exp, exploration_id: str, branch_id: str, stored: list, infos: list,
+                register: bool = False) -> None:
+        """After a commit: the rebuilder gets the events, then (and only then) subscribers hear.
+        A first event also makes the history known (`register`), in the same step."""
+        with exp.rlock:  # the only work done under the small lock
+            exp.rebuilder.add(stored)
+            exp.committed.extend(stored)
+            for ev in stored:
+                exp.last_tick[ev.branchId] = ev.tick
+            exp.tip_tick = stored[-1].tick
+            if register:
+                self._exps[exploration_id] = exp
+        with exp.ilock:  # the revision index follows what is committed, never a dry run
+            for ev in stored:
+                exp.revisions.observe(ev.branchId, ev)
         self._index(exp, stored)
         advances = []
         for ev, (started, ended) in zip(stored, infos):
@@ -608,14 +687,16 @@ class Service:
             if exp is None or request.fromBranchId not in exp.branches:
                 return refuse("unknown_moment", "this history or branch does not exist")
             tick = request.fromTick
-            if tick < 1 or tick > exp.tip_tick or not exp.rebuilder.has_tick(tick):
+            with exp.rlock:
+                has_tick = exp.rebuilder.has_tick(tick)
+                line = exp.rebuilder.line_events(request.fromBranchId)
+                result = exp.rebuilder.state_at(request.fromBranchId, tick) if line is not None else None
+            if tick < 1 or tick > exp.tip_tick or not has_tick:
                 return refuse("unknown_moment", f"there is no recorded moment at tick {tick}")
-            line = exp.rebuilder.line_events(request.fromBranchId)
             if line is None:
                 return refuse("moment_not_rebuildable", "this branch cannot be rebuilt")
             if tick not in {ev.tick for ev in line}:
                 return refuse("not_on_line", f"tick {tick} is not part of the history of branch {request.fromBranchId}")
-            result = exp.rebuilder.state_at(request.fromBranchId, tick)
             if not isinstance(result, RebuildOk):
                 return refuse("moment_not_rebuildable", "the notebook at this moment cannot be rebuilt")
             if any(r.status.root == "running" for r in result.state.runs):
@@ -625,11 +706,14 @@ class Service:
             event = self._service_event(exp, request.explorationId, new, "branch_point_created", {
                 "parentBranchId": request.fromBranchId, "parentTick": tick, "name": request.name})
             stored = self._append(request.explorationId, [event], branches=[record], active_branch_id=new)
-            exp.rebuilder.add(stored)
-            exp.last_tick[new] = stored[0].tick
-            exp.tip_tick = stored[0].tick
-            exp.branches[new] = record
-            exp.active = new
+            with exp.rlock:
+                exp.rebuilder.add(stored)
+                exp.committed.extend(stored)
+                exp.last_tick[new] = stored[0].tick
+                exp.tip_tick = stored[0].tick
+                exp.branches[new] = record
+                exp.active = new
+            self._replay_revisions(exp, new)  # the new branch starts from the cells of its branch point
             branch = OutlineBranch(branchId=new, name=request.name, parentBranchId=request.fromBranchId,
                                    parentTick=tick, ownTicks=[stored[0].tick], runSpans=[])
             self._notifier.publish(request.explorationId, [HistoryAdvanced(
@@ -647,23 +731,62 @@ class Service:
                 return SetActiveBranchResponse(SetActiveBranchRefused(
                     status="refused", reason="unknown_branch", detail="this history has no such branch"))
             self._events.set_active_branch(request.explorationId, request.branchId)
-            exp.active = request.branchId
+            with exp.rlock:
+                exp.active = request.branchId
             return SetActiveBranchResponse(SetActiveBranchOk(status="ok", branchId=request.branchId))
 
     def events_since(self, credential: Any, request: EventsSinceRequest) -> EventsSinceResponse:
         """Events on the line of a branch after `afterTick`, in tick order, with the current
         outline. Raises `UnknownHistory` for an unknown history or branch."""
         self._require(credential)
-        with self._lock_for(request.explorationId):
-            exp = self._exp(request.explorationId)
-            if exp is None or request.branchId not in exp.branches:
+        exp = self._exp(request.explorationId)
+        if exp is None:
+            raise UnknownHistory("this history or branch does not exist")
+        with exp.rlock:
+            if request.branchId not in exp.branches:
                 raise UnknownHistory("this history or branch does not exist")
             line = exp.rebuilder.line_events(request.branchId)
-            outline = exp.rebuilder.outline()
-            if line is None or outline is None:
-                raise UnknownHistory("this branch cannot be read")
-            events = [BlaymEvent(root=ev) for ev in line if ev.tick > request.afterTick]
-            return EventsSinceResponse(apiVersion=1, events=events, outline=outline)
+            committed = list(exp.committed)
+        outline = self._outline_of(exp, committed).outline
+        if line is None or outline is None:
+            raise UnknownHistory("this branch cannot be read")
+        events = [BlaymEvent(root=ev) for ev in line if ev.tick > request.afterTick]
+        return EventsSinceResponse(apiVersion=1, events=events, outline=outline)
+
+    def resolve_cell_revision(self, credential: Any, request: ResolveCellRevisionRequest) -> ResolveCellRevisionResponse:
+        """Which committed revision of a cell held this code (S5-D). Reads the committed revision
+        index only; never raises for an unknown history."""
+        self._require(credential)
+        exp = self._exp(request.explorationId)
+        if exp is None:
+            return ResolveCellRevisionResponse(ResolveCellRevisionUnknownHistory(status="unknown_history"))
+        hashed = code_hash(redact(request.code)[0])  # the same hiding ingest applies to cell code
+        with exp.rlock:
+            branch = request.branchId or exp.active
+            known = branch in exp.branches
+        answer = None
+        if known:
+            with exp.ilock:
+                answer = exp.revisions.resolve(branch, request.cellId, hashed)
+        if answer is None:
+            return ResolveCellRevisionResponse(ResolveCellRevisionUnknownHistory(status="unknown_history"))
+        if answer[0] == "ok":
+            return ResolveCellRevisionResponse(ResolveCellRevisionOk(status="ok", cellRevision=answer[1]))
+        if answer[0] == "code_differs":
+            return ResolveCellRevisionResponse(
+                ResolveCellRevisionCodeDiffers(status="code_differs", currentRevision=answer[1]))
+        return ResolveCellRevisionResponse(ResolveCellRevisionUnknownCell(status="unknown_cell"))
+
+    def cell_revisions(self, credential: Any, exploration_id: str) -> dict[str, int]:
+        """The tip revision of every cell on the active branch, from committed state ({} if unknown)."""
+        self._require(credential)
+        exp = self._exp(exploration_id)
+        if exp is None:
+            return {}
+        with exp.rlock:
+            branch = exp.active
+        with exp.ilock:
+            return exp.revisions.tip_revisions(branch) if branch else {}
 
     def claim_recorder(self, credential: Any, request: ClaimRecorderRequest) -> ClaimRecorderResponse:
         """Take or share the one-recorder lease (see `lease.py`)."""

@@ -23,15 +23,15 @@ def _jupyter_server_extension_points():
 
 
 def _load_jupyter_server_extension(server_app):
-    """Registers the API handler to receive HTTP requests from the frontend extension.
+    """Builds the recording host and registers the API handler for the frontend extension.
 
     Parameters
     ----------
     server_app: jupyterlab.labapp.LabApp
         JupyterLab application instance
     """
-    from .routes import setup_route_handlers
+    from .adapters.jupyter import install
 
-    setup_route_handlers(server_app.web_app)
+    install(server_app)
     name = "blaym_jupyter"
     server_app.log.info(f"Registered {name} server extension")

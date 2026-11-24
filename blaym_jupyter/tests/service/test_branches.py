@@ -327,7 +327,7 @@ def _expected(ev):
 
 
 @settings(max_examples=120)
-@given(h=histories(shapes=("one", "nested", "siblings", "before_parent", "first", "mixed"), max_events=40),
+@given(h=histories(shapes=("one", "nested", "siblings", "before_parent", "first", "mixed"), max_events=40, service_safe=True),
        seed=st.integers(0, 10**6))
 def test_generated_multi_branch_histories_through_the_service(h, seed):
     run_generated(Rig(interval=5), h, random.Random(seed))

@@ -1,0 +1,96 @@
+{
+  "base": "blaym-jupyter/api",
+  "routes": [
+    {
+      "name": "ingest",
+      "method": "POST",
+      "path": "/ingest",
+      "request": "IngestRequest",
+      "response": "IngestResponse"
+    },
+    {
+      "name": "put_blob",
+      "method": "PUT",
+      "path": "/blobs/{explorationId}",
+      "request": "bytes",
+      "response": "PutBlobResponse"
+    },
+    {
+      "name": "prepare_outputs",
+      "method": "POST",
+      "path": "/outputs/prepare",
+      "request": "PrepareOutputsRequest",
+      "response": "PrepareOutputsResponse"
+    },
+    {
+      "name": "resolve_cell_revision",
+      "method": "POST",
+      "path": "/cells/revision",
+      "request": "ResolveCellRevisionRequest",
+      "response": "ResolveCellRevisionResponse"
+    },
+    {
+      "name": "register",
+      "method": "POST",
+      "path": "/notebooks/register",
+      "request": "NotebookRegistration",
+      "response": "NotebookStatus"
+    },
+    {
+      "name": "status",
+      "method": "GET",
+      "path": "/notebooks/{notebookId}/status",
+      "request": "query:instanceId",
+      "response": "NotebookStatus"
+    },
+    {
+      "name": "close",
+      "method": "POST",
+      "path": "/notebooks/close",
+      "request": "json:notebookId,instanceId",
+      "response": "none"
+    },
+    {
+      "name": "info",
+      "method": "GET",
+      "path": "/info",
+      "request": "none",
+      "response": "ServiceInfo"
+    },
+    {
+      "name": "state",
+      "method": "GET",
+      "path": "/state",
+      "request": "query:explorationId,branchId,tick",
+      "response": "RebuildResult"
+    },
+    {
+      "name": "outline",
+      "method": "GET",
+      "path": "/outline",
+      "request": "query:explorationId",
+      "response": "HistoryOutline"
+    },
+    {
+      "name": "events_since",
+      "method": "GET",
+      "path": "/events-since",
+      "request": "query:explorationId,branchId,afterTick",
+      "response": "EventsSinceResponse"
+    },
+    {
+      "name": "search",
+      "method": "GET",
+      "path": "/search",
+      "request": "query:explorationId,query,kinds?,limit?",
+      "response": "SearchResponse"
+    },
+    {
+      "name": "get_blob",
+      "method": "GET",
+      "path": "/blobs/{explorationId}/{contentHash}",
+      "request": "none",
+      "response": "bytes"
+    }
+  ]
+}

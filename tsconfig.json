@@ -17,9 +17,16 @@
     "outDir": "lib",
     "rootDir": "src",
     "strict": true,
+    "skipLibCheck": true,
     "strictNullChecks": true,
     "target": "ES2018",
     "types": ["jest"]
   },
-  "include": ["src/*", "src/navigation/*"]
+  "include": [
+    "src/*",
+    "src/navigation/*",
+    "src/recording/*",
+    "src/adapters/**/*",
+    "src/adapters/jupyterlab/metadata-policy.json"
+  ]
 }

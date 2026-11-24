@@ -1,0 +1,322 @@
+{
+  "name": "reopen-with-aliases",
+  "description": "A 4.4-style notebook reopened: fresh random model ids are mapped to the recorded Blaym ids.",
+  "requests": [
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000001",
+          "explorationId": "nb1",
+          "wallTimeMs": 1000000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "notebook_snapshot",
+          "payload": {
+            "path": "a.ipynb",
+            "notebookMetadata": {
+              "x": 1
+            },
+            "kernelName": "python3",
+            "language": "python",
+            "cells": [
+              {
+                "cellId": "m1",
+                "cellType": "code",
+                "code": "import pandas as pd",
+                "revision": 1,
+                "metadata": {},
+                "outputs": [
+                  {
+                    "runId": "snapshot:00000000-0000-4000-8000-000100000001",
+                    "items": [
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h0",
+                        "preview": "loaded\n",
+                        "truncated": false,
+                        "sizeBytes": 7
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "cellId": "m2",
+                "cellType": "markdown",
+                "code": "# Title",
+                "revision": 1,
+                "metadata": {},
+                "outputs": []
+              },
+              {
+                "cellId": "m3",
+                "cellType": "code",
+                "code": "df.head()",
+                "revision": 1,
+                "metadata": {},
+                "outputs": [
+                  {
+                    "runId": "snapshot:00000000-0000-4000-8000-000100000001",
+                    "items": [
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h0",
+                        "preview": "a b\n",
+                        "truncated": false,
+                        "sizeBytes": 4
+                      },
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h1",
+                        "preview": "1 2\n",
+                        "truncated": false,
+                        "sizeBytes": 4
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000002",
+          "explorationId": "nb1",
+          "wallTimeMs": 1000000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_source_changed",
+          "payload": {
+            "cellId": "m3",
+            "code": "df.tail()",
+            "revision": 2
+          },
+          "links": {
+            "cellId": "m3",
+            "cellRevision": 2
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab2",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000200000001",
+          "explorationId": "nb1",
+          "wallTimeMs": 1000000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "notebook_snapshot",
+          "payload": {
+            "path": "a.ipynb",
+            "notebookMetadata": {
+              "x": 1
+            },
+            "kernelName": "python3",
+            "language": "python",
+            "cells": [
+              {
+                "cellId": "m1",
+                "cellType": "code",
+                "code": "import pandas as pd",
+                "revision": 2,
+                "metadata": {},
+                "outputs": [
+                  {
+                    "runId": "snapshot:00000000-0000-4000-8000-000200000001",
+                    "items": [
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h0",
+                        "preview": "loaded\n",
+                        "truncated": false,
+                        "sizeBytes": 7
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "cellId": "m2",
+                "cellType": "markdown",
+                "code": "# A new title",
+                "revision": 2,
+                "metadata": {},
+                "outputs": []
+              },
+              {
+                "cellId": "m3",
+                "cellType": "code",
+                "code": "df.tail()",
+                "revision": 3,
+                "metadata": {},
+                "outputs": [
+                  {
+                    "runId": "snapshot:00000000-0000-4000-8000-000200000001",
+                    "items": [
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h0",
+                        "preview": "a b\n",
+                        "truncated": false,
+                        "sizeBytes": 4
+                      },
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h1",
+                        "preview": "1 2\n",
+                        "truncated": false,
+                        "sizeBytes": 4
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab2",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000200000002",
+          "explorationId": "nb1",
+          "wallTimeMs": 1000000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_inserted",
+          "payload": {
+            "cellId": "r4",
+            "index": 3,
+            "cellType": "code",
+            "code": "new_cell = 1",
+            "revision": 1
+          },
+          "links": {
+            "cellId": "r4",
+            "cellRevision": 1
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab2",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000200000003",
+          "explorationId": "nb1",
+          "wallTimeMs": 1003000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_source_changed",
+          "payload": {
+            "cellId": "m1",
+            "code": "import numpy as np",
+            "revision": 3
+          },
+          "links": {
+            "cellId": "m1",
+            "cellRevision": 3
+          }
+        }
+      ]
+    }
+  ],
+  "final": {
+    "cells": [
+      {
+        "id": "m1",
+        "type": "code",
+        "code": "import numpy as np",
+        "metadata": {},
+        "outputs": [
+          "loaded\n"
+        ]
+      },
+      {
+        "id": "m2",
+        "type": "markdown",
+        "code": "# A new title",
+        "metadata": {},
+        "outputs": []
+      },
+      {
+        "id": "m3",
+        "type": "code",
+        "code": "df.tail()",
+        "metadata": {},
+        "outputs": [
+          "a b\n",
+          "1 2\n"
+        ]
+      },
+      {
+        "id": "r4",
+        "type": "code",
+        "code": "new_cell = 1",
+        "metadata": {},
+        "outputs": []
+      }
+    ],
+    "notebookMetadata": {
+      "x": 1
+    }
+  }
+}

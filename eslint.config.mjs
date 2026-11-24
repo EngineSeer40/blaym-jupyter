@@ -67,5 +67,10 @@ export default defineConfig([
       'prefer-arrow-callback': 'error'
     }
   },
+  {
+    // The recorder follows the contracts' naming (no `I` prefix on interfaces).
+    files: ['src/recording/**/*.ts', 'src/adapters/**/*.ts'],
+    rules: { '@typescript-eslint/naming-convention': 'off' }
+  },
   prettierRecommended
 ]);

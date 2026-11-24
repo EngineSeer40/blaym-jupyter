@@ -3,3 +3,28 @@
 
     https://jupyterlab.readthedocs.io/en/stable/developer/css.html
 */
+
+.blaym-status,
+.blaym-toggle {
+  font-size: var(--jp-ui-font-size1);
+  padding: 0 6px;
+}
+
+.blaym-toggle {
+  border: none;
+  background: transparent;
+  color: var(--jp-ui-font-color1);
+  cursor: pointer;
+}
+
+.blaym-status[data-blaym-state='recording'],
+.blaym-toggle[data-blaym-state='recording'] {
+  color: var(--jp-success-color1);
+}
+
+.blaym-status[data-blaym-state='problem'],
+.blaym-status[data-blaym-state='paused'],
+.blaym-toggle[data-blaym-state='problem'],
+.blaym-toggle[data-blaym-state='paused'] {
+  color: var(--jp-error-color1);
+}

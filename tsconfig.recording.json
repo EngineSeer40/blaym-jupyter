@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "lib": ["ES2018"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "strict": true,
+    "target": "ES2018",
+    "types": [],
+    "skipLibCheck": true
+  },
+  "include": ["src/recording/*.ts"]
+}

@@ -1,0 +1,517 @@
+{
+  "name": "many-edits-and-moves",
+  "description": "A longer mixed session: several cells edited between moves, deletes and inserts.",
+  "requests": [
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000001",
+          "explorationId": "nb1",
+          "wallTimeMs": 1000000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "notebook_snapshot",
+          "payload": {
+            "path": "a.ipynb",
+            "notebookMetadata": {
+              "x": 1
+            },
+            "kernelName": "python3",
+            "language": "python",
+            "cells": [
+              {
+                "cellId": "c1",
+                "cellType": "code",
+                "code": "import pandas as pd",
+                "revision": 1,
+                "metadata": {},
+                "outputs": [
+                  {
+                    "runId": "snapshot:00000000-0000-4000-8000-000100000001",
+                    "items": [
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h0",
+                        "preview": "loaded\n",
+                        "truncated": false,
+                        "sizeBytes": 7
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "cellId": "c2",
+                "cellType": "markdown",
+                "code": "# Title",
+                "revision": 1,
+                "metadata": {},
+                "outputs": []
+              },
+              {
+                "cellId": "c3",
+                "cellType": "code",
+                "code": "df.head()",
+                "revision": 1,
+                "metadata": {},
+                "outputs": [
+                  {
+                    "runId": "snapshot:00000000-0000-4000-8000-000100000001",
+                    "items": [
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h0",
+                        "preview": "a b\n",
+                        "truncated": false,
+                        "sizeBytes": 4
+                      },
+                      {
+                        "outputType": "stream",
+                        "mimeTypes": [
+                          "text/plain"
+                        ],
+                        "contentHash": "h1",
+                        "preview": "1 2\n",
+                        "truncated": false,
+                        "sizeBytes": 4
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000002",
+          "explorationId": "nb1",
+          "wallTimeMs": 1000000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_source_changed",
+          "payload": {
+            "cellId": "c1",
+            "code": "import pandas as pd\n# 0",
+            "revision": 2
+          },
+          "links": {
+            "cellId": "c1",
+            "cellRevision": 2
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000003",
+          "explorationId": "nb1",
+          "wallTimeMs": 1003000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_inserted",
+          "payload": {
+            "cellId": "c4",
+            "index": 0,
+            "cellType": "code",
+            "code": "v0 = 0",
+            "revision": 1
+          },
+          "links": {
+            "cellId": "c4",
+            "cellRevision": 1
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000004",
+          "explorationId": "nb1",
+          "wallTimeMs": 1006000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_moved",
+          "payload": {
+            "cellId": "c4",
+            "fromIndex": 0,
+            "toIndex": 3
+          },
+          "links": {
+            "cellId": "c4"
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000005",
+          "explorationId": "nb1",
+          "wallTimeMs": 1009000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_source_changed",
+          "payload": {
+            "cellId": "c2",
+            "code": "# Title\n# 1",
+            "revision": 2
+          },
+          "links": {
+            "cellId": "c2",
+            "cellRevision": 2
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000006",
+          "explorationId": "nb1",
+          "wallTimeMs": 1012000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_inserted",
+          "payload": {
+            "cellId": "c5",
+            "index": 1,
+            "cellType": "code",
+            "code": "v1 = 1",
+            "revision": 1
+          },
+          "links": {
+            "cellId": "c5",
+            "cellRevision": 1
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000007",
+          "explorationId": "nb1",
+          "wallTimeMs": 1015000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_moved",
+          "payload": {
+            "cellId": "c1",
+            "fromIndex": 0,
+            "toIndex": 4
+          },
+          "links": {
+            "cellId": "c1"
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000008",
+          "explorationId": "nb1",
+          "wallTimeMs": 1018000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_source_changed",
+          "payload": {
+            "cellId": "c3",
+            "code": "df.head()\n# 2",
+            "revision": 2
+          },
+          "links": {
+            "cellId": "c3",
+            "cellRevision": 2
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-000100000009",
+          "explorationId": "nb1",
+          "wallTimeMs": 1021000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_inserted",
+          "payload": {
+            "cellId": "c6",
+            "index": 2,
+            "cellType": "code",
+            "code": "v2 = 2",
+            "revision": 1
+          },
+          "links": {
+            "cellId": "c6",
+            "cellRevision": 1
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-00010000000a",
+          "explorationId": "nb1",
+          "wallTimeMs": 1024000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_moved",
+          "payload": {
+            "cellId": "c5",
+            "fromIndex": 0,
+            "toIndex": 5
+          },
+          "links": {
+            "cellId": "c5"
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-00010000000b",
+          "explorationId": "nb1",
+          "wallTimeMs": 1027000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_source_changed",
+          "payload": {
+            "cellId": "c4",
+            "code": "v0 = 0\n# 3",
+            "revision": 2
+          },
+          "links": {
+            "cellId": "c4",
+            "cellRevision": 2
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-00010000000c",
+          "explorationId": "nb1",
+          "wallTimeMs": 1030000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_inserted",
+          "payload": {
+            "cellId": "c7",
+            "index": 3,
+            "cellType": "code",
+            "code": "v3 = 3",
+            "revision": 1
+          },
+          "links": {
+            "cellId": "c7",
+            "cellRevision": 1
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-00010000000d",
+          "explorationId": "nb1",
+          "wallTimeMs": 1033000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_moved",
+          "payload": {
+            "cellId": "c2",
+            "fromIndex": 0,
+            "toIndex": 6
+          },
+          "links": {
+            "cellId": "c2"
+          }
+        }
+      ]
+    },
+    {
+      "explorationId": "nb1",
+      "editor": "jupyterlab",
+      "instanceId": "tab1",
+      "events": [
+        {
+          "schemaVersion": 2,
+          "eventId": "00000000-0000-4000-8000-00010000000e",
+          "explorationId": "nb1",
+          "wallTimeMs": 1036000,
+          "userId": "local",
+          "workspaceId": "local",
+          "originId": "tab1",
+          "editor": "jupyterlab",
+          "authorHint": "unknown",
+          "type": "cell_deleted",
+          "payload": {
+            "cellId": "c3"
+          },
+          "links": {
+            "cellId": "c3"
+          }
+        }
+      ]
+    }
+  ],
+  "final": {
+    "cells": [
+      {
+        "id": "c6",
+        "type": "code",
+        "code": "v2 = 2",
+        "metadata": {},
+        "outputs": []
+      },
+      {
+        "id": "c7",
+        "type": "code",
+        "code": "v3 = 3",
+        "metadata": {},
+        "outputs": []
+      },
+      {
+        "id": "c4",
+        "type": "code",
+        "code": "v0 = 0\n# 3",
+        "metadata": {},
+        "outputs": []
+      },
+      {
+        "id": "c1",
+        "type": "code",
+        "code": "import pandas as pd\n# 0",
+        "metadata": {},
+        "outputs": [
+          "loaded\n"
+        ]
+      },
+      {
+        "id": "c5",
+        "type": "code",
+        "code": "v1 = 1",
+        "metadata": {},
+        "outputs": []
+      },
+      {
+        "id": "c2",
+        "type": "markdown",
+        "code": "# Title\n# 1",
+        "metadata": {},
+        "outputs": []
+      }
+    ],
+    "notebookMetadata": {
+      "x": 1
+    }
+  }
+}

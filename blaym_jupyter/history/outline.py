@@ -99,7 +99,9 @@ def build_outline(events) -> OutlineResult:
             problem, problem_tick = result, tick
 
     if log.conflict is not None:
-        note(log.conflict, by_id[log.conflict.eventId])
+        # an event that lost a tick clash is not in the tick index: it sits at its own tick,
+        # which the clash bounds too
+        note(log.conflict, by_id.get(log.conflict.eventId, log.conflict.first.root.tick))
     if log.clash is not None:
         note(log.clash, log.clash.tick)
 

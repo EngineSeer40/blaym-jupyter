@@ -215,3 +215,60 @@ def test_the_outline_matches_positions_at_every_tick_on_every_branch_in_the_fixt
                 ticks = _line_ticks(o, b.branchId, tick)
                 pos = r.state.position
                 assert (pos.branchCount, pos.lastEventTick) == (len(ticks), ticks[-1]), (path.name, b.branchId, tick)
+
+
+def test_a_conflict_on_an_event_that_lost_a_tick_clash_gives_an_outline_not_a_crash():
+    """twin / first / changed: a different event takes tick 1 first, so `first` loses the
+    clash and is not in the tick index; then a different copy of `first` arrives (a conflict).
+    Nothing is usable from tick 1, so there is no outline, and the problem is reported."""
+    import uuid
+
+    from blaym_jupyter.tests.history.scenario import Scenario
+
+    s = Scenario()
+    s.start(cells=[("c1", "x = 1")])
+    s.edit("c1", "x = 2")
+    first = s.events[0]
+    twin = first.model_copy(update={"eventId": uuid.uuid4()})
+    changed = first.model_copy(update={"wallTimeMs": first.wallTimeMs + 1})
+    res = build_outline([twin, first, changed])
+    assert res.outline is None and res.problem is not None
+    assert res.problem.status in ("conflict", "invalid_event")
+    # the same, but with a sound prefix before the clash: the outline stops just before it
+    later = s.events[1]
+    lost = later.model_copy(update={"eventId": uuid.uuid4()})
+    changed_later = later.model_copy(update={"wallTimeMs": later.wallTimeMs + 1})
+    res = build_outline([first, lost, later, changed_later])
+    assert res.outline is not None and res.outline.highestTick == 1
+    assert res.problem is not None
+
+
+@settings(max_examples=1000 if DEEP else 300)
+@given(deliveries())
+def test_build_outline_never_raises_and_stops_before_every_problem(d):
+    from blaym_jupyter.history.log import EventLog
+
+    res = build_outline(d.events)  # must not raise for any delivery
+    log = EventLog()
+    log.add(d.events)
+    bounds = [log.first_missing]
+    if log.clash is not None:
+        bounds.append(log.clash.tick)
+    if log.conflict is not None:
+        bounds.append(log.conflict.first.root.tick)
+    clean_to = min(bounds)
+    if res.outline is None:
+        return
+    assert res.outline.highestTick < clean_to
+    # below any tick where the rebuilder fails on a branch tip of the sound prefix
+    seen, prefix = set(), []
+    for e in d.events:
+        if e.tick < clean_to and str(e.eventId) not in seen:
+            seen.add(str(e.eventId))
+            prefix.append(e)
+    rb = Rebuilder(7)
+    rb.add(prefix)
+    for branch in {e.branchId for e in prefix}:
+        tip = max(e.tick for e in prefix if e.branchId == branch)
+        if rb.state_at(branch, tip).status != "ok":
+            assert res.outline.highestTick < tip, (branch, tip)

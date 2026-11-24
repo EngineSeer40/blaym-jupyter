@@ -1,0 +1,328 @@
+{
+  "events": [
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "eventId": "357a2a4f-2ee1-532a-9139-42981b6d4b1c",
+      "explorationId": "exploration-1",
+      "originId": "origin-1",
+      "payload": {
+        "cells": [
+          {
+            "cellId": "c1",
+            "cellType": "code",
+            "code": "m0",
+            "metadata": {},
+            "outputs": [],
+            "revision": 1
+          }
+        ],
+        "kernelName": "python3",
+        "language": "python",
+        "notebookMetadata": {},
+        "path": "analysis.ipynb"
+      },
+      "schemaVersion": 2,
+      "tick": 1,
+      "type": "notebook_snapshot",
+      "userId": "local",
+      "wallTimeMs": 1760000000001,
+      "workspaceId": "local"
+    },
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "eventId": "c9224789-88fc-562e-a565-d84c450d0a34",
+      "explorationId": "exploration-1",
+      "originId": "origin-1",
+      "payload": {
+        "cellId": "c1",
+        "code": "m1",
+        "revision": 2
+      },
+      "schemaVersion": 2,
+      "tick": 2,
+      "type": "cell_source_changed",
+      "userId": "local",
+      "wallTimeMs": 1760000000002,
+      "workspaceId": "local"
+    },
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "eventId": "856136be-43ca-5fd4-b571-ae0ff13e4220",
+      "explorationId": "exploration-1",
+      "originId": "origin-1",
+      "payload": {
+        "cellId": "c1",
+        "code": "m2",
+        "revision": 3
+      },
+      "schemaVersion": 2,
+      "tick": 3,
+      "type": "cell_source_changed",
+      "userId": "local",
+      "wallTimeMs": 1760000000003,
+      "workspaceId": "local"
+    },
+    {
+      "authorConfidence": "known",
+      "authorHint": "blaym",
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "eventId": "67b6182b-87cd-5aaf-b4c6-5c3498e6c73a",
+      "explorationId": "exploration-1",
+      "originId": "blaym-service",
+      "payload": {
+        "name": "try",
+        "parentBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "parentTick": 2
+      },
+      "schemaVersion": 2,
+      "tick": 4,
+      "type": "branch_point_created",
+      "userId": "local",
+      "wallTimeMs": 1770000000000,
+      "workspaceId": "local"
+    },
+    {
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+      "explorationId": "exploration-1",
+      "originId": "origin-1",
+      "payload": {
+        "cellId": "c1",
+        "code": "b1",
+        "revision": 3
+      },
+      "schemaVersion": 2,
+      "tick": 5,
+      "type": "cell_source_changed",
+      "userId": "local",
+      "wallTimeMs": 1760000000005,
+      "workspaceId": "local"
+    },
+    {
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+      "explorationId": "exploration-1",
+      "originId": "origin-1",
+      "payload": {
+        "cellId": "c1",
+        "code": "b2",
+        "revision": 4
+      },
+      "schemaVersion": 2,
+      "tick": 6,
+      "type": "cell_source_changed",
+      "userId": "local",
+      "wallTimeMs": 1760000000006,
+      "workspaceId": "local"
+    },
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "eventId": "41c87ee8-2c36-5181-84d1-d95395f2869b",
+      "explorationId": "exploration-1",
+      "originId": "origin-1",
+      "payload": {
+        "cellId": "c1",
+        "code": "m3",
+        "revision": 4
+      },
+      "schemaVersion": 2,
+      "tick": 7,
+      "type": "cell_source_changed",
+      "userId": "local",
+      "wallTimeMs": 1760000000007,
+      "workspaceId": "local"
+    }
+  ],
+  "eventsSince": {
+    "request": {
+      "afterTick": 3,
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "explorationId": "exploration-1"
+    },
+    "response": {
+      "apiVersion": 1,
+      "events": [
+        {
+          "authorConfidence": "known",
+          "authorHint": "blaym",
+          "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+          "eventId": "67b6182b-87cd-5aaf-b4c6-5c3498e6c73a",
+          "explorationId": "exploration-1",
+          "originId": "blaym-service",
+          "payload": {
+            "name": "try",
+            "parentBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+            "parentTick": 2
+          },
+          "schemaVersion": 2,
+          "tick": 4,
+          "type": "branch_point_created",
+          "userId": "local",
+          "wallTimeMs": 1770000000000,
+          "workspaceId": "local"
+        },
+        {
+          "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+          "eventId": "93228731-322d-52ed-9b04-3447d9ed916d",
+          "explorationId": "exploration-1",
+          "originId": "origin-1",
+          "payload": {
+            "cellId": "c1",
+            "code": "b1",
+            "revision": 3
+          },
+          "schemaVersion": 2,
+          "tick": 5,
+          "type": "cell_source_changed",
+          "userId": "local",
+          "wallTimeMs": 1760000000005,
+          "workspaceId": "local"
+        },
+        {
+          "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+          "eventId": "6db25783-9dbb-5813-ad1e-15c1c739699a",
+          "explorationId": "exploration-1",
+          "originId": "origin-1",
+          "payload": {
+            "cellId": "c1",
+            "code": "b2",
+            "revision": 4
+          },
+          "schemaVersion": 2,
+          "tick": 6,
+          "type": "cell_source_changed",
+          "userId": "local",
+          "wallTimeMs": 1760000000006,
+          "workspaceId": "local"
+        }
+      ],
+      "outline": {
+        "branches": [
+          {
+            "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+            "name": "a1355c75-8539-5b0c-bd07-2b3425813926",
+            "ownTicks": [
+              1,
+              2,
+              3,
+              7
+            ],
+            "runSpans": []
+          },
+          {
+            "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+            "name": "try",
+            "ownTicks": [
+              4,
+              5,
+              6
+            ],
+            "parentBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+            "parentTick": 2,
+            "runSpans": []
+          }
+        ],
+        "explorationId": "exploration-1",
+        "highestTick": 7,
+        "rootBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "schemaVersion": 2
+      }
+    }
+  },
+  "initialOutline": {
+    "branches": [
+      {
+        "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "name": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "ownTicks": [
+          1
+        ],
+        "runSpans": []
+      }
+    ],
+    "explorationId": "exploration-1",
+    "highestTick": 1,
+    "rootBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+    "schemaVersion": 2
+  },
+  "name": "branch_work_return_work",
+  "notices": [
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "explorationId": "exploration-1",
+      "tick": 1
+    },
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "explorationId": "exploration-1",
+      "tick": 2
+    },
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "explorationId": "exploration-1",
+      "tick": 3
+    },
+    {
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "explorationId": "exploration-1",
+      "newBranch": {
+        "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+        "name": "try",
+        "ownTicks": [
+          4
+        ],
+        "parentBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "parentTick": 2,
+        "runSpans": []
+      },
+      "tick": 4
+    },
+    {
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "explorationId": "exploration-1",
+      "tick": 5
+    },
+    {
+      "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+      "explorationId": "exploration-1",
+      "tick": 6
+    },
+    {
+      "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+      "explorationId": "exploration-1",
+      "tick": 7
+    }
+  ],
+  "outline": {
+    "branches": [
+      {
+        "branchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "name": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "ownTicks": [
+          1,
+          2,
+          3,
+          7
+        ],
+        "runSpans": []
+      },
+      {
+        "branchId": "c5283dc3-b57e-5bfb-a82a-a72361443aa0",
+        "name": "try",
+        "ownTicks": [
+          4,
+          5,
+          6
+        ],
+        "parentBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+        "parentTick": 2,
+        "runSpans": []
+      }
+    ],
+    "explorationId": "exploration-1",
+    "highestTick": 7,
+    "rootBranchId": "a1355c75-8539-5b0c-bd07-2b3425813926",
+    "schemaVersion": 2
+  },
+  "source": "create a branch at a settled moment, work, set active back, work on the original"
+}

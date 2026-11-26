@@ -39,6 +39,10 @@ ROUTES: tuple[Route, ...] = (
     Route("state", "GET", "/state", "query:explorationId,branchId,tick", "RebuildResult"),
     Route("outline", "GET", "/outline", "query:explorationId", "HistoryOutline"),
     Route("events_since", "GET", "/events-since", "query:explorationId,branchId,afterTick", "EventsSinceResponse"),
+    Route("timeline", "GET", "/timeline", "query:explorationId,branchId,fromTick?,toTick?,limit?",
+          "TimelineIndexResponse"),
+    Route("events_between", "GET", "/events-between", "query:explorationId,branchId,fromTick,toTick,maxEvents?",
+          "EventsBetweenResponse"),
     Route("search", "GET", "/search", "query:explorationId,query,kinds?,limit?", "SearchResponse"),
     Route("get_blob", "GET", "/blobs/{explorationId}/{contentHash}", "none", "bytes"),
 )

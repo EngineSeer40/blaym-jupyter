@@ -131,7 +131,7 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       policy: policy as MetadataPolicy,
       sha256Hex,
       settings: live.observer,
-      signals: createSignals()
+      signals: createSignals(app)
     };
     const watch = (panel: PanelLike & { disposed?: unknown }): void => {
       const button = new StateWidget('button', 'blaym-toggle');

@@ -22,6 +22,8 @@ export type OutboxReport =
     }
   | { kind: 'retrying'; delayMs: number; error: string }
   | { kind: 'dropped'; count: number }
+  | { kind: 'held' }
+  | { kind: 'snapshot_accepted' }
   | { kind: 'resync'; reason: string }
   | { kind: 'rejected'; status?: number };
 
@@ -100,8 +102,20 @@ export class Outbox {
     return this.resyncPending || this.snapshotId !== undefined;
   }
 
-  enqueue(event: RecorderEvent): void {
-    this.queue.push(event);
+  /** `first` puts the event ahead of everything not already sent (a gap that must precede a held snapshot). */
+  enqueue(event: RecorderEvent, first = false): void {
+    if (first) {
+      let at = 0;
+      while (
+        at < this.queue.length &&
+        this.inFlight?.has(this.queue[at].eventId)
+      ) {
+        at++;
+      }
+      this.queue.splice(at, 0, event);
+    } else {
+      this.queue.push(event);
+    }
     this.enforceBound();
     this.pump();
   }
@@ -345,6 +359,7 @@ export class Outbox {
       if (out.status === 'accepted') {
         if (event.type === 'notebook_snapshot') {
           this.refusedSnapshots = 0;
+          this.o.onReport?.({ kind: 'snapshot_accepted' });
         }
         remove.add(event.eventId);
         this.targetBranchId = out.branchId;
@@ -364,6 +379,7 @@ export class Outbox {
           break;
         case 'run_in_progress':
           holdSnapshot = true;
+          this.o.onReport?.({ kind: 'held' });
           break;
         case 'unknown_branch':
           this.targetBranchId = undefined;

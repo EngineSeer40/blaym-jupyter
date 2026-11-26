@@ -7,6 +7,7 @@ import type {
 import { alignCells } from '../../recording/align';
 import type { TipCell } from '../../recording/align';
 import { EventBuilder } from '../../recording/builder';
+import { GapKeeper } from '../../recording/gaps';
 import { CellIdentity } from '../../recording/ids';
 import { Heartbeat } from '../../recording/heartbeat';
 import type { MetadataPolicy } from '../../recording/metadata';
@@ -162,11 +163,14 @@ export class NotebookObserver {
   private grouper?: TypingGrouper;
   private outbox?: Outbox;
   private heartbeat?: Heartbeat;
+  private gaps?: GapKeeper;
   private lastStatus?: NotebookStatus;
   private fingerprint?: NotebookRegistration['fingerprint'];
   private sentAliases = '{}';
   private recordingOn = false;
   private starting = false;
+  /** The `switched_off` gap is open: no snapshot closes it until recording is on again. */
+  private goingOff = false;
   private pending: Array<Promise<unknown>> = [];
   private cellHandlers = new Map<SharedCellLike, () => void>();
   /**
@@ -255,12 +259,19 @@ export class NotebookObserver {
   /** Switch recording on or off for this notebook (the registry holds the flag). */
   async setRecording(on: boolean): Promise<void> {
     try {
+      if (!on && this.recordingOn) {
+        this.gaps?.open('switched_off');
+        this.goingOff = true;
+        await Promise.all(this.pending);
+      }
       const status = await this.deps.transport.register({
         ...this.registration(),
         setRecording: on
       });
       this.onStatus(status);
     } catch (e) {
+      // recording stays on: the next snapshot closes the gap
+      this.goingOff = false;
       this.setState({ kind: 'problem', detail: String(e) });
     }
   }
@@ -360,6 +371,10 @@ export class NotebookObserver {
       mark: (id, from, to) =>
         marker ? marker.mark(id, from, to) : { hint: 'unknown' }
     });
+    this.gaps = new GapKeeper({
+      ids: d.ids,
+      emit: (draft, first) => this.emitGap(draft, first)
+    });
     this.outbox = new Outbox({
       transport: d.transport,
       scheduler: d.scheduler,
@@ -392,12 +407,10 @@ export class NotebookObserver {
           this.outbox?.requestResync(reason);
         }
       },
-      snapshotPending: () => this.outbox?.needsResync ?? false,
-      closeGap: gap =>
-        this.queue({
-          type: 'recording_gap_ended',
-          payload: { gapId: gap.gapId }
-        }),
+      // while recording is off nothing closes a gap (its `switched_off` gap stays open)
+      snapshotPending: () =>
+        !this.recordingOn || (this.outbox?.needsResync ?? false),
+      closeGap: gap => this.gaps?.close(gap),
       onError: (kind, e) =>
         this.setState({ kind: 'problem', detail: `${kind}: ${String(e)}` })
     });
@@ -589,6 +602,22 @@ export class NotebookObserver {
     });
   }
 
+  /** A gap event: built and queued whether or not recording is on (the off gap is written as it goes off). */
+  private emitGap(draft: EventDraft, first: boolean): void {
+    const builder = this.builder;
+    if (!builder) {
+      return;
+    }
+    const p = builder.build(draft).then(
+      (ev: RecorderEvent) => this.outbox?.enqueue(ev, first),
+      e => this.setState({ kind: 'problem', detail: String(e) })
+    );
+    this.pending.push(p);
+    void p.then(() => {
+      this.pending = this.pending.filter(x => x !== p);
+    });
+  }
+
   /** The snapshotter of the outbox: the notebook as it is now, and the reconciler reset to it. */
   private snapshotNow(): Promise<RecorderEvent> {
     const builder = this.builder as EventBuilder;
@@ -677,6 +706,7 @@ export class NotebookObserver {
         await this.align();
       }
       this.recordingOn = true;
+      this.goingOff = false;
       this.setState({ kind: 'recording' });
       this.outbox.requestResync('start');
     } catch (e) {
@@ -708,6 +738,11 @@ export class NotebookObserver {
    * rejections are handled by the outbox itself (retry or a fresh snapshot).
    */
   private onReport(r: OutboxReport): void {
+    if (r.kind === 'held' || r.kind === 'dropped') {
+      this.gaps?.open('unknown');
+    } else if (r.kind === 'snapshot_accepted') {
+      this.gaps?.closeAll(!this.goingOff);
+    }
     if (r.kind === 'paused' && r.reason === 'not_active_recorder') {
       this.recordingOn = false;
       this.setState({ kind: 'inactive', reason: 'other_recorder' });

@@ -24,7 +24,8 @@ Readings of the contract made here (each is documented where it applies):
   snapshot's, and a cell that is not code in the snapshot has none.
 * `run_started` removes the cell's output groups of runs that are no longer running,
   `pasted:` groups included; groups of still-running runs stay.
-* `changed_outside_editor` replaces the notebook, outputs included, and sets
+* `changed_outside_editor` follows the snapshot rule for outputs (the file's outputs
+  are ignored for a cell already in the state; a new code cell takes them) and sets
   `lastOutsideChange`.
 * `output_added`, `output_replaced` and `outputs_cleared` for a run that never started
   are `invalid_event` / `unknown_run`.
@@ -164,7 +165,7 @@ def _snapshot(s, ev):
 
 
 def _outside(s, ev):
-    _replace_notebook(s, ev)
+    _snapshot(s, ev)
     s.lastOutsideChange = OutsideChangeMarker(tick=ev.tick)
 
 

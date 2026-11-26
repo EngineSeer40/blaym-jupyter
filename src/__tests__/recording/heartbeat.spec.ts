@@ -13,14 +13,29 @@ function make(over: Partial<ConstructorParameters<typeof Heartbeat>[0]> = {}) {
     scheduler: time,
     notebookId: 'nb1',
     instanceId: 'tab1',
-    registration: () => ({ path: 'a.ipynb', instanceId: 'tab1', editor: 'jupyterlab', cellIdsStable: true, cellAliases: {}, fingerprint: { nbformat: '4.5', sourceHash: 'h' } }) as NotebookRegistration,
+    registration: () =>
+      ({
+        path: 'a.ipynb',
+        instanceId: 'tab1',
+        editor: 'jupyterlab',
+        cellIdsStable: true,
+        cellAliases: {},
+        fingerprint: { nbformat: '4.5', sourceHash: 'h' }
+      }) as NotebookRegistration,
     onActive: a => log.push(`active:${a}`),
     onResync: r => log.push(`resync:${r}`),
     snapshotPending: () => pending,
     closeGap: g => gaps.push(g.gapId),
     ...over
   });
-  return { time, transport, log, gaps, hb, setPending: (v: boolean) => (pending = v) };
+  return {
+    time,
+    transport,
+    log,
+    gaps,
+    hb,
+    setPending: (v: boolean) => (pending = v)
+  };
 }
 /** Advance in 1 s steps so that each beat's answer settles before the next timer is set. */
 const go = async (time: FakeTime, ms: number) => {
@@ -66,7 +81,8 @@ describe('Heartbeat (S5-S)', () => {
 
   test('needsResync asks for a resync', async () => {
     const { hb, transport, log } = make();
-    transport.statusHandler = () => Promise.resolve(status({ needsResync: true }));
+    transport.statusHandler = () =>
+      Promise.resolve(status({ needsResync: true }));
     await hb.start();
     expect(log).toContain('resync:server');
   });
@@ -81,7 +97,11 @@ describe('Heartbeat (S5-S)', () => {
     expect(log).toEqual(['active:false']);
     active = true;
     await go(time, 15_000);
-    expect(log).toEqual(['active:false', 'active:true', 'resync:became_active']);
+    expect(log).toEqual([
+      'active:false',
+      'active:true',
+      'resync:became_active'
+    ]);
   });
 
   test('browser-opened gaps are closed once, and only after the snapshot', async () => {
@@ -105,7 +125,8 @@ describe('Heartbeat (S5-S)', () => {
     const errors: string[] = [];
     const { hb, transport, time } = make({ onError: k => errors.push(k) });
     let fail = true;
-    transport.statusHandler = () => (fail ? Promise.reject(new Error('x')) : Promise.resolve(status()));
+    transport.statusHandler = () =>
+      fail ? Promise.reject(new Error('x')) : Promise.resolve(status());
     await hb.start();
     await go(time, 15_000);
     fail = false;

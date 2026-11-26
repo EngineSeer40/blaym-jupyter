@@ -23,7 +23,7 @@ function writeNb(rel: string, sources: string[]): void {
   const nb = {
     cells: sources.map((src, i) => ({
       cell_type: 'code',
-      id: `cell-${i}`,
+      id: `rec-cell-${i}`,
       metadata: {},
       source: src,
       execution_count: null,

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Mapping
 
 from blaym_jupyter_types import (
+    EventsBetweenRequest,
     EventsSinceRequest,
     GetBlobRequest,
     IngestRefused,
@@ -19,9 +21,11 @@ from blaym_jupyter_types import (
     ResolveCellRevisionRequest,
     SearchRequest,
     StateAtRequest,
+    TimelineIndexRequest,
 )
 
 from blaym_jupyter.ports.blobs import BlobCorrupt, BlobNotFound
+from blaym_jupyter.recording.edges import startup_gap
 from blaym_jupyter.recording.outputs import OutputLimits, item_from_output
 from blaym_jupyter.recording.registry import Registry
 from blaym_jupyter.service.auth import Unauthorized
@@ -114,7 +118,27 @@ def _ingest(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
         refused = [IngestRefused(status="refused", eventId=str(ev.root.eventId), reason="not_active_recorder",
                                  detail=detail) for ev in body.events]
         return _json(200, IngestResponse(apiVersion=1, outcomes=refused))
-    return _json(200, rec.service.ingest(cred, body))
+    response = rec.service.ingest(cred, body)
+    _startup_gap(cred, body, response, rec)
+    return _json(200, response)
+
+
+def _startup_gap(cred, body: IngestRequest, response, rec: Recording) -> None:
+    """O7: after the first snapshot of a session whose predecessor did not close cleanly, one closed
+    gap (source `browser`) says edits may have been lost. Never on a clean reopen."""
+    nb = body.explorationId
+    if not rec.registry.startup_unclean(nb):
+        return
+    taken = [o.root.status == "accepted" and ev.root.type == "notebook_snapshot"
+             for ev, o in zip(body.events, response.outcomes)]
+    if not any(taken):
+        return
+    events = startup_gap(nb, at_ms=int(time.time() * 1000), editor=body.editor, origin_id=body.instanceId)
+    gap = IngestRequest.model_validate({
+        "explorationId": nb, "editor": body.editor, "instanceId": body.instanceId,
+        **({"targetBranchId": body.targetBranchId} if body.targetBranchId else {}), "events": events})
+    rec.service.ingest(cred, gap)
+    rec.registry.startup_gap_written(nb)  # only after the gap is in: a ServiceBusy keeps the flag
 
 
 def _put_blob(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
@@ -197,6 +221,28 @@ def _events_since(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     return _json(200, rec.service.events_since(cred, request))
 
 
+def _optional_ints(req: ApiRequest, *names: str) -> dict[str, int]:
+    return {n: codec.int_param(req.query, n) for n in names if req.query.get(n)}
+
+
+def _timeline(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    request = codec.from_mapping(TimelineIndexRequest, {
+        "explorationId": codec.str_param(req.query, "explorationId"),
+        "branchId": codec.str_param(req.query, "branchId"),
+        **_optional_ints(req, "fromTick", "toTick", "limit")})
+    return _json(200, rec.service.timeline_index(cred, request))
+
+
+def _events_between(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    request = codec.from_mapping(EventsBetweenRequest, {
+        "explorationId": codec.str_param(req.query, "explorationId"),
+        "branchId": codec.str_param(req.query, "branchId"),
+        "fromTick": codec.int_param(req.query, "fromTick"),
+        "toTick": codec.int_param(req.query, "toTick"),
+        **_optional_ints(req, "maxEvents")})
+    return _json(200, rec.service.events_between(cred, request))
+
+
 def _search(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     data: dict[str, Any] = {"explorationId": codec.str_param(req.query, "explorationId"),
                             "query": codec.str_param(req.query, "query")}
@@ -220,5 +266,6 @@ _HANDLERS: dict[str, Callable[..., ApiResponse]] = {
     "ingest": _ingest, "put_blob": _put_blob, "prepare_outputs": _prepare_outputs,
     "resolve_cell_revision": _resolve, "register": _register, "status": _status, "close": _close,
     "info": _info, "state": _state, "outline": _outline, "events_since": _events_since,
+    "timeline": _timeline, "events_between": _events_between,
     "search": _search, "get_blob": _get_blob,
 }

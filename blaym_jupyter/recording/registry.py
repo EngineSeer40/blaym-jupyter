@@ -57,6 +57,7 @@ class Registry:
         self._lock = threading.RLock()
         self._live: dict[str, _Live] = {}
         self._was_clean: dict[str, bool] = {}
+        self._startup_unclean: dict[str, bool] = {}
         # counted notes about record files that are left alone
         self.counters = {"future_version": 0, "malformed": 0, "unreadable": 0}
         self._records: dict[str, dict[str, Any]] = {}
@@ -77,6 +78,11 @@ class Registry:
             rec, notices = self._identify(reg, now)
             nb = rec["notebookId"]
             self._was_clean[nb] = bool(rec.get("cleanClose", True))
+            prior = self._live.get(nb)
+            if not (prior and any(now - ts <= self._window for ts in prior.seen.values())):
+                # nobody else is here: whether the last session ended cleanly is known only now,
+                # before this register marks the record open (O7)
+                self._startup_unclean[nb] = not rec.get("cleanClose", True)
             if reg.collaboration:
                 return self._status(rec, reg.instanceId, active=False,
                                     reason="collaboration_not_supported", notices=notices,
@@ -109,6 +115,9 @@ class Registry:
                     rec["cellIdsStable"] = reg.cellIdsStable
                     self._save(rec)
                 return rec, []
+        renamed = self._renamed_from(reg.path)
+        if renamed is not None:  # an open page that has not learned the new path yet
+            return renamed, []
         found = match_record(reg.cellIdsStable, fp, self._records.values(), self._path_exists)
         if found is not None:
             old = found.get("path")
@@ -221,6 +230,15 @@ class Registry:
             now = self._clock.now_ms()
             return bool(live) and any(now - ts <= self._window for ts in live.seen.values())
 
+    def startup_unclean(self, notebook_id: str) -> bool:
+        """True once per session start when the previous session did not close cleanly (O7)."""
+        with self._lock:
+            return self._startup_unclean.get(notebook_id, False)
+
+    def startup_gap_written(self, notebook_id: str) -> None:
+        with self._lock:
+            self._startup_unclean[notebook_id] = False
+
     def was_clean_close(self, notebook_id: str) -> bool:
         """Whether the notebook's last session ended cleanly, as seen at its latest register."""
         with self._lock:
@@ -236,9 +254,25 @@ class Registry:
             for rec in self._records.values():
                 if rec.get("path") == path:
                     return rec["notebookId"]
+            renamed = self._renamed_from(path)
+            return renamed["notebookId"] if renamed else None
+
+    def _renamed_from(self, path: str) -> Optional[dict[str, Any]]:
+        """The record that last left `path`, while nothing is there: editors learn of a rename
+        late, and their old path must not start a second history."""
+        if self._path_exists(path):
             return None
+        return next((r for r in self._records.values()
+                     if r.get("path") and (r.get("previousPaths") or [None])[-1] == path), None)
 
     # ---- file events ------------------------------------------------------------------
+
+    def watched(self) -> list[tuple[str, str, Optional[str]]]:
+        """(notebook id, path, hash of the last content known to be in the file) of every
+        recorded notebook whose file is there. Read by the file watcher."""
+        with self._lock:
+            return [(r["notebookId"], r["path"], r.get("lastWrittenHash")) for r in self._records.values()
+                    if r.get("recording") and r.get("path") and not r.get("pathMissing")]
 
     def note_save(self, path: str, content_hash: str) -> None:
         with self._lock:
@@ -247,21 +281,28 @@ class Registry:
                     rec["lastWrittenHash"] = content_hash
                     self._save(rec)
 
-    def note_rename(self, old: str, new: str) -> None:
+    def note_rename(self, old: str, new: str) -> list[tuple[str, str, str]]:
+        """A file or folder was renamed. Moves every record at `old` or under it and returns
+        (notebook id, old path, new path) for each."""
         with self._lock:
-            mover = next((r for r in self._records.values() if r.get("path") == old), None)
-            if mover is None:
-                return
-            for other in self._records.values():
-                if other is not mover and other.get("path") == new:  # overwritten by the rename
-                    other["path"] = None
-                    other["pathMissing"] = True
-                    other.setdefault("previousPaths", []).append(new)
-                    self._save(other)
-            mover["path"] = new
-            mover["pathMissing"] = False
-            mover.setdefault("previousPaths", []).append(old)
-            self._save(mover)
+            moves = []
+            for rec in self._records.values():
+                path = rec.get("path")
+                if path and (path == old or path.startswith(old + "/")):
+                    moves.append((rec, path, new + path[len(old):]))
+            movers = [m[0]["notebookId"] for m in moves]
+            for mover, before, after in moves:
+                for other in self._records.values():
+                    if other["notebookId"] not in movers and other.get("path") == after:  # overwritten
+                        other["path"] = None
+                        other["pathMissing"] = True
+                        other.setdefault("previousPaths", []).append(after)
+                        self._save(other)
+                mover["path"] = after
+                mover["pathMissing"] = False
+                mover.setdefault("previousPaths", []).append(before)
+                self._save(mover)
+            return [(m["notebookId"], before, after) for m, before, after in moves]
 
     def scan(self, paths_exist: Callable[[str], bool]) -> list[str]:
         """Mark records whose file is gone (and unmark those that came back). Keeps every record.

@@ -2,12 +2,20 @@ import * as fc from 'fast-check';
 import { alignCells } from '../../recording';
 
 const tip = (n: number) =>
-  Array.from({ length: n }, (_, i) => ({ cellId: `B${i}`, type: 'code' as const, code: `src ${i}` }));
+  Array.from({ length: n }, (_, i) => ({
+    cellId: `B${i}`,
+    type: 'code' as const,
+    code: `src ${i}`
+  }));
 
 describe('alignCells (page open, unstable ids)', () => {
   test('identical notebook: every cell maps to its Blaym id', () => {
     const t = tip(4);
-    const page = t.map((c, i) => ({ id: `r${i}`, type: c.type, source: c.code }));
+    const page = t.map((c, i) => ({
+      id: `r${i}`,
+      type: c.type,
+      source: c.code
+    }));
     const a = alignCells(page, t);
     expect(a.matches).toEqual({ r0: 'B0', r1: 'B1', r2: 'B2', r3: 'B3' });
     expect(a.newModelIds).toEqual([]);
@@ -21,7 +29,11 @@ describe('alignCells (page open, unstable ids)', () => {
       { id: 'r1', type: 'code' as const, source: 'src 1 edited' },
       { id: 'r2', type: 'code' as const, source: 'src 2' }
     ];
-    expect(alignCells(page, t).matches).toEqual({ r0: 'B0', r1: 'B1', r2: 'B2' });
+    expect(alignCells(page, t).matches).toEqual({
+      r0: 'B0',
+      r1: 'B1',
+      r2: 'B2'
+    });
     page[1].type = 'markdown' as never;
     const b = alignCells(page, t);
     expect(b.newModelIds).toEqual(['r1']);
@@ -42,9 +54,17 @@ describe('alignCells (page open, unstable ids)', () => {
   test('property: a reopened 4.4 notebook with fresh random ids maps every unchanged cell, never two to one', () => {
     const arb = fc.record({
       n: fc.integer({ min: 0, max: 14 }),
-      fates: fc.array(fc.constantFrom('keep', 'keep', 'keep', 'edit', 'drop'), { minLength: 14, maxLength: 14 }),
-      inserts: fc.array(fc.record({ at: fc.nat(20), md: fc.boolean() }), { maxLength: 4 }),
-      types: fc.array(fc.constantFrom('code', 'markdown'), { minLength: 14, maxLength: 14 })
+      fates: fc.array(fc.constantFrom('keep', 'keep', 'keep', 'edit', 'drop'), {
+        minLength: 14,
+        maxLength: 14
+      }),
+      inserts: fc.array(fc.record({ at: fc.nat(20), md: fc.boolean() }), {
+        maxLength: 4
+      }),
+      types: fc.array(fc.constantFrom('code', 'markdown'), {
+        minLength: 14,
+        maxLength: 14
+      })
     });
     fc.assert(
       fc.property(arb, ({ n, fates, inserts, types }) => {
@@ -53,7 +73,12 @@ describe('alignCells (page open, unstable ids)', () => {
           type: types[i] as 'code' | 'markdown',
           code: `unique recorded source ${i}`
         }));
-        let page: Array<{ id: string; type: any; source: string; unchanged?: string }> = [];
+        let page: Array<{
+          id: string;
+          type: any;
+          source: string;
+          unchanged?: string;
+        }> = [];
         recorded.forEach((c, i) => {
           if (fates[i] === 'drop') return;
           page.push({
@@ -70,13 +95,18 @@ describe('alignCells (page open, unstable ids)', () => {
             source: `brand new ${k}`
           });
         });
-        const a = alignCells(page.map(p => ({ id: p.id, type: p.type, source: p.source })), recorded);
+        const a = alignCells(
+          page.map(p => ({ id: p.id, type: p.type, source: p.source })),
+          recorded
+        );
         page.forEach(p => {
           if (p.unchanged) expect(a.matches[p.id]).toBe(p.unchanged);
         });
         const targets = Object.values(a.matches);
         expect(new Set(targets).size).toBe(targets.length);
-        expect(Object.keys(a.matches).length + a.newModelIds.length).toBe(page.length);
+        expect(Object.keys(a.matches).length + a.newModelIds.length).toBe(
+          page.length
+        );
         expect(targets.length + a.deletedBlaymIds.length).toBe(recorded.length);
       }),
       { numRuns: 300 }

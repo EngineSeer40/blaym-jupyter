@@ -12,8 +12,12 @@ function make() {
         boundary: id => hh.grouper.boundary(id)
       })
   });
-  const signal = (kind: 'ai' | 'person', atMs: number, cellId?: string, confidence: 'known' | 'guess' = 'known') =>
-    cb!({ kind, confidence, atMs, cellId });
+  const signal = (
+    kind: 'ai' | 'person',
+    atMs: number,
+    cellId?: string,
+    confidence: 'known' | 'guess' = 'known'
+  ) => cb!({ kind, confidence, atMs, cellId });
   return { h, signal };
 }
 
@@ -43,7 +47,11 @@ describe('AuthorMarker (S5-L, O2)', () => {
       signal('ai', h.time.nowMs() + offset, id);
       await h.finish();
       const e = h.events[h.events.length - 1] as any;
-      expect({ offset, hint: e.authorHint, conf: e.authorConfidence }).toEqual({ offset, hint: 'ai', conf: 'known' });
+      expect({ offset, hint: e.authorHint, conf: e.authorConfidence }).toEqual({
+        offset,
+        hint: 'ai',
+        conf: 'known'
+      });
     }
   });
 
@@ -71,7 +79,9 @@ describe('AuthorMarker (S5-L, O2)', () => {
     await type(h, id, 'my own typing\nai wrote this\nthen me');
     h.time.advance(3000);
     await h.finish();
-    const steps = h.events.filter(e => e.type === 'cell_source_changed') as any[];
+    const steps = h.events.filter(
+      e => e.type === 'cell_source_changed'
+    ) as any[];
     expect(steps.map(s => [s.payload.code, s.authorHint])).toEqual([
       ['my own typing', 'unknown'],
       ['my own typing\nai wrote this', 'ai'],
@@ -92,7 +102,9 @@ describe('AuthorMarker (S5-L, O2)', () => {
     await type(h, id, 'person\nai\nperson again');
     h.time.advance(3000);
     await h.finish();
-    const steps = h.events.filter(e => e.type === 'cell_source_changed') as any[];
+    const steps = h.events.filter(
+      e => e.type === 'cell_source_changed'
+    ) as any[];
     expect(steps.map(s => [s.payload.code, s.authorHint])).toEqual([
       ['person', 'unknown'],
       ['person\nai', 'ai'],
@@ -107,9 +119,15 @@ describe('AuthorMarker (S5-L, O2)', () => {
     const t = h.time.nowMs();
     signal('ai', t, id, 'guess');
     signal('ai', t, id, 'known');
-    expect(h.marker!.mark(id, t, t)).toEqual({ hint: 'ai', confidence: 'known' });
+    expect(h.marker!.mark(id, t, t)).toEqual({
+      hint: 'ai',
+      confidence: 'known'
+    });
     signal('person', t + 5000, id, 'known');
-    expect(h.marker!.mark(id, t + 5000, t + 5000)).toEqual({ hint: 'person', confidence: 'known' });
+    expect(h.marker!.mark(id, t + 5000, t + 5000)).toEqual({
+      hint: 'person',
+      confidence: 'known'
+    });
     expect(h.marker!.mark(id, t + 2000, t + 2000)).toEqual({ hint: 'unknown' });
   });
 });

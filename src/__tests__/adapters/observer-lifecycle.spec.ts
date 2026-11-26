@@ -89,6 +89,27 @@ describe('observer lifecycle', () => {
     expect(t.transport.requests.length).toBe(n);
   });
 
+  it('a snapshot accepted while recording is going off does not close the switched-off gap', async () => {
+    const t = await setup();
+    t.observer.modelReplaced(); // a resync is wanted
+    let release: () => void = () => undefined;
+    t.transport.registerHandler = () =>
+      new Promise(r => {
+        release = () => r(status({ recording: false }));
+      });
+    const going = t.observer.setRecording(false);
+    await settle();
+    t.time.advance(6000); // the snapshot is built and accepted before the server says "off"
+    await settle();
+    expect(t.snapshots()).toBe(2);
+    release();
+    await going;
+    await settle();
+    const types = t.events().map(e => e.type);
+    expect(types).toContain('recording_gap_started');
+    expect(types).not.toContain('recording_gap_ended');
+  });
+
   it('execute_request without cellId falls back to flushAll', async () => {
     const t = await setup();
     t.cell.type('x = 42');
@@ -122,6 +143,12 @@ describe('observer lifecycle', () => {
     await settle();
     expect(t.transport.requests.length).toBe(before);
     expect(t.events().map(e => e.type)).not.toContain('cell_source_changed');
+    // Task 20: the off stretch is one gap, written as it goes off
+    const off = t.events().find(e => e.type === 'recording_gap_started');
+    expect(off.payload).toMatchObject({
+      source: 'browser',
+      reason: 'switched_off'
+    });
     t.transport.registerHandler = () =>
       Promise.resolve(status({ recording: true }));
     t.transport.statusHandler = t.transport.registerHandler;
@@ -130,6 +157,12 @@ describe('observer lifecycle', () => {
     t.time.advance(10);
     await settle();
     expect(t.snapshots()).toBe(2);
+    // closed once, after the first snapshot that follows switching on
+    const types = t.events().map(e => e.type);
+    expect(types.filter(x => x === 'recording_gap_ended')).toHaveLength(1);
+    expect(types.lastIndexOf('notebook_snapshot')).toBeLessThan(
+      types.indexOf('recording_gap_ended')
+    );
   });
 
   it('a Transport that rejects everywhere never throws into the notebook', async () => {

@@ -5,7 +5,11 @@ import { FakeTime } from './generate';
 function make() {
   const time = new FakeTime();
   const out: Array<{ d: EventDraft; a: AuthorMark }> = [];
-  const g = new TypingGrouper({ scheduler: time, clock: time, emit: (d, a) => out.push({ d, a }) });
+  const g = new TypingGrouper({
+    scheduler: time,
+    clock: time,
+    emit: (d, a) => out.push({ d, a })
+  });
   return { time, out, g };
 }
 const codes = (out: Array<{ d: EventDraft }>) => out.map(o => o.d.payload.code);
@@ -78,9 +82,19 @@ describe('TypingGrouper (S5-O)', () => {
 
   test('property: the last edit before a run, a save, a hide or a takeover is never lost', () => {
     const action = fc.oneof(
-      fc.record({ k: fc.constant('edit' as const), cell: fc.constantFrom('a', 'b'), text: fc.string({ maxLength: 6 }) }),
-      fc.record({ k: fc.constant('wait' as const), ms: fc.integer({ min: 0, max: 3000 }) }),
-      fc.record({ k: fc.constant('run' as const), cell: fc.constantFrom('a', 'b') }),
+      fc.record({
+        k: fc.constant('edit' as const),
+        cell: fc.constantFrom('a', 'b'),
+        text: fc.string({ maxLength: 6 })
+      }),
+      fc.record({
+        k: fc.constant('wait' as const),
+        ms: fc.integer({ min: 0, max: 3000 })
+      }),
+      fc.record({
+        k: fc.constant('run' as const),
+        cell: fc.constantFrom('a', 'b')
+      }),
       fc.constant({ k: 'hide' as const })
     );
     fc.assert(
@@ -92,7 +106,9 @@ describe('TypingGrouper (S5-O)', () => {
         g.baseline('b', '');
         const lastEmitted = (cell: string) => {
           const mine = out.filter(o => o.d.cellId === cell);
-          return mine.length ? (mine[mine.length - 1].d.payload.code as string) : '';
+          return mine.length
+            ? (mine[mine.length - 1].d.payload.code as string)
+            : '';
         };
         for (const a of actions) {
           if (a.k === 'edit') {
@@ -102,7 +118,11 @@ describe('TypingGrouper (S5-O)', () => {
             time.advance(a.ms);
           } else if (a.k === 'run') {
             g.beforeRun(a.cell);
-            expect(lastEmitted(a.cell)).toBe(latest[a.cell] === recorded[a.cell] && lastEmitted(a.cell) === '' ? '' : latest[a.cell]);
+            expect(lastEmitted(a.cell)).toBe(
+              latest[a.cell] === recorded[a.cell] && lastEmitted(a.cell) === ''
+                ? ''
+                : latest[a.cell]
+            );
           } else {
             g.flushAll();
             ['a', 'b'].forEach(c => expect(lastEmitted(c)).toBe(latest[c]));

@@ -52,6 +52,8 @@ from blaym_jupyter_types import (
     CreateBranchRefused,
     CreateBranchRequest,
     CreateBranchResponse,
+    EventsBetweenRequest,
+    EventsBetweenResponse,
     EventsSinceRequest,
     EventsSinceResponse,
     HistoryAdvanced,
@@ -81,6 +83,8 @@ from blaym_jupyter_types import (
     SearchResponse,
     ServiceInfo,
     StateAtRequest,
+    TimelineIndexRequest,
+    TimelineIndexResponse,
     StoreLimits,
 )
 
@@ -107,12 +111,18 @@ from .indexing import TEXT_LIMIT, cut_text, documents_for, needs_state, truncate
 from .lease import RecorderLease
 from .notify import Callback, Notifier
 from .recovery import RecoveryReport, recover
+from .timeline import entry_of
 from .revisions import RevisionIndex, code_hash
 
 RETRY_SLEEPS = (0.05, 0.1, 0.2)
 CHAT_MAX_BYTES = 1_048_576
 SERVICE_ORIGIN = "blaym-service"
 _NOT_FOR_RECORDERS = ("branch_point_created", "notebook_copied")
+
+
+TIMELINE_MAX = 5000
+EVENTS_BETWEEN_DEFAULT = 500
+EVENTS_BETWEEN_MAX = 2000
 
 
 class ServiceBusy(Exception):
@@ -469,19 +479,6 @@ class Service:
         if clean["type"] in _NOT_FOR_RECORDERS:
             return _refused(eid, "invalid_event", "branch points are made by the service")
 
-        # S5-T, before any side effect (no blob, no event, no gap): an outside change replaces outputs, so it
-        # would orphan those of the run in progress (a snapshot keeps them). An event id already stored goes
-        # on to the duplicate check instead.
-        if (exp is not None and clean["type"] == "changed_outside_editor"
-                and self._events.find_event(exploration_id, eid) is None):
-            try:
-                running = any(r.status.root == "running" for r in self._tip(exp, target).runs)
-            except _TipFailure:
-                running = False  # the normal path reports an unreadable tip
-            if running:
-                return _refused(eid, "run_in_progress",
-                                "a cell is running; the notebook cannot be replaced until it ends")
-
         # redaction first: everything compared or stored below is the hidden text
         try:
             original = BlaymEvent.model_validate({**clean, "branchId": target or "pending", "tick": 1}).root
@@ -753,6 +750,51 @@ class Service:
             raise UnknownHistory("this branch cannot be read")
         events = [BlaymEvent(root=ev) for ev in line if ev.tick > request.afterTick]
         return EventsSinceResponse(apiVersion=1, events=events, outline=outline)
+
+    def _line(self, credential: Any, exploration_id: str, branch_id: str) -> list:
+        """The committed events on a branch's line, a fresh list to walk outside the lock."""
+        self._require(credential)
+        exp = self._exp(exploration_id)
+        if exp is None:
+            raise UnknownHistory("this history or branch does not exist")
+        with exp.rlock:
+            if branch_id not in exp.branches:
+                raise UnknownHistory("this history or branch does not exist")
+            line = exp.rebuilder.line_events(branch_id)
+        if line is None:
+            raise UnknownHistory("this branch cannot be read")
+        return line
+
+    @staticmethod
+    def _window(line: list, from_tick: int | None, to_tick: int | None, limit: int):
+        """`(events, next tick or None)`: ticks in [from, to], at most `limit`."""
+        picked = [ev for ev in line
+                  if (from_tick is None or ev.tick >= from_tick) and (to_tick is None or ev.tick <= to_tick)]
+        if len(picked) > limit:
+            return picked[:limit], picked[limit].tick
+        return picked, None
+
+    def timeline_index(self, credential: Any, request: TimelineIndexRequest) -> TimelineIndexResponse:
+        """One entry per event on the branch's line (committed state only), in columns."""
+        limit = min(request.limit or TIMELINE_MAX, TIMELINE_MAX)
+        line = self._line(credential, request.explorationId, request.branchId)
+        events, next_tick = self._window(line, request.fromTick, request.toTick, limit)
+        rows = [entry_of(ev) for ev in events]
+        cols = list(zip(*rows)) if rows else [()] * 7
+        ticks, times, kinds, authors, confs, cells, runs = (list(c) for c in cols)
+        return TimelineIndexResponse.model_validate({
+            "apiVersion": 1, "ticks": ticks, "timesMs": times, "kinds": kinds, "authors": authors,
+            "confidences": confs, "cellIds": cells, "runIds": runs, "truncated": next_tick is not None,
+            **({"nextTick": next_tick} if next_tick is not None else {})})
+
+    def events_between(self, credential: Any, request: EventsBetweenRequest) -> EventsBetweenResponse:
+        """The committed events on the branch's line from `fromTick` to `toTick`, both inclusive."""
+        limit = min(request.maxEvents or EVENTS_BETWEEN_DEFAULT, EVENTS_BETWEEN_MAX)
+        line = self._line(credential, request.explorationId, request.branchId)
+        events, next_tick = self._window(line, request.fromTick, request.toTick, limit)
+        return EventsBetweenResponse(
+            apiVersion=1, events=[BlaymEvent(root=ev) for ev in events], truncated=next_tick is not None,
+            nextTick=next_tick)
 
     def resolve_cell_revision(self, credential: Any, request: ResolveCellRevisionRequest) -> ResolveCellRevisionResponse:
         """Which committed revision of a cell held this code (S5-D). Reads the committed revision

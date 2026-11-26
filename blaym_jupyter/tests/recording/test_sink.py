@@ -421,3 +421,22 @@ def test_the_sink_has_one_thread_and_it_stops_on_close():
     assert threading.active_count() == before + 1
     assert sink.close(2.0).unwritten == 0
     assert wait_for(lambda: threading.active_count() == before)
+
+
+def test_dropping_a_runs_output_to_the_bound_writes_one_closed_kernel_gap_per_run():
+    ing, clock = FakeIngestor(), FakeTime()
+    gate = threading.Event()
+    ing.on_put = lambda data: gate.wait(5)
+    sink = OrderedSink(ing, clock, max_queued_events=5, poll_s=0.005)
+    ev0, b0 = blob_event(b"first")
+    sink.submit(PendingWrite("e1", [ev0], b0))
+    assert wait_for(lambda: sink._inflight > 0)
+    for _ in range(10):
+        sink.submit(PendingWrite("e1", [event("kernel_started")]))
+    for _ in range(5):
+        sink.submit(PendingWrite("e1", [event("output_added")]))  # all of run r1: one gap
+    gate.set()
+    assert sink.drain()
+    types = ing.accepted_types()
+    assert types.count("recording_gap_started") == 1 and types.count("recording_gap_ended") == 1
+    assert types.index("recording_gap_started") < types.index("recording_gap_ended")

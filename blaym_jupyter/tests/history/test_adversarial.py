@@ -78,9 +78,7 @@ def oracle_model(line):
             taken = {}
             for c in p.cells:
                 from_event = {g.runId: list(_oracle_items(g)) for g in c.outputs}
-                if t == "changed_outside_editor":
-                    taken[c.cellId] = from_event
-                elif getattr(c.cellType, "value", c.cellType) != "code":
+                if getattr(c.cellType, "value", c.cellType) != "code":
                     rescue(dict(on_cell.get(c.cellId, {})) if c.cellId in known else {})
                     taken[c.cellId] = {}  # a snapshot: only code cells have outputs
                 else:  # what was recorded wins; only an unseen cell takes the snapshot's

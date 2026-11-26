@@ -126,6 +126,20 @@ def test_ingest_and_the_reads(rig):
     assert SearchResponse.model_validate_json(hits.body).hits
 
 
+def test_timeline_and_events_between_routes(rig):
+    from blaym_jupyter_types import EventsBetweenResponse, TimelineIndexResponse
+    exp, branch = rig.seed()
+    q = {"explorationId": exp, "branchId": branch}
+    tl = rig.call("GET", "/timeline", query={**q, "limit": "1"})
+    body = TimelineIndexResponse.model_validate_json(tl.body)
+    assert tl.status == 200 and [t.root for t in body.ticks] == [1] and body.truncated and body.nextTick == 2
+    between = rig.call("GET", "/events-between", query={**q, "fromTick": "2", "toTick": "2"})
+    assert [e.root.tick for e in EventsBetweenResponse.model_validate_json(between.body).events] == [2]
+    assert rig.call("GET", "/timeline", query={**q, "branchId": "nope"}).status == 404
+    assert rig.call("GET", "/events-between", query={**q, "fromTick": "2"}).status == 400
+    assert rig.call("GET", "/timeline", query={**q, "limit": "9999"}).status == 400  # over the contract maximum
+
+
 def test_resolve_cell_revision(rig):
     exp, _ = rig.seed()
     r = rig.call("POST", "/cells/revision", body={"explorationId": exp, "cellId": "c1", "code": "needle = 2"})
@@ -233,6 +247,28 @@ def test_a_busy_store_is_503_with_retry_after_and_the_committed_outcomes(rig):
     assert r.status == 503 and r.headers["Retry-After"] == "1" and _json(r)["outcomes"] == []
 
 
+def test_a_busy_store_on_the_startup_gap_keeps_the_flag_for_the_next_ingest(rig):
+    status = rig.register()
+    rig.registry._startup_unclean[status.explorationId] = True  # the last session did not close cleanly
+    s = Scenario()
+    s.start(cells=[("c1", "x = 1")])
+    real, calls = rig.service.ingest, []
+
+    def flaky(cred, request):
+        calls.append(request)
+        if len(calls) == 2:  # the start-up gap
+            raise ServiceBusy("locked", [])
+        return real(cred, request)
+
+    rig.service.ingest = flaky
+    body = rig.ingest_body(status.explorationId, s.events)
+    assert rig.call("POST", "/ingest", body=body).status == 503  # the gap hit a busy store
+    assert rig.registry.startup_unclean(status.explorationId)  # so the flag is still set
+    retry = rig.call("POST", "/ingest", body=body)  # the browser resends the batch
+    assert retry.status == 200 and len(calls) == 4  # the snapshot again (duplicate), then the gap
+    assert not rig.registry.startup_unclean(status.explorationId)
+
+
 def test_unknown_route_404_and_wrong_method_405(rig):
     assert rig.call("GET", "/nothing").status == 404
     r = rig.call("GET", "/ingest")
@@ -286,3 +322,38 @@ def test_routes_file_is_generated_from_the_table():
         ROUTES_FILE.parent.mkdir(parents=True, exist_ok=True)
         ROUTES_FILE.write_text(text)
     assert ROUTES_FILE.read_text() == text
+
+
+# -- Task 20: the start-up gap (O7) --------------------------------------------------------------
+
+
+def test_a_lost_session_gets_one_closed_gap_after_the_next_first_snapshot_and_a_clean_one_none(tmp_path):
+    lost = Rig(tmp_path / "lost")
+    (tmp_path / "lost").mkdir()
+    exp, branch = lost.seed()  # the page never closes: the server record stays open
+    again = Rig(tmp_path / "lost")  # a restart, then a new page of the same notebook
+    status = again.register("tab-2")
+    s = Scenario()
+    s.start(cells=[("c1", "needle = 2")])
+    r = again.call("POST", "/ingest", body=again.ingest_body(status.explorationId, s.events, "tab-2"))
+    assert IngestResponse.model_validate_json(r.body).outcomes[0].root.status == "accepted"
+    since = again.call("GET", "/events-since", query={"explorationId": exp, "branchId": branch, "afterTick": "0"})
+    events = EventsSinceResponse.model_validate_json(since.body).events
+    types = [e.root.type for e in events]
+    assert types[-3:] == ["notebook_snapshot", "recording_gap_started", "recording_gap_ended"]
+    started = events[-2].root.payload
+    assert (started.source.value, started.reason.value) == ("browser", "unknown")
+    again.call("POST", "/ingest", body=again.ingest_body(exp, Scenario().events, "tab-2"))  # no second gap
+
+    clean = Rig(tmp_path / "clean")
+    (tmp_path / "clean").mkdir()
+    exp2, branch2 = clean.seed()
+    clean.call("POST", "/notebooks/close", body={"notebookId": exp2, "instanceId": "tab-1"})
+    reopened = Rig(tmp_path / "clean")
+    st = reopened.register("tab-2")
+    s2 = Scenario()
+    s2.start(cells=[("c1", "needle = 2")])
+    reopened.call("POST", "/ingest", body=reopened.ingest_body(st.explorationId, s2.events, "tab-2"))
+    since = reopened.call("GET", "/events-since", query={"explorationId": exp2, "branchId": branch2, "afterTick": "0"})
+    assert not [e for e in EventsSinceResponse.model_validate_json(since.body).events
+                if e.root.type.startswith("recording_gap")]

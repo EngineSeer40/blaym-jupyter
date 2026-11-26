@@ -484,15 +484,16 @@ def test_kernel_gone_closes_a_started_run_as_interrupted(h):
     h.assert_clean("nb-1")
 
 
-def test_a_snapshot_waits_for_the_run_to_end_and_the_idle_hook_releases_it():
-    """S5-T end to end: the service refuses a snapshot while a run runs; the sink defers it and
-    the run recorder's idle report puts it through."""
+def test_an_outside_change_during_a_run_is_accepted_and_the_run_output_stays():
+    """S5-T end to end: snapshots and outside changes are no longer refused while a run runs;
+    the run's recorded outputs are kept."""
     h = Harness()
     try:
         h.snapshot("nb-1", [("c1", "a")])
         h.kernel()
         h.request("r1", code="a")
         h.msg("r1", "execute_input", {"execution_count": 1})
+        h.msg("r1", "stream", {"name": "stdout", "text": "out"})
         h.settle(200)
         snap = h._ev("nb-1", "changed_outside_editor", {"path": "nb.ipynb", "notebookMetadata": {}, "kernelName": "python3", "language": "python", "cells": [
             {"cellId": "c1", "cellType": "code", "code": "changed", "revision": 2, "metadata": {}, "outputs": []}]})
@@ -500,12 +501,15 @@ def test_a_snapshot_waits_for_the_run_to_end_and_the_idle_hook_releases_it():
         from blaym_jupyter.recording.sink import PendingWrite
         h.sink.submit(PendingWrite("nb-1", [snap]))
         assert h.sink.drain(5)
-        assert "changed_outside_editor" not in h.types()  # refused while the run is running
-        assert h.sink.stats["deferred"] == 1
+        assert "changed_outside_editor" in h.types()  # accepted during the run
+        assert h.sink.stats["deferred"] == 0
         h.finish_msgs("r1", 1)
         h.settle()
         assert h.sink.drain(5)
-        assert h.types()[-2:] == ["run_finished", "changed_outside_editor"]
+        assert "run_finished" in h.types()
+        cell = next(c for c in h.state("nb-1").notebook.cells if c.cellId == "c1")
+        items = [i for g in cell.outputs for i in g.items]
+        assert items and "out" in "".join(i.preview or "" for i in items)
     finally:
         h.close()
 

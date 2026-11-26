@@ -1,11 +1,25 @@
 import type { IngestRequest, RecorderEvent } from 'blaym-jupyter-types';
 import { applyPolicy, Outbox, OutboxReport, utf8Length } from '../../recording';
-import { accept, FakeNotebook, FakeTime, FakeTransport, Harness, POLICY, refuse, settle } from './generate';
+import {
+  accept,
+  FakeNotebook,
+  FakeTime,
+  FakeTransport,
+  Harness,
+  POLICY,
+  refuse,
+  settle
+} from './generate';
 
 let n = 0;
 const ev = (type: string): RecorderEvent =>
-  ({ eventId: `r${++n}`, type, payload: { cellId: 'c' } }) as unknown as RecorderEvent;
-const sentIds = (rs: IngestRequest[]): string[] => rs.reduce((a: string[], r) => a.concat(idsOf(r)), []);
+  ({
+    eventId: `r${++n}`,
+    type,
+    payload: { cellId: 'c' }
+  }) as unknown as RecorderEvent;
+const sentIds = (rs: IngestRequest[]): string[] =>
+  rs.reduce((a: string[], r) => a.concat(idsOf(r)), []);
 const idsOf = (r: IngestRequest) => r.events.map(e => (e as any).eventId);
 
 function make(snapshotter?: () => Promise<RecorderEvent>) {
@@ -46,7 +60,9 @@ describe('review: outbox adversarial', () => {
     });
     let hang!: () => void;
     transport.ingestHandler = (req, call) =>
-      call === 0 ? new Promise(r => (hang = () => r(accept(req)))) : Promise.resolve(accept(req));
+      call === 0
+        ? new Promise(r => (hang = () => r(accept(req))))
+        : Promise.resolve(accept(req));
     outbox.enqueue(ev('cell_inserted')); // in flight, unanswered
     await settle();
     outbox.requestResync('start');
@@ -60,13 +76,17 @@ describe('review: outbox adversarial', () => {
     await settle(50);
     const sent = sentIds(transport.requests);
     expect(sent).toContain((late as any).eventId);
-    expect(sent.indexOf((snap as any).eventId)).toBeLessThan(sent.indexOf((late as any).eventId));
+    expect(sent.indexOf((snap as any).eventId)).toBeLessThan(
+      sent.indexOf((late as any).eventId)
+    );
   });
 
   test('partial acceptance in one response: accepted gone, refused dropped with one resync, untouched kept', async () => {
     const { outbox, transport, time, snapshots } = make();
     const first = ev('cell_inserted');
-    const b = ev('cell_source_changed'), c = ev('recording_gap_started'), d = ev('cell_deleted');
+    const b = ev('cell_source_changed'),
+      c = ev('recording_gap_started'),
+      d = ev('cell_deleted');
     let held!: () => void;
     transport.ingestHandler = (req, call) => {
       if (call === 0) return new Promise(r => (held = () => r(accept(req))));
@@ -75,7 +95,8 @@ describe('review: outbox adversarial', () => {
         return Promise.resolve({
           apiVersion: 1,
           outcomes: [
-            refuse({ ...req, events: [req.events[0]] }, 'invalid_event').outcomes[0],
+            refuse({ ...req, events: [req.events[0]] }, 'invalid_event')
+              .outcomes[0],
             ok[1],
             refuse({ ...req, events: [req.events[2]] }, 'conflict').outcomes[0]
           ]
@@ -91,7 +112,8 @@ describe('review: outbox adversarial', () => {
     time.advance(5000);
     await settle(50);
     const sent = sentIds(transport.requests);
-    const count = (e: RecorderEvent) => sent.filter((x: string) => x === (e as any).eventId).length;
+    const count = (e: RecorderEvent) =>
+      sent.filter((x: string) => x === (e as any).eventId).length;
     expect([count(b), count(c), count(d)]).toEqual([1, 1, 1]);
     expect(snapshots).toHaveLength(1);
     expect(outbox.length).toBe(0);
@@ -99,7 +121,8 @@ describe('review: outbox adversarial', () => {
 
   test('a persistently refused snapshot does not spin: at most one build per 5 s', async () => {
     const { outbox, transport, time, snapshots } = make();
-    transport.ingestHandler = req => Promise.resolve(refuse(req, 'invalid_event'));
+    transport.ingestHandler = req =>
+      Promise.resolve(refuse(req, 'invalid_event'));
     outbox.requestResync('start');
     for (let i = 0; i < 60; i++) {
       time.advance(1000);
@@ -112,7 +135,9 @@ describe('review: outbox adversarial', () => {
   test('not_active_recorder pauses, sends nothing more, and resume sends the rest once', async () => {
     const { outbox, transport } = make();
     transport.ingestHandler = (req, call) =>
-      Promise.resolve(call === 0 ? refuse(req, 'not_active_recorder') : accept(req));
+      Promise.resolve(
+        call === 0 ? refuse(req, 'not_active_recorder') : accept(req)
+      );
     const a = ev('cell_inserted');
     outbox.enqueue(a);
     await settle();
@@ -124,7 +149,8 @@ describe('review: outbox adversarial', () => {
 
   test('close stops timers: no request after close', async () => {
     const { outbox, transport, time } = make();
-    transport.ingestHandler = () => Promise.reject(Object.assign(new Error('x'), {}));
+    transport.ingestHandler = () =>
+      Promise.reject(Object.assign(new Error('x'), {}));
     outbox.enqueue(ev('cell_inserted'));
     await settle();
     const calls = transport.calls;
@@ -163,9 +189,18 @@ describe('review: metadata policy cannot be bypassed in reconcile/builder', () =
     nb.insert(0, 'code', 'a');
     const h = new Harness(nb);
     await h.snapshot();
-    nb.list[0].metadata = { trusted: true, execution: { 'iopub.execute_input': 'x' } };
-    expect((await h.change()).filter(e => e.type === 'cell_metadata_changed')).toHaveLength(0);
-    nb.list[0].metadata = { trusted: false, execution: { 'iopub.execute_input': 'y' }, tags: ['t'] };
+    nb.list[0].metadata = {
+      trusted: true,
+      execution: { 'iopub.execute_input': 'x' }
+    };
+    expect(
+      (await h.change()).filter(e => e.type === 'cell_metadata_changed')
+    ).toHaveLength(0);
+    nb.list[0].metadata = {
+      trusted: false,
+      execution: { 'iopub.execute_input': 'y' },
+      tags: ['t']
+    };
     const ev2 = await h.change();
     const m = ev2.filter(e => e.type === 'cell_metadata_changed') as any[];
     expect(m).toHaveLength(1);

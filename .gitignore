@@ -10,6 +10,7 @@ node_modules/
 blaym_jupyter/labextension
 # Version file is handled by hatchling
 blaym_jupyter/_version.py
+ui-tests/node_modules
 
 # Integration tests
 ui-tests/test-results/

@@ -79,6 +79,20 @@
       "response": "EventsSinceResponse"
     },
     {
+      "name": "timeline",
+      "method": "GET",
+      "path": "/timeline",
+      "request": "query:explorationId,branchId,fromTick?,toTick?,limit?",
+      "response": "TimelineIndexResponse"
+    },
+    {
+      "name": "events_between",
+      "method": "GET",
+      "path": "/events-between",
+      "request": "query:explorationId,branchId,fromTick,toTick,maxEvents?",
+      "response": "EventsBetweenResponse"
+    },
+    {
       "name": "search",
       "method": "GET",
       "path": "/search",

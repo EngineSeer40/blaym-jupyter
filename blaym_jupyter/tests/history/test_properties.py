@@ -395,11 +395,16 @@ def test_rule_12_same_input_gives_the_same_answers_across_processes():
     """Rule 12 (determinism). The digest of the serialised answers for a fixed
     sample is the same in this process and in fresh interpreters with different string
     hash seeds (which change set and dict-of-set iteration order)."""
-    here = digest()
-    for seed in ("0", "1", "12345"):
+    # The reference is itself a fresh interpreter: in-process, Hypothesis's draws for the same
+    # derandomised sample differ once other test modules have run in the same process.
+    def fresh(seed):
         out = subprocess.run(
             [sys.executable, "-c",
              "from blaym_jupyter.tests.history.test_properties import digest; print(digest())"],
             cwd=PROJECT_ROOT, env={**os.environ, "PYTHONHASHSEED": seed},
             capture_output=True, text=True, check=True, timeout=120)
-        assert out.stdout.strip().splitlines()[-1] == here, f"PYTHONHASHSEED={seed}"
+        return out.stdout.strip().splitlines()[-1]
+
+    here = fresh("random")
+    for seed in ("0", "1", "12345"):
+        assert fresh(seed) == here, f"PYTHONHASHSEED={seed}"

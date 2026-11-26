@@ -12,6 +12,8 @@ def install(server_app):
     from blaym_jupyter.routes import setup_route_handlers
 
     from .config import BlaymConfig
+    from .contents import install_contents_listener
+    from .files import install_file_watcher
     from .host import BlaymHost
     from .kernels import install_kernel_adapter
 
@@ -20,6 +22,8 @@ def install(server_app):
     setup_route_handlers(server_app.web_app, host)
     kernels = install_kernel_adapter(server_app, host)
     server_app.web_app.settings[KERNELS_KEY] = kernels
+    install_contents_listener(server_app, host, kernels)
+    watcher = install_file_watcher(server_app, host)
 
     original = server_app.cleanup_kernels
 
@@ -33,7 +37,10 @@ def install(server_app):
             try:
                 await kernels.close()  # every kernel is gone: runs are finished before the host closes
             finally:
-                host.close()
+                try:
+                    watcher.close()
+                finally:
+                    host.close()
 
     server_app.cleanup_kernels = cleanup_kernels
     return host

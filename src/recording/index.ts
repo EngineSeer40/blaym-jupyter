@@ -10,3 +10,4 @@ export * from './author';
 export * from './outbox';
 export * from './heartbeat';
 export * from './transport';
+export * from './gaps';

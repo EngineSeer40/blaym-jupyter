@@ -26,6 +26,8 @@ export const ROUTES = {
   state: { method: 'GET', path: '/state' },
   outline: { method: 'GET', path: '/outline' },
   events_since: { method: 'GET', path: '/events-since' },
+  timeline: { method: 'GET', path: '/timeline' },
+  events_between: { method: 'GET', path: '/events-between' },
   search: { method: 'GET', path: '/search' },
   get_blob: { method: 'GET', path: '/blobs/{explorationId}/{contentHash}' }
 } as const satisfies Record<string, Route>;

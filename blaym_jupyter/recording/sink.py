@@ -36,6 +36,7 @@ from typing import Any, Callable, Optional
 
 from blaym_jupyter_types import IngestRequest
 
+from .edges import point_gap
 from .ports import Clock, Ingestor
 
 log = logging.getLogger("blaym_jupyter.recording.sink")
@@ -131,6 +132,13 @@ class OrderedSink:
         if etype in OUTPUT_TYPES and self._queued >= self._max_events:
             self._degraded.add(run_id)
             self.stats["dropped_overflow"] += 1
+            # S5-R: say so once per run, as a closed point gap (source `kernel`), outside the bound
+            for gap in point_gap(exploration_id, source="kernel", reason="unknown", at_ms=self._clock.now_ms(),
+                                 editor=self._editor, origin_id=self._instance):
+                self._queues.setdefault(exploration_id, deque()).append(_Item(gap, {}, 0))
+                if exploration_id not in self._order:
+                    self._order.append(exploration_id)
+                self._queued += 1
             return
         if etype == "run_finished":
             self._degraded.discard(run_id)

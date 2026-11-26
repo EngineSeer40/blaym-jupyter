@@ -229,6 +229,53 @@
           "runId": "pasted:c9224789-88fc-562e-a565-d84c450d0a34"
          }
         ],
+        "revision": 1
+       }
+      ],
+      "metadata": {},
+      "path": "analysis.ipynb"
+     },
+     "position": {
+      "branchCount": 2,
+      "branchId": "main",
+      "lastEventTick": 2,
+      "tick": 2
+     },
+     "runs": [],
+     "schemaVersion": 2
+    },
+    "status": "ok"
+   },
+   "tick": 2
+  },
+  {
+   "branchId": "main",
+   "result": {
+    "state": {
+     "chat": [],
+     "detachedOutputs": [],
+     "gaps": [],
+     "kernel": {
+      "kernelName": "python3",
+      "language": "python",
+      "status": "unknown"
+     },
+     "notebook": {
+      "cells": [
+       {
+        "cellId": "c1",
+        "cellType": "code",
+        "code": "x",
+        "metadata": {},
+        "outputs": [],
+        "revision": 1
+       },
+       {
+        "cellId": "c2",
+        "cellType": "code",
+        "code": "plot()",
+        "metadata": {},
+        "outputs": [],
         "revision": 1,
         "runCount": 1
        }
@@ -286,21 +333,6 @@
         "code": "plot()",
         "metadata": {},
         "outputs": [
-         {
-          "items": [
-           {
-            "contentHash": "sha256:290c1899a985ec38",
-            "mimeTypes": [
-             "text/plain"
-            ],
-            "outputType": "stream",
-            "preview": "old chart",
-            "sizeBytes": 9,
-            "truncated": false
-           }
-          ],
-          "runId": "pasted:c9224789-88fc-562e-a565-d84c450d0a34"
-         },
          {
           "items": [
            {

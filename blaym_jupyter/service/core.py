@@ -469,9 +469,10 @@ class Service:
         if clean["type"] in _NOT_FOR_RECORDERS:
             return _refused(eid, "invalid_event", "branch points are made by the service")
 
-        # S5-T, before any side effect (no blob, no event, no gap): replacing the notebook would orphan the
-        # output of the run in progress. An event id already stored goes on to the duplicate check instead.
-        if (exp is not None and clean["type"] in ("notebook_snapshot", "changed_outside_editor")
+        # S5-T, before any side effect (no blob, no event, no gap): an outside change replaces outputs, so it
+        # would orphan those of the run in progress (a snapshot keeps them). An event id already stored goes
+        # on to the duplicate check instead.
+        if (exp is not None and clean["type"] == "changed_outside_editor"
                 and self._events.find_event(exploration_id, eid) is None):
             try:
                 running = any(r.status.root == "running" for r in self._tip(exp, target).runs)

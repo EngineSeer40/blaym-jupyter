@@ -22,6 +22,8 @@ TEXT_LIMIT = 65536
 
 def needs_state(event, index_every_edit: bool = False) -> bool:
     """Whether `documents_for` wants the rebuilt state for this event."""
+    if event.type == "notebook_snapshot":  # which of its outputs the state took
+        return any(cell.outputs for cell in event.payload.cells)
     return event.type == "run_started" or (index_every_edit and event.type == "cell_source_changed")
 
 
@@ -116,9 +118,14 @@ def documents_for(event, state_after, *, index_every_edit: bool = False,
             if cell is not None:
                 add_code(p.code, cell.cellType)
     elif kind in ("notebook_snapshot", "changed_outside_editor"):
+        taken = None
+        if kind == "notebook_snapshot" and state_after is not None:
+            taken = {c.cellId: c.outputs for c in state_after.notebook.cells}
         for cell in p.cells:
             if index_every_edit:
                 add_code(cell.code, cell.cellType)
+            if taken is not None and taken.get(cell.cellId) != cell.outputs:
+                continue  # ignored by the rebuilder, so not part of this moment
             for group in cell.outputs:
                 add_items(group.items)
     return docs

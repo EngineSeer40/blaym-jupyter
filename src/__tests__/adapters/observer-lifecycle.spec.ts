@@ -1,12 +1,11 @@
 import { NotebookObserver } from '../../adapters/jupyterlab/observer';
-import type { CellModelLike } from '../../adapters/jupyterlab/observer';
+import { TransportError } from '../../recording/transport';
 import {
   CapturingTransport,
   FakeCell,
   FakeElection,
   FakePanel,
   FakeShared,
-  FakeSignal,
   FakeTime,
   POLICY,
   UuidIds,
@@ -15,11 +14,6 @@ import {
 } from './fakes';
 
 declare const process: any;
-
-class FakeOutputs {
-  changed = new FakeSignal();
-  constructor(public length: number) {}
-}
 
 async function setup(
   opts: {
@@ -33,9 +27,6 @@ async function setup(
   ]);
   const shared = new FakeShared([cell]);
   const panel = new FakePanel(shared);
-  const out = new FakeOutputs(1);
-  const models: CellModelLike[] = [{ sharedModel: cell, outputs: out }];
-  Object.assign(panel.model, { cells: models });
   const time = new FakeTime();
   const transport = new CapturingTransport();
   const election = Object.assign(new FakeElection(opts.election ?? 'active'), {
@@ -65,7 +56,6 @@ async function setup(
     cell,
     shared,
     panel,
-    out,
     time,
     transport,
     observer,
@@ -75,14 +65,13 @@ async function setup(
 }
 
 describe('observer lifecycle', () => {
-  it('dispose unsubscribes model, cells, outputs, kernel and context signals', async () => {
+  it('dispose unsubscribes model, cells, kernel and context signals', async () => {
     const t = await setup();
     const kernel = t.panel.kernel!;
     expect(kernel.anyMessage.slots.size).toBe(1);
     t.observer.dispose();
     expect(t.shared.changed.slots.size).toBe(0);
     expect(t.cell.changed.slots.size).toBe(0);
-    expect(t.out.changed.slots.size).toBe(0);
     expect(t.panel.saveState.slots.size).toBe(0);
     expect(t.panel.kernelChanged.slots.size).toBe(0);
     expect(t.panel.connectionStatusChanged.slots.size).toBe(0);
@@ -98,39 +87,6 @@ describe('observer lifecycle', () => {
     t.time.advance(60000);
     await settle();
     expect(t.transport.requests.length).toBe(n);
-  });
-
-  it('a stuck running cell: execute_reply clears it, so a later emptied output resyncs', async () => {
-    const t = await setup();
-    const k = t.panel.kernel!;
-    k.send('execute_request', 'c1', 'm1');
-    k.anyMessage.emit({
-      direction: 'recv',
-      msg: {
-        header: { msg_type: 'execute_reply' },
-        parent_header: { msg_id: 'm1' }
-      }
-    });
-    t.cell.outputs = [];
-    t.out.length = 0;
-    t.out.changed.emit();
-    t.time.advance(6000);
-    await settle();
-    expect(t.snapshots()).toBe(2);
-  });
-
-  it('a kernel change clears the running set (no stuck running cell)', async () => {
-    const t = await setup();
-    t.panel.kernel!.send('execute_request', 'c1', 'm1');
-    // kernel restarted: a new kernel object, the old reply never arrives
-    t.panel.session.kernel = new (t.panel.kernel!.constructor as any)();
-    t.panel.kernelChanged.emit();
-    t.cell.outputs = [];
-    t.out.length = 0;
-    t.out.changed.emit();
-    t.time.advance(6000);
-    await settle();
-    expect(t.snapshots()).toBe(2); // production bug if 1: running never cleared
   });
 
   it('execute_request without cellId falls back to flushAll', async () => {
@@ -238,7 +194,6 @@ describe('takeover', () => {
     expect(t.panel.kernel!.anyMessage.slots.size).toBe(1);
     expect(t.shared.changed.slots.size).toBe(1);
     expect(t.cell.changed.slots.size).toBe(1);
-    expect(t.out.changed.slots.size).toBe(1);
     t.cell.type('x = 2');
     t.time.advance(6000);
     await settle();
@@ -292,5 +247,67 @@ describe('presenter is quiet (S5-R)', () => {
       q.onState({ kind: 'problem', detail: 'boom' });
     }
     expect(notify).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('the status stays honest (LT-4)', () => {
+  const refuse =
+    (reason: string) =>
+    (req: any): Promise<any> =>
+      Promise.resolve({
+        apiVersion: 1,
+        outcomes: req.events.map((e: any) => ({
+          status: 'refused',
+          eventId: e.eventId,
+          reason,
+          detail: 'no'
+        }))
+      });
+
+  async function run(
+    handler: (req: any) => Promise<any>
+  ): Promise<{ states: string[]; recover: () => Promise<string> }> {
+    const t = await setup();
+    const kind = (): string => (t.observer as any).state.kind;
+    const accepting = t.transport.ingestHandler;
+    const states: string[] = [];
+    const step = async (source: string): Promise<void> => {
+      t.cell.type(source);
+      t.time.advance(6000);
+      await settle();
+    };
+    t.transport.ingestHandler = handler;
+    await step('x = 2');
+    states.push(kind());
+    return {
+      states,
+      recover: async () => {
+        t.transport.ingestHandler = accepting;
+        (t.observer as any).outbox.resume();
+        await step('x = 3');
+        return kind();
+      }
+    };
+  }
+
+  it.each(['run_in_progress', 'invalid_event', 'unknown_branch'])(
+    'a %s refusal is not a problem',
+    async reason => {
+      const r = await run(refuse(reason));
+      expect(r.states).toEqual(['recording']);
+    }
+  );
+
+  it('a rejected batch is not a problem', async () => {
+    const r = await run(() =>
+      Promise.reject(new TransportError('bad request', 'http', 400))
+    );
+    expect(r.states).toEqual(['recording']);
+  });
+
+  it('a paused outbox is a problem until an event is accepted again', async () => {
+    const r = await run(refuse('unauthorized'));
+    expect(r.states).toEqual(['problem']);
+    expect(await r.recover()).toBe('recording');
   });
 });

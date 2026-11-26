@@ -29,7 +29,14 @@ const { readFileSync } = require('fs');
 const { join } = require('path');
 declare const __dirname: string;
 
-export const FIXTURES: string = join(__dirname, '..', '..', '..', 'fixtures', 'recorder');
+export const FIXTURES: string = join(
+  __dirname,
+  '..',
+  '..',
+  '..',
+  'fixtures',
+  'recorder'
+);
 export const POLICY: MetadataPolicy = JSON.parse(
   readFileSync(join(FIXTURES, 'metadata-policy.json'), 'utf8')
 );
@@ -40,7 +47,12 @@ export const POLICY: MetadataPolicy = JSON.parse(
 
 export class FakeTime implements Clock, Scheduler {
   t = 1_000_000;
-  private timers: Array<{ at: number; seq: number; fn: () => void; live: boolean }> = [];
+  private timers: Array<{
+    at: number;
+    seq: number;
+    fn: () => void;
+    live: boolean;
+  }> = [];
   private seq = 0;
 
   nowMs(): number {
@@ -129,19 +141,27 @@ export class FakeTransport implements Transport {
   registers = 0;
   statuses = 0;
   /** Decides each ingest call: reject with an error, or answer per event. */
-  ingestHandler: (req: IngestRequest, call: number) => Promise<IngestResponse> = (req) =>
-    Promise.resolve(accept(req));
-  statusHandler: () => Promise<NotebookStatus> = () => Promise.resolve(status());
-  registerHandler: () => Promise<NotebookStatus> = () => Promise.resolve(status());
+  ingestHandler: (req: IngestRequest, call: number) => Promise<IngestResponse> =
+    req => Promise.resolve(accept(req));
+  statusHandler: () => Promise<NotebookStatus> = () =>
+    Promise.resolve(status());
+  registerHandler: () => Promise<NotebookStatus> = () =>
+    Promise.resolve(status());
   calls = 0;
 
   ingest(req: IngestRequest): Promise<IngestResponse> {
     this.requests.push(req);
     return this.ingestHandler(req, this.calls++);
   }
-  prepareOutputs(req: { explorationId: string; outputs: Record<string, unknown>[] }) {
+  prepareOutputs(req: {
+    explorationId: string;
+    outputs: Record<string, unknown>[];
+  }) {
     this.prepared.push(req.outputs);
-    return Promise.resolve({ apiVersion: 1 as const, items: req.outputs.map(fakeItem) });
+    return Promise.resolve({
+      apiVersion: 1 as const,
+      items: req.outputs.map(fakeItem)
+    });
   }
   register() {
     this.registers++;
@@ -221,9 +241,20 @@ export class FakeNotebook implements NotebookView {
   freshId(): string {
     return `m${++this.n}-${Math.floor(Math.random() * 1e9).toString(36)}`;
   }
-  insert(index: number, type: CellType, source: string, metadata: Record<string, unknown> = {}): string {
+  insert(
+    index: number,
+    type: CellType,
+    source: string,
+    metadata: Record<string, unknown> = {}
+  ): string {
     const id = this.freshId();
-    this.list.splice(Math.min(index, this.list.length), 0, { id, type, source, metadata, outputs: [] });
+    this.list.splice(Math.min(index, this.list.length), 0, {
+      id,
+      type,
+      source,
+      metadata,
+      outputs: []
+    });
     return id;
   }
   delete(index: number): void {
@@ -253,17 +284,66 @@ const typeArb = fc.constantFrom<CellType>('code', 'markdown', 'raw');
 const textArb = fc.string({ maxLength: 12 });
 
 export const opArb: fc.Arbitrary<Op> = fc.oneof(
-  { weight: 3, arbitrary: fc.record({ op: fc.constant('insert' as const), at: fc.nat(30), type: typeArb, source: textArb }) },
-  { weight: 2, arbitrary: fc.record({ op: fc.constant('delete' as const), at: fc.nat(30) }) },
-  { weight: 3, arbitrary: fc.record({ op: fc.constant('move' as const), from: fc.nat(30), to: fc.nat(30) }) },
-  { weight: 2, arbitrary: fc.record({ op: fc.constant('type' as const), at: fc.nat(30), type: typeArb }) },
-  { weight: 5, arbitrary: fc.record({ op: fc.constant('edit' as const), at: fc.nat(30), source: textArb }) },
-  { weight: 2, arbitrary: fc.record({ op: fc.constant('meta' as const), at: fc.nat(30), tags: fc.array(fc.constantFrom('a', 'b', 'parameters'), { maxLength: 2 }) }) },
-  { weight: 1, arbitrary: fc.record({ op: fc.constant('nbmeta' as const), key: fc.constantFrom('x', 'y', 'kernelspec'), value: fc.nat(5) }) }
+  {
+    weight: 3,
+    arbitrary: fc.record({
+      op: fc.constant('insert' as const),
+      at: fc.nat(30),
+      type: typeArb,
+      source: textArb
+    })
+  },
+  {
+    weight: 2,
+    arbitrary: fc.record({ op: fc.constant('delete' as const), at: fc.nat(30) })
+  },
+  {
+    weight: 3,
+    arbitrary: fc.record({
+      op: fc.constant('move' as const),
+      from: fc.nat(30),
+      to: fc.nat(30)
+    })
+  },
+  {
+    weight: 2,
+    arbitrary: fc.record({
+      op: fc.constant('type' as const),
+      at: fc.nat(30),
+      type: typeArb
+    })
+  },
+  {
+    weight: 5,
+    arbitrary: fc.record({
+      op: fc.constant('edit' as const),
+      at: fc.nat(30),
+      source: textArb
+    })
+  },
+  {
+    weight: 2,
+    arbitrary: fc.record({
+      op: fc.constant('meta' as const),
+      at: fc.nat(30),
+      tags: fc.array(fc.constantFrom('a', 'b', 'parameters'), { maxLength: 2 })
+    })
+  },
+  {
+    weight: 1,
+    arbitrary: fc.record({
+      op: fc.constant('nbmeta' as const),
+      key: fc.constantFrom('x', 'y', 'kernelspec'),
+      value: fc.nat(5)
+    })
+  }
 );
 
 /** A step is one or more operations between two reconciles. */
-export const stepsArb = fc.array(fc.array(opArb, { minLength: 1, maxLength: 4 }), { minLength: 1, maxLength: 25 });
+export const stepsArb = fc.array(
+  fc.array(opArb, { minLength: 1, maxLength: 4 }),
+  { minLength: 1, maxLength: 25 }
+);
 
 export function applyOp(nb: FakeNotebook, o: Op): void {
   const n = nb.list.length;
@@ -284,7 +364,8 @@ export function applyOp(nb: FakeNotebook, o: Op): void {
       if (n > 0) nb.list[o.at % n].source = o.source;
       break;
     case 'meta':
-      if (n > 0) nb.list[o.at % n].metadata = o.tags.length ? { tags: o.tags } : {};
+      if (n > 0)
+        nb.list[o.at % n].metadata = o.tags.length ? { tags: o.tags } : {};
       break;
     case 'nbmeta':
       nb.nbMetadata = { ...nb.nbMetadata, [o.key]: o.value };
@@ -319,21 +400,36 @@ export class Applier {
           if (old && c.revision < old.revision) {
             this.problems.push(`snapshot lowered revision of ${c.cellId}`);
           }
-          return { id: c.cellId, type: c.cellType, code: c.code, metadata: c.metadata, revision: c.revision };
+          return {
+            id: c.cellId,
+            type: c.cellType,
+            code: c.code,
+            metadata: c.metadata,
+            revision: c.revision
+          };
         });
         this.nb = p.notebookMetadata;
         break;
       case 'cell_inserted':
-        if (this.cells.some(c => c.id === p.cellId)) this.problems.push(`duplicate id ${p.cellId}`);
-        if (p.index > this.cells.length) this.problems.push('insert index out of range');
-        this.cells.splice(p.index, 0, { id: p.cellId, type: p.cellType, code: p.code, metadata: p.metadata ?? {}, revision: p.revision });
+        if (this.cells.some(c => c.id === p.cellId))
+          this.problems.push(`duplicate id ${p.cellId}`);
+        if (p.index > this.cells.length)
+          this.problems.push('insert index out of range');
+        this.cells.splice(p.index, 0, {
+          id: p.cellId,
+          type: p.cellType,
+          code: p.code,
+          metadata: p.metadata ?? {},
+          revision: p.revision
+        });
         break;
       case 'cell_deleted':
         this.cells = this.cells.filter(c => c.id !== p.cellId);
         break;
       case 'cell_moved': {
         const i = this.cells.findIndex(c => c.id === p.cellId);
-        if (i !== p.fromIndex) this.problems.push(`move from ${p.fromIndex} but cell at ${i}`);
+        if (i !== p.fromIndex)
+          this.problems.push(`move from ${p.fromIndex} but cell at ${i}`);
         const [c] = this.cells.splice(i, 1);
         this.cells.splice(p.toIndex, 0, c);
         break;
@@ -343,7 +439,8 @@ export class Applier {
         break;
       case 'cell_source_changed': {
         const c = this.find(p.cellId);
-        if (p.revision !== c.revision + 1) this.problems.push(`revision ${p.revision} after ${c.revision}`);
+        if (p.revision !== c.revision + 1)
+          this.problems.push(`revision ${p.revision} after ${c.revision}`);
         c.revision = p.revision;
         c.code = p.code;
         break;
@@ -377,13 +474,21 @@ export function expectedModel(nb: FakeNotebook, identity: CellIdentity) {
     })),
     nb: Object.keys(nb.nbMetadata)
       .filter(k => k !== 'kernelspec' && k !== 'language_info')
-      .reduce((o: Record<string, unknown>, k) => ({ ...o, [k]: nb.nbMetadata[k] }), {})
+      .reduce(
+        (o: Record<string, unknown>, k) => ({ ...o, [k]: nb.nbMetadata[k] }),
+        {}
+      )
   };
 }
 
 export function appliedModel(a: Applier) {
   return {
-    cells: a.cells.map(c => ({ id: c.id, type: c.type, code: c.code, metadata: c.metadata })),
+    cells: a.cells.map(c => ({
+      id: c.id,
+      type: c.type,
+      code: c.code,
+      metadata: c.metadata
+    })),
     nb: a.nb
   };
 }
@@ -404,11 +509,13 @@ export class Harness {
   marker?: AuthorMarker;
   events: RecorderEvent[] = [];
   steps: RecorderEvent[][] = [];
-  running = new Set<string>();
   resyncs = 0;
   private pending: Array<Promise<RecorderEvent>> = [];
 
-  constructor(nb: FakeNotebook = new FakeNotebook(), opts: { marker?: (h: Harness) => AuthorMarker } = {}) {
+  constructor(
+    nb: FakeNotebook = new FakeNotebook(),
+    opts: { marker?: (h: Harness) => AuthorMarker } = {}
+  ) {
     this.nb = nb;
     this.identity = new CellIdentity(nb.cellIdsStable, new SeqIds('blaym'));
     this.builder = new EventBuilder({
@@ -424,7 +531,8 @@ export class Harness {
       scheduler: this.time,
       clock: this.time,
       emit: (d, a) => this.queue(d, a),
-      mark: (id, from, to) => (this.marker ? this.marker.mark(id, from, to) : { hint: 'unknown' })
+      mark: (id, from, to) =>
+        this.marker ? this.marker.mark(id, from, to) : { hint: 'unknown' }
     });
     if (opts.marker) {
       this.marker = opts.marker(this);
@@ -465,9 +573,7 @@ export class Harness {
   /** Reconcile after a change; returns the events this step produced (typing still pending is not included). */
   async change(): Promise<RecorderEvent[]> {
     const before = this.events.length;
-    const r = this.reconciler.reconcile(this.nb, this.identity, {
-      isRunning: id => this.running.has(id)
-    });
+    const r = this.reconciler.reconcile(this.nb, this.identity);
     if (r.kind === 'resync') {
       this.resyncs++;
       await this.settleQueue();

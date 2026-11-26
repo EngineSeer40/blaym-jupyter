@@ -17,9 +17,15 @@ Readings of the contract made here (each is documented where it applies):
   and clears any pending flag.
 * `notebook_copied` changes nothing in this history's notebook (a copy starts a
   new history); only the position moves.
-* A snapshot replaces the notebook, keeps runs, chat and gaps, and sets the
-  kernel name and language.
-* `changed_outside_editor` replaces the notebook and sets `lastOutsideChange`.
+* A snapshot replaces the notebook's cells, order, types, code and metadata, keeps
+  runs, chat and gaps, and sets the kernel name and language. It never removes
+  outputs recorded from the kernel: a code cell already in the state keeps its output
+  groups (the snapshot's are ignored), a code cell new to the state takes the
+  snapshot's, and a cell that is not code in the snapshot has none.
+* `run_started` removes the cell's output groups of runs that are no longer running,
+  `pasted:` groups included; groups of still-running runs stay.
+* `changed_outside_editor` replaces the notebook, outputs included, and sets
+  `lastOutsideChange`.
 * `output_added`, `output_replaced` and `outputs_cleared` for a run that never started
   are `invalid_event` / `unknown_run`.
 * `position.tick` is the tick asked for; here it equals the event's tick, and
@@ -31,6 +37,8 @@ Readings of the contract made here (each is documented where it applies):
 * An output event whose `cellId` differs from the run's cell is `invalid_event` /
   `run_cell_mismatch`; it is checked after `unknown_cell` / `unknown_run` (a run that
   never started) and before anything is applied.
+* A code cell that stops being code (`notebook_snapshot` or `cell_type_changed`) moves
+  its groups of still-running runs to `detachedOutputs` too, and keeps no other outputs.
 * A `notebook_snapshot` or `changed_outside_editor` that drops a cell moves that
   cell's groups of still-running runs to `detachedOutputs`, as `cell_deleted` does.
 * `kernel_restarted` marks every `running` run `unfinished` (no `endedTick`).
@@ -116,15 +124,24 @@ def _initial(ev) -> RebuiltState:
 # --- handlers: each mutates the (already copied) state --------------------------
 
 
+def _is_code(cell) -> bool:
+    return getattr(cell.cellType, "value", cell.cellType) == "code"
+
+
+def _detach_running(s: RebuiltState, groups: list[RunOutputs]) -> None:
+    """Keep the groups of still-running runs among `groups`: they move to `detachedOutputs`."""
+    running = {r.runId for r in s.runs if r.status.root == "running"}
+    s.detachedOutputs.extend(g for g in groups if g.runId in running)
+
+
 def _replace_notebook(s: RebuiltState, ev) -> None:
     p = ev.payload
     # Like `cell_deleted`: a cell the new notebook drops keeps the output groups of its
     # still-running runs (outputs follow the run); other groups go with the cell.
     kept = {c.cellId for c in p.cells}
-    running = {r.runId for r in s.runs if r.status.root == "running"}
     for old in s.notebook.cells:
         if old.cellId not in kept:
-            s.detachedOutputs.extend(g for g in old.outputs if g.runId in running)
+            _detach_running(s, old.outputs)
     s.notebook = NotebookState(
         path=p.path,
         metadata=deepcopy(p.notebookMetadata),
@@ -135,7 +152,15 @@ def _replace_notebook(s: RebuiltState, ev) -> None:
 
 
 def _snapshot(s, ev):
+    # The run recorder is the authority on outputs, not the editor's snapshot.
+    previous = {c.cellId: c.outputs for c in s.notebook.cells}
     _replace_notebook(s, ev)
+    for cell in s.notebook.cells:
+        if not _is_code(cell):
+            _detach_running(s, previous.get(cell.cellId, []))
+            cell.outputs = []
+        elif cell.cellId in previous:
+            cell.outputs = previous[cell.cellId]
 
 
 def _outside(s, ev):
@@ -172,8 +197,7 @@ def _cell_deleted(s, ev):
     # Outputs follow the run: a run still in progress keeps receiving output from
     # the kernel, so its group is kept in `detachedOutputs`. Groups of finished runs
     # go with the cell (they stay in history at earlier positions).
-    running = {r.runId for r in s.runs if r.status.root == "running"}
-    s.detachedOutputs.extend(g for g in cell.outputs if g.runId in running)
+    _detach_running(s, cell.outputs)
 
 
 def _cell_moved(s, ev):
@@ -189,7 +213,11 @@ def _cell_moved(s, ev):
 
 
 def _cell_type_changed(s, ev):
-    s.notebook.cells[_cell_index(s, ev.payload.cellId, ev)].cellType = ev.payload.cellType
+    cell = s.notebook.cells[_cell_index(s, ev.payload.cellId, ev)]
+    cell.cellType = ev.payload.cellType
+    if not _is_code(cell):  # only a code cell has outputs; a running run's are kept detached
+        _detach_running(s, cell.outputs)
+        cell.outputs = []
 
 
 def _cell_source_changed(s, ev):
@@ -223,6 +251,10 @@ def _run_started(s, ev):
     if any(r.runId == p.runId for r in s.runs):
         raise _bad(ev, "duplicate_id", f"run {p.runId} started twice")
     cell.runCount = p.runCount
+    # A new run replaces the cell's finished output (`pasted:` groups too), as the editor
+    # clears it. Groups of still-running runs stay.
+    running = {r.runId for r in s.runs if r.status.root == "running"}
+    cell.outputs = [g for g in cell.outputs if g.runId in running]
     s.runs.append(
         RunState(
             runId=p.runId,
@@ -263,8 +295,10 @@ def _run_groups(s, ev) -> list[RunOutputs]:
     run"). A run that never started is `unknown_cell` when the event's cell does not
     exist, else `unknown_run` (S5 records a run's start before its outputs, so this
     means missing data). For a started run the groups are its cell's when the cell
-    exists, else `detachedOutputs`: output arriving after the cell was deleted is kept,
-    whether the run is still running or has finished (the run still addresses it)."""
+    exists and is code (or still holds the run's group), else `detachedOutputs`: output
+    arriving after the cell was deleted or stopped being code is kept, whether the run is
+    still running or has finished (the run still addresses it). A group already detached
+    stays there, also when the cell comes back or turns into code again."""
     p = ev.payload
     run = next((r for r in s.runs if r.runId == p.runId), None)
     if run is None:
@@ -273,8 +307,10 @@ def _run_groups(s, ev) -> list[RunOutputs]:
     if run.cellId != p.cellId:
         raise _bad(ev, "run_cell_mismatch",
                    f"{ev.type} names cell {p.cellId} but run {p.runId} belongs to cell {run.cellId}")
+    if any(g.runId == p.runId for g in s.detachedOutputs):
+        return s.detachedOutputs
     for c in s.notebook.cells:
-        if c.cellId == run.cellId:
+        if c.cellId == run.cellId and (_is_code(c) or any(g.runId == p.runId for g in c.outputs)):
             return c.outputs
     return s.detachedOutputs
 

@@ -102,6 +102,14 @@ test('recording in a real page', async ({
       keepalive.push({ url: u.split(API)[1], status: r.status() });
     }
   });
+  const sentTypes: string[] = [];
+  page.on('request', r => {
+    if (r.url().includes(`${API}/ingest`)) {
+      for (const e of r.postDataJSON()?.events ?? []) {
+        sentTypes.push(e.type);
+      }
+    }
+  });
   const consoleLines: string[] = [];
   page.on('console', m => {
     if (m.type() === 'error') {
@@ -225,6 +233,9 @@ test('recording in a real page', async ({
   await stateMatches('moved');
 
   // type change
+  const earlySnapshots = sentTypes.filter(
+    t => t === 'notebook_snapshot'
+  ).length;
   await active(page, 0);
   await cmd(page, 'notebook:change-cell-to-markdown');
   await page.waitForTimeout(1500);
@@ -232,6 +243,10 @@ test('recording in a real page', async ({
   await cmd(page, 'notebook:change-cell-to-code');
   await page.waitForTimeout(1500);
   await stateMatches('type changed back');
+  expect(sentTypes.filter(t => t === 'cell_type_changed').length).toBe(2);
+  expect(sentTypes.filter(t => t === 'notebook_snapshot').length).toBe(
+    earlySnapshots
+  );
 
   // delete
   await active(page, 1);
@@ -266,48 +281,158 @@ test('recording in a real page', async ({
   expect(st.state.runs.length).toBeGreaterThan(0);
   expect(st.state.notebook.cells[0].outputs.length).toBeGreaterThan(0);
 
-  // a second cell with output, then Clear Outputs on the first only (a user clearing outputs
-  // is not seen through the shared cell's `changed`; the output-area model finds it)
-  await page.evaluate(() => {
-    (
-      window as Any
-    ).jupyterapp.shell.currentWidget.model.sharedModel.cells[1].setSource(
-      "print('second')"
-    );
-  });
-  await active(page, 1);
-  await cmd(page, 'notebook:run-cell');
-  const outCount = (i: number) =>
-    page.evaluate(
-      (n: number) =>
-        (window as Any).jupyterapp.shell.currentWidget.content.widgets[n].model
-          .outputs.length,
-      i
-    );
-  await expect.poll(() => outCount(1), { timeout: 60000 }).toBeGreaterThan(0);
-  await page.waitForTimeout(2500);
-  await stateMatches('second cell run');
-  await active(page, 0);
-  await cmd(page, 'notebook:clear-cell-output');
-  expect(await outCount(0)).toBe(0);
-  const outputsInState = async (): Promise<number[]> => {
+  // outputs in the real page against the rebuilt state (S5 fix, LT-1, LT-2, LT-7, LT-8)
+  const snapshotsBefore = sentTypes.filter(
+    t => t === 'notebook_snapshot'
+  ).length;
+  expect(snapshotsBefore).toBeGreaterThan(0);
+
+  const latestState = async (): Promise<Any> => {
     const oc = await (
       await request.get(`${API}/outline?explorationId=${explorationId}`)
     ).json();
-    const sc = await (
-      await request.get(
-        `${API}/state?explorationId=${explorationId}&branchId=${oc.rootBranchId}&tick=${oc.highestTick}`
-      )
-    ).json();
-    return sc.state.notebook.cells.map((c: Any) => c.outputs.length);
+    return (
+      await (
+        await request.get(
+          `${API}/state?explorationId=${explorationId}&branchId=${oc.rootBranchId}&tick=${oc.highestTick}`
+        )
+      ).json()
+    ).state;
   };
-  await expect
-    .poll(async () => (await outputsInState()).slice(0, 2).map(n => n > 0), {
-      timeout: 20000,
-      intervals: [500]
-    })
-    .toEqual([false, true]);
-  await stateMatches('outputs cleared');
+  const joined = (t: Any): string =>
+    Array.isArray(t) ? t.join('') : String(t);
+  const liveOutputs = async (): Promise<Array<Array<[string, string]>>> => {
+    const raw: Any[][] = await page.evaluate(() =>
+      (
+        window as Any
+      ).jupyterapp.shell.currentWidget.model.sharedModel.cells.map((c: Any) =>
+        c.cell_type === 'code' ? c.toJSON().outputs : []
+      )
+    );
+    return raw.map(outs =>
+      outs.map((o: Any): [string, string] => [
+        o.output_type,
+        o.output_type === 'stream'
+          ? joined(o.text)
+          : o.output_type === 'error'
+            ? o.traceback.join('\n')
+            : joined(o.data['text/plain'])
+      ])
+    );
+  };
+  const recordedOutputs = async () =>
+    (await latestState()).notebook.cells.map((c: Any) =>
+      c.outputs.flatMap((g: Any) =>
+        g.items.map((x: Any) => [x.outputType, x.preview])
+      )
+    );
+  const shown: Record<string, unknown> = {};
+  evidence.outputsByCase = shown;
+  // `kept`: cells where the history is expected to differ from the page, with what it holds
+  const sameOutputs = async (
+    label: string,
+    kept: Record<number, unknown> = {}
+  ): Promise<void> => {
+    await page.waitForTimeout(2500);
+    const live = await liveOutputs();
+    const short = (v: unknown) => JSON.stringify(v).slice(0, 300);
+    console.log(
+      `CASE ${label}\n  live     ${short(live)}\n  recorded ${short(await recordedOutputs())}`
+    );
+    shown[label] = live;
+    await expect
+      .poll(recordedOutputs, {
+        message: label,
+        timeout: 15000,
+        intervals: [500]
+      })
+      .toEqual(live.map((c, i) => kept[i] ?? c));
+    await stateMatches(label);
+  };
+  const setSource = async (i: number, src: string): Promise<void> => {
+    await page.evaluate(
+      ([n, v]: [number, string]) =>
+        (window as Any).jupyterapp.shell.currentWidget.model.sharedModel.cells[
+          n
+        ].setSource(v),
+      [i, src] as [number, string]
+    );
+    await page.waitForTimeout(1500);
+  };
+  const idle = async (text: string, cell: number): Promise<void> => {
+    await expect
+      .poll(async () => JSON.stringify((await liveOutputs())[cell]), {
+        timeout: 60000
+      })
+      .toContain(text);
+  };
+  const runAt = async (i: number): Promise<void> => {
+    await active(page, i);
+    await cmd(page, 'notebook:run-cell');
+  };
+
+  await setSource(0, "print('first')");
+  await runAt(0);
+  await idle('first', 0);
+  await sameOutputs('first run');
+
+  await setSource(0, "print('again')");
+  await runAt(0);
+  await idle('again', 0);
+  await sameOutputs('re-run of a cell with output');
+
+  await setSource(1, "print('old output')");
+  await runAt(1);
+  await idle('old output', 1);
+  await setSource(
+    0,
+    "import time\nfor i in range(8):\n    print('step', i, flush=True)\n    time.sleep(0.7)"
+  );
+  await setSource(1, "print('new output')");
+  await runAt(0);
+  await runAt(1);
+  await idle('new output', 1);
+  await sameOutputs('long run with a cell queued behind');
+
+  await setSource(2, "print('third, before')");
+  await runAt(2);
+  await idle('third, before', 2);
+  await sameOutputs('third cell run');
+  const runsOf = async (i: number): Promise<number> => {
+    const st = await latestState();
+    const id = st.notebook.cells[i].cellId;
+    return st.runs.filter((r: Any) => r.cellId === id).length;
+  };
+  const skippedRuns = await runsOf(2);
+  await setSource(1, "raise ValueError('boom')");
+  await cmd(page, 'notebook:run-all-cells');
+  await idle('boom', 1);
+  await page.waitForTimeout(6000);
+  // The page empties the queued cell although the kernel never ran it. No run is recorded
+  // for it (LT-8), so the history keeps the output of its last real run.
+  expect((await liveOutputs())[2]).toEqual([]);
+  const keptThird = { 2: [['stream', 'third, before\n']] };
+  await sameOutputs('run all with an error', keptThird);
+  expect(await runsOf(2)).toBe(skippedRuns);
+  // the cell after the skipped one is not held up
+  await setSource(2, "print('after the error')");
+  await runAt(2);
+  await idle('after the error', 2);
+  await sameOutputs('run after the error');
+
+  const typesBefore = sentTypes.filter(t => t === 'cell_type_changed').length;
+  await active(page, 0);
+  await cmd(page, 'notebook:change-cell-to-markdown');
+  await sameOutputs('code to markdown');
+  await cmd(page, 'notebook:change-cell-to-code');
+  await sameOutputs('markdown back to code');
+  evidence.typeChangeEvents =
+    sentTypes.filter(t => t === 'cell_type_changed').length - typesBefore;
+  expect(evidence.typeChangeEvents).toBe(2);
+  expect(sentTypes.filter(t => t === 'notebook_snapshot').length).toBe(
+    snapshotsBefore
+  );
+  expect(await barState(page)).toBe('recording');
 
   // what the real page showed (S5 proofs)
   const ev = await page.evaluate(() => (window as Any).__ev);

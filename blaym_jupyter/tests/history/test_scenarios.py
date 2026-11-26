@@ -384,10 +384,13 @@ def pasted_cell_with_outputs_then_run_it(s):
     run = s.run("c2")                                                  # 3
     s.output(run, "new chart")                                         # 4
     s.finish(run)                                                      # 5
-    s.expect_at("main", 3, outputs={"c2": ["old chart"]})
+    s.expect_at("main", 2, outputs={"c2": ["old chart"]})
+    s.expect_at("main", 3, outputs={"c2": []})                         # the run clears it
     s.expect_at("main", 5, outputs={"c2": ["new chart"]}, runs={run: "ok"})
     assert [g.runId for g in s.state_at("main", 5).notebook.cells[1].outputs] == [
-        f"pasted:{pasted.eventId}", run]                                              # the paste stays earlier
+        run]                                                                          # the paste stays earlier
+    assert [g.runId for g in s.state_at("main", 2).notebook.cells[1].outputs] == [
+        f"pasted:{pasted.eventId}"]
     s.expect_at("main", 1, cells=[("c1", "x")])
 
 

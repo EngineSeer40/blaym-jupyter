@@ -678,7 +678,10 @@ def check(h, expect):
     for e, exp in expect.items():
         state = h.state(e)
         assert [r.runId for r in state.runs] == [r[0] for r in exp.runs], e
+        latest = {cell: run_id for run_id, cell, *_ in exp.runs}
         for run_id, cell, rev, count, status, outputs in exp.runs:
+            if latest[cell] != run_id:
+                outputs = []  # a later run of the cell replaced what this one left
             r = run_of(state, run_id)
             assert (r.cellId, r.cellRevision, r.runCount, r.status.root) == (cell, rev, count, status), run_id
             assert items_of(state, cell, run_id) == outputs, run_id

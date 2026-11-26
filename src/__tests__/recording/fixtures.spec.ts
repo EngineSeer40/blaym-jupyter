@@ -22,7 +22,11 @@
  * uses the active branch. The fake `prepareOutputs` returns inline text items
  * (preview = the text, size = its bytes); the service hashes inline items itself.
  */
-import type { IngestRequest, OutputItem, RecorderEvent } from 'blaym-jupyter-types';
+import type {
+  IngestRequest,
+  OutputItem,
+  RecorderEvent
+} from 'blaym-jupyter-types';
 import {
   alignCells,
   applyPolicy,
@@ -84,9 +88,14 @@ class Session {
     let n = 0;
     this.h.ids.uuid = () =>
       `00000000-0000-4000-8000-${session.toString(16).padStart(4, '0')}${(++n).toString(16).padStart(8, '0')}`;
-    this.h.transport.prepareOutputs = (req: { outputs: Record<string, unknown>[] }) => {
+    this.h.transport.prepareOutputs = (req: {
+      outputs: Record<string, unknown>[];
+    }) => {
       this.h.transport.prepared.push(req.outputs);
-      return Promise.resolve({ apiVersion: 1 as const, items: req.outputs.map(textItem) });
+      return Promise.resolve({
+        apiVersion: 1 as const,
+        items: req.outputs.map(textItem)
+      });
     };
     this.outbox = new Outbox({
       transport: this.h.transport,
@@ -142,12 +151,12 @@ class Session {
     await this.pump(wait);
   }
 
-  /** A run starts on a cell: the reconciler flushes that cell's typing first. */
-  async run(index: number, change?: (nb: FakeNotebook) => void): Promise<void> {
-    const id = this.nb.list[index].id;
-    this.h.running.add(id);
+  /** A run starts: the notebook may change at once. */
+  async run(
+    _index: number,
+    change?: (nb: FakeNotebook) => void
+  ): Promise<void> {
     await this.step(change ?? (() => undefined), 0);
-    this.h.running.delete(id);
   }
 
   async end(): Promise<void> {
@@ -162,9 +171,15 @@ class Session {
         type: c.type,
         code: c.source,
         metadata: applyPolicy(c.metadata, 'cell', POLICY).metadata,
-        outputs: c.outputs.map(o => String((o as { text?: unknown }).text ?? ''))
+        outputs: c.outputs.map(o =>
+          String((o as { text?: unknown }).text ?? '')
+        )
       })),
-      notebookMetadata: applyPolicy(this.nb.notebookMetadata(), 'notebook', POLICY).metadata
+      notebookMetadata: applyPolicy(
+        this.nb.notebookMetadata(),
+        'notebook',
+        POLICY
+      ).metadata
     };
   }
 }
@@ -186,14 +201,21 @@ function seed(nb: FakeNotebook): void {
   nb.list[2].outputs = [out('a b\n'), out('1 2\n')];
 }
 
-type Build = () => Promise<{ requests: IngestRequest[]; final: Scenario['final'] }>;
+type Build = () => Promise<{
+  requests: IngestRequest[];
+  final: Scenario['final'];
+}>;
 
-const done = async (s: Session) => ({ requests: s.requests.slice(), final: s.final() });
+const done = async (s: Session) => ({
+  requests: s.requests.slice(),
+  final: s.final()
+});
 
 const scenarios: Array<{ name: string; description: string; build: Build }> = [
   {
     name: 'first-snapshot',
-    description: 'The first snapshot of a notebook with three cells, two with outputs, then nothing.',
+    description:
+      'The first snapshot of a notebook with three cells, two with outputs, then nothing.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -205,7 +227,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'typing-and-run',
-    description: 'Typing in one cell grouped into steps, then a run flushes the typing before it.',
+    description:
+      'Typing in one cell grouped into steps, then a run flushes the typing before it.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -221,7 +244,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'insert-delete-move',
-    description: 'Insert a cell, move it, delete another, change a cell type and cell metadata.',
+    description:
+      'Insert a cell, move it, delete another, change a cell type and cell metadata.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -239,7 +263,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'paste-with-outputs',
-    description: 'Cells pasted in with their outputs, in the middle and at the end.',
+    description:
+      'Cells pasted in with their outputs, in the middle and at the end.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -259,7 +284,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'revert-resync',
-    description: 'The model is replaced (a revert): every id changes, a resync snapshot is sent.',
+    description:
+      'The model is replaced (a revert): every id changes, a resync snapshot is sent.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -270,7 +296,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
         n.reload();
         n.list[0].source = 'reverted';
       });
-      if (s.h.resyncs === 0) throw new Error('the revert did not produce a resync');
+      if (s.h.resyncs === 0)
+        throw new Error('the revert did not produce a resync');
       await s.step(n => (n.list[1].source = '# after the revert'));
       await s.end();
       return done(s);
@@ -278,7 +305,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'takeover-resync',
-    description: 'Another tab recorded in between: this tab is asked for a resync and sends a snapshot.',
+    description:
+      'Another tab recorded in between: this tab is asked for a resync and sends a snapshot.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -295,7 +323,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'delivery-failure-retry',
-    description: 'The server answers 503 once and the network drops once: the same events are sent again.',
+    description:
+      'The server answers 503 once and the network drops once: the same events are sent again.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -317,7 +346,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'duplicate-delivery',
-    description: 'The server stored a batch but the answer was lost: the batch is sent again, all duplicates.',
+    description:
+      'The server stored a batch but the answer was lost: the batch is sent again, all duplicates.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -325,7 +355,7 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
       await s.start();
       // the first response to the next request is lost after the server stored it
       let lost = true;
-      s.h.transport.ingestHandler = (req) => {
+      s.h.transport.ingestHandler = req => {
         if (lost) {
           lost = false;
           return Promise.reject(new TransportError('lost', 'network'));
@@ -341,7 +371,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'reopen-with-aliases',
-    description: 'A 4.4-style notebook reopened: fresh random model ids are mapped to the recorded Blaym ids.',
+    description:
+      'A 4.4-style notebook reopened: fresh random model ids are mapped to the recorded Blaym ids.',
     build: async () => {
       const nb1 = notebook('m', false);
       seed(nb1);
@@ -355,12 +386,18 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
         code: c.source
       }));
       const revisions: Record<string, number> = {};
-      tip.forEach(c => (revisions[c.cellId] = s1.h.builder.revisionOf(c.cellId) ?? 1));
+      tip.forEach(
+        c => (revisions[c.cellId] = s1.h.builder.revisionOf(c.cellId) ?? 1)
+      );
 
       // the page is opened again: the file was written without ids, so the editor invents new ones
       const nb2 = notebook('r', false);
       nb2.nbMetadata = nb1.nbMetadata;
-      nb2.list = nb1.list.map(c => ({ ...c, id: nb2.freshId(), outputs: c.outputs.slice() }));
+      nb2.list = nb1.list.map(c => ({
+        ...c,
+        id: nb2.freshId(),
+        outputs: c.outputs.slice()
+      }));
       // the user changed a cell while the page was closed (the file was edited elsewhere): alignment still matches by position
       nb2.list[1].source = '# A new title';
       const s2 = new Session(nb2, 'tab2', 2);
@@ -368,7 +405,9 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
         nb2.list.map(c => ({ id: c.id, type: c.type, source: c.source })),
         tip
       );
-      Object.entries(align.matches).forEach(([model, blaym]) => s2.h.identity.setAlias(model, blaym));
+      Object.entries(align.matches).forEach(([model, blaym]) =>
+        s2.h.identity.setAlias(model, blaym)
+      );
       s2.h.builder.noteStatus(revisions);
       await s2.start();
       await s2.step(n => n.insert(3, 'code', 'new_cell = 1'));
@@ -382,7 +421,8 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
   },
   {
     name: 'many-edits-and-moves',
-    description: 'A longer mixed session: several cells edited between moves, deletes and inserts.',
+    description:
+      'A longer mixed session: several cells edited between moves, deletes and inserts.',
     build: async () => {
       const nb = notebook();
       seed(nb);
@@ -402,31 +442,40 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
 ];
 
 describe('recorder fixtures: the files are what the scenarios write now', () => {
-  test.each(scenarios.map(s => [s.name, s] as const))('scenario %s', async (name, sc) => {
-    const built = await sc.build();
-    expect(built.requests.length).toBeGreaterThan(0);
-    const scenario: Scenario = { name, description: sc.description, ...built };
-    const text = JSON.stringify(scenario, null, 2) + '\n';
-    const file = join(DIR, `scenario-${name}.json`);
-    if (WRITE) {
-      writeFileSync(file, text);
-      return;
+  test.each(scenarios.map(s => [s.name, s] as const))(
+    'scenario %s',
+    async (name, sc) => {
+      const built = await sc.build();
+      expect(built.requests.length).toBeGreaterThan(0);
+      const scenario: Scenario = {
+        name,
+        description: sc.description,
+        ...built
+      };
+      const text = JSON.stringify(scenario, null, 2) + '\n';
+      const file = join(DIR, `scenario-${name}.json`);
+      if (WRITE) {
+        writeFileSync(file, text);
+        return;
+      }
+      let onDisk = '';
+      try {
+        onDisk = readFileSync(file, 'utf8');
+      } catch {
+        /* missing: reported below */
+      }
+      if (onDisk !== text) {
+        throw new Error(
+          `fixtures/recorder/scenario-${name}.json is stale or missing; regenerate with BLAYM_WRITE_FIXTURES=1 npx jest src/__tests__/recording/fixtures.spec.ts`
+        );
+      }
     }
-    let onDisk = '';
-    try {
-      onDisk = readFileSync(file, 'utf8');
-    } catch {
-      /* missing: reported below */
-    }
-    if (onDisk !== text) {
-      throw new Error(
-        `fixtures/recorder/scenario-${name}.json is stale or missing; regenerate with BLAYM_WRITE_FIXTURES=1 npx jest src/__tests__/recording/fixtures.spec.ts`
-      );
-    }
-  });
+  );
 
   test('no scenario file is left without a scenario', () => {
-    const files = (readdirSync(DIR) as string[]).filter(f => /^scenario-.*\.json$/.test(f)).sort();
+    const files = (readdirSync(DIR) as string[])
+      .filter(f => /^scenario-.*\.json$/.test(f))
+      .sort();
     expect(files).toEqual(scenarios.map(s => `scenario-${s.name}.json`).sort());
   });
 });

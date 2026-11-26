@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from blaym_jupyter_types import BlaymEvent, StateAtRequest
+from blaym_jupyter_types import BlaymEvent, OutputItem, RunOutputs, StateAtRequest
 
 from blaym_jupyter.service.indexing import cut_text, documents_for, needs_state, output_kind
 from blaym_jupyter.tests.history.scenario import Scenario, output_item
@@ -112,3 +112,17 @@ def test_nothing_for_other_events():
     for ev in s.events:
         if ev.type in ("recording_gap_started", "recording_gap_ended", "kernel_started", "notebook_renamed"):
             assert documents_for(ev, None) == []
+
+
+def test_outputs_a_snapshot_did_not_put_in_the_state_are_not_indexed():
+    from blaym_jupyter.history.reference import reference_rebuild
+    s = Scenario()
+    s.start(cells=[("c1", "x = 1")])
+    run = s.run("c1")
+    s.output(run, "recorded")
+    s.finish(run)
+    snap = s.snapshot([("c1", "x = 1")])
+    snap.payload.cells[0].outputs = [RunOutputs(runId="page", items=[OutputItem.model_validate(output_item("page only"))])]
+    state = reference_rebuild(s.events, s.root, snap.tick).state
+    assert needs_state(snap)
+    assert documents_for(snap, state) == []

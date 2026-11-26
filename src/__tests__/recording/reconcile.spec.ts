@@ -31,7 +31,8 @@ describe('reconcile and builder: properties over generated editor operations', (
         const applier = new Applier();
         let applied = 0;
         const catchUp = () => {
-          for (; applied < h.events.length; applied++) applier.apply(h.events[applied]);
+          for (; applied < h.events.length; applied++)
+            applier.apply(h.events[applied]);
         };
         catchUp();
         for (const step of steps) {
@@ -40,11 +41,19 @@ describe('reconcile and builder: properties over generated editor operations', (
           await h.finish();
           catchUp();
           // the step's own events: no id both deleted and inserted
-          const deleted = new Set(produced.filter(e => e.type === 'cell_deleted').map(e => (e as any).payload.cellId));
+          const deleted = new Set(
+            produced
+              .filter(e => e.type === 'cell_deleted')
+              .map(e => (e as any).payload.cellId)
+          );
           produced
             .filter(e => e.type === 'cell_inserted')
-            .forEach(e => expect(deleted.has((e as any).payload.cellId)).toBe(false));
-          expect(appliedModel(applier)).toEqual(expectedModel(h.nb, h.identity));
+            .forEach(e =>
+              expect(deleted.has((e as any).payload.cellId)).toBe(false)
+            );
+          expect(appliedModel(applier)).toEqual(
+            expectedModel(h.nb, h.identity)
+          );
           const ids = applier.cells.map(c => c.id);
           expect(new Set(ids).size).toBe(ids.length);
         }
@@ -56,15 +65,20 @@ describe('reconcile and builder: properties over generated editor operations', (
 
   test('a single move is exactly one cell_moved event (never a delete plus an insert)', async () => {
     await fc.assert(
-      fc.asyncProperty(fc.integer({ min: 2, max: 9 }), fc.nat(20), fc.nat(20), async (n, from, to) => {
-        const h = await started(nb => {
-          for (let i = 0; i < n; i++) nb.insert(i, 'code', `c${i}`);
-        });
-        applyOp(h.nb, { op: 'move', from, to });
-        const produced = await h.change();
-        const same = from % n === to % n;
-        expect(produced.map(e => e.type)).toEqual(same ? [] : ['cell_moved']);
-      }),
+      fc.asyncProperty(
+        fc.integer({ min: 2, max: 9 }),
+        fc.nat(20),
+        fc.nat(20),
+        async (n, from, to) => {
+          const h = await started(nb => {
+            for (let i = 0; i < n; i++) nb.insert(i, 'code', `c${i}`);
+          });
+          applyOp(h.nb, { op: 'move', from, to });
+          const produced = await h.change();
+          const same = from % n === to % n;
+          expect(produced.map(e => e.type)).toEqual(same ? [] : ['cell_moved']);
+        }
+      ),
       { numRuns: 200 }
     );
   });
@@ -74,7 +88,10 @@ describe('reconcile and builder: properties over generated editor operations', (
     h.nb.list[0].type = 'markdown';
     const produced = await h.change();
     expect(produced.map(e => e.type)).toEqual(['cell_type_changed']);
-    expect((produced[0] as any).payload).toEqual({ cellId: h.nb.list[0].id, cellType: 'markdown' });
+    expect((produced[0] as any).payload).toEqual({
+      cellId: h.nb.list[0].id,
+      cellType: 'markdown'
+    });
   });
 });
 
@@ -90,28 +107,23 @@ describe('reconcile: whole-notebook changes become one resync', () => {
     expect(produced.map(e => e.type)).toEqual(['notebook_snapshot']);
   });
 
-  test('outputs emptied outside a run resync; emptied during a run do not', async () => {
+  test('emptied outputs are not a change and never resync', async () => {
     const h = await started(nb => {
       nb.insert(0, 'code', 'a');
     });
     h.nb.list[0].outputs = [{ output_type: 'stream', text: 'hi' }];
     await h.change(); // outputs appearing is not a structure change
-    h.running.add(h.nb.list[0].id);
     h.nb.list[0].outputs = [];
     expect(await h.change()).toEqual([]);
     expect(h.resyncs).toBe(0);
-    h.running.clear();
-    h.nb.list[0].outputs = [{ output_type: 'stream', text: 'again' }];
-    await h.change();
-    h.nb.list[0].outputs = [];
-    const produced = await h.change();
-    expect(h.resyncs).toBe(1);
-    expect(produced.map(e => e.type)).toEqual(['notebook_snapshot']);
   });
 
   test('reconciling before any snapshot asks for one', async () => {
     const h = new Harness();
-    expect(h.reconciler.reconcile(h.nb, h.identity)).toEqual({ kind: 'resync', reason: 'not_started' });
+    expect(h.reconciler.reconcile(h.nb, h.identity)).toEqual({
+      kind: 'resync',
+      reason: 'not_started'
+    });
   });
 });
 
@@ -124,16 +136,27 @@ describe('builder', () => {
     expect('authorConfidence' in e).toBe(false);
     expect((e as any).editor).toBe('jupyterlab');
     expect((e as any).originId).toBe('tab1');
-    expect((e as any).links).toEqual({ cellId: (e as any).payload.cellId, cellRevision: 1 });
+    expect((e as any).links).toEqual({
+      cellId: (e as any).payload.cellId,
+      cellRevision: 1
+    });
   });
 
   test('the metadata policy is applied: kernelspec and timing never reach an event', async () => {
     const h = await started(nb => nb.insert(0, 'code', 'x'));
     h.nb.nbMetadata = { kernelspec: { name: 'python3' }, title: 't' };
-    h.nb.list[0].metadata = { trusted: true, execution: { 'iopub.execute_input': 'x' }, tags: ['a'] };
+    h.nb.list[0].metadata = {
+      trusted: true,
+      execution: { 'iopub.execute_input': 'x' },
+      tags: ['a']
+    };
     const events = await h.change();
-    const nbEvent = events.find(e => e.type === 'notebook_metadata_changed') as any;
-    const cellEvent = events.find(e => e.type === 'cell_metadata_changed') as any;
+    const nbEvent = events.find(
+      e => e.type === 'notebook_metadata_changed'
+    ) as any;
+    const cellEvent = events.find(
+      e => e.type === 'cell_metadata_changed'
+    ) as any;
     expect(nbEvent.payload.metadata).toEqual({ title: 't' });
     expect(cellEvent.payload.metadata).toEqual({ tags: ['a'] });
     // a change only in dropped keys is no change at all
@@ -148,13 +171,18 @@ describe('builder', () => {
   test('snapshot outputs go through prepareOutputs and form groups named snapshot:<eventId>', async () => {
     const nb = new FakeNotebook();
     nb.insert(0, 'code', 'x');
-    nb.list[0].outputs = [{ output_type: 'stream', text: 'a' }, { output_type: 'error' }];
+    nb.list[0].outputs = [
+      { output_type: 'stream', text: 'a' },
+      { output_type: 'error' }
+    ];
     nb.insert(1, 'markdown', 'md');
     const h = new Harness(nb);
     const snap = (await h.snapshot()) as any;
     expect(h.transport.prepared).toHaveLength(1);
     expect(snap.payload.cells[0].outputs).toHaveLength(1);
-    expect(snap.payload.cells[0].outputs[0].runId).toBe(`snapshot:${snap.eventId}`);
+    expect(snap.payload.cells[0].outputs[0].runId).toBe(
+      `snapshot:${snap.eventId}`
+    );
     expect(snap.payload.cells[0].outputs[0].items).toHaveLength(2);
     expect(snap.payload.cells[1].outputs).toEqual([]);
   });
@@ -197,8 +225,40 @@ describe('builder', () => {
 
   test('lowering a revision is caught by the applier (planted fault)', () => {
     const a = new Applier();
-    a.apply({ type: 'notebook_snapshot', payload: { path: 'p', notebookMetadata: {}, cells: [{ cellId: 'c', cellType: 'code', code: '', revision: 5, metadata: {}, outputs: [] }] } } as any);
-    a.apply({ type: 'notebook_snapshot', payload: { path: 'p', notebookMetadata: {}, cells: [{ cellId: 'c', cellType: 'code', code: '', revision: 4, metadata: {}, outputs: [] }] } } as any);
+    a.apply({
+      type: 'notebook_snapshot',
+      payload: {
+        path: 'p',
+        notebookMetadata: {},
+        cells: [
+          {
+            cellId: 'c',
+            cellType: 'code',
+            code: '',
+            revision: 5,
+            metadata: {},
+            outputs: []
+          }
+        ]
+      }
+    } as any);
+    a.apply({
+      type: 'notebook_snapshot',
+      payload: {
+        path: 'p',
+        notebookMetadata: {},
+        cells: [
+          {
+            cellId: 'c',
+            cellType: 'code',
+            code: '',
+            revision: 4,
+            metadata: {},
+            outputs: []
+          }
+        ]
+      }
+    } as any);
     expect(a.problems).toEqual(['snapshot lowered revision of c']);
   });
 

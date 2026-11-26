@@ -455,6 +455,7 @@ def test_the_count_falls_back_to_the_recorders_own_after_five_seconds_per_kernel
     r.code("c1", 1, "x")
     r.start_kernel()
     r.request("r1", code="x")
+    r.msg("r1", "stream", {"name": "stdout", "text": "."})  # it ran; only the count is missing
     r.t.advance(4900)
     assert r.types() == ["kernel_started"]
     r.t.advance(200)
@@ -463,10 +464,12 @@ def test_the_count_falls_back_to_the_recorders_own_after_five_seconds_per_kernel
     r.msg("r1", "execute_reply", {"status": "ok"})
     r.msg("r1", "status", {"execution_state": "idle"})
     r.request("r2", code="x")
+    r.msg("r2", "stream", {"name": "stdout", "text": "."})  # it ran; only the count is missing
     r.t.advance(5100)
     assert r.sink.events("run_started")[1]["payload"]["runCount"] == 2  # never below what was written
     r.rec.kernel_restarted("k1")
     r.request("r3", code="x")
+    r.msg("r3", "stream", {"name": "stdout", "text": "."})  # it ran; only the count is missing
     r.t.advance(5100)
     assert r.sink.events("run_started")[2]["payload"]["runCount"] == 1  # a new session starts again
 
@@ -651,3 +654,58 @@ def test_the_lane_writes_kernel_started_behind_a_waiting_run():
     r.t.advance(100)
     r.execute("r1", 1)
     assert r.types() == ["run_started", "kernel_started", "run_finished"]
+
+
+# -- cells the kernel skipped (Run All after an error, live-testing LT-8) ------------------------
+
+@pytest.mark.parametrize("reply", ["aborted", "abort"])
+@pytest.mark.parametrize("code_known", [True, False])
+@pytest.mark.parametrize("reply_before_request", [True, False])
+def test_run_all_with_an_error_writes_nothing_for_skipped_cells_and_does_not_delay_the_lane(
+        reply, code_known, reply_before_request):
+    r = Rig()
+    r.code("c1", 1, "boom")
+    if code_known:
+        r.code("c2", 1, "y")
+    r.code("c3", 1, "z")
+
+    def skipped():
+        r.msg("r2", "status", {"execution_state": "busy"})
+        r.msg("r2", "execute_reply", {"status": reply})
+        r.msg("r2", "status", {"execution_state": "idle"})
+
+    r.request("r1", "c1", "boom")
+    if reply_before_request:
+        skipped()
+        r.request("r2", "c2", "y")
+    else:
+        r.request("r2", "c2", "y")
+    r.execute("r1", 1, reply="error")
+    if not reply_before_request:
+        skipped()
+    r.request("r3", "c3", "z")
+    r.execute("r3", 2)
+    # no time has passed: nothing waited for a count, a grace period or the missing code
+    assert [(e["type"], e["payload"]["runId"]) for e in r.sink.events()] == [
+        ("run_started", "r1"), ("run_finished", "r1"), ("run_started", "r3"), ("run_finished", "r3")]
+    assert r.rec.stats["skipped_runs"] == 1 and r.rec.stats["count_fallbacks"] == 0
+    assert r.rec.stats["point_gaps"] == 0 and r.idle and r.t.pending() == 0
+
+
+def test_without_a_count_or_any_sign_of_running_no_run_is_invented():
+    r = Rig(run_count_wait_ms=1000, reply_grace_ms=1000)
+    r.code("c1", 1, "x = 1")
+    r.request("r1")
+    r.t.advance(5000)
+    assert r.types() == []
+    r.msg("r1", "stream", {"name": "stdout", "text": "here"})  # now it has evidence
+    assert r.types()[0] == "run_started" and r.rec.stats["count_fallbacks"] == 1
+
+
+def test_a_run_that_only_goes_idle_is_dropped_with_a_gap_after_the_grace_time():
+    r = Rig(run_count_wait_ms=1000, reply_grace_ms=1000)
+    r.code("c1", 1, "x = 1")
+    r.request("r1")
+    r.msg("r1", "status", {"execution_state": "idle"})
+    r.t.advance(5000)
+    assert r.types() == ["recording_gap_started", "recording_gap_ended"] and r.idle

@@ -624,10 +624,10 @@ def test_deleting_a_cell_drops_the_groups_of_finished_runs_with_it():
     s = Scenario()
     s.start(cells=[("c1", "a")])
     r1 = s.run("c1")
-    s.output(r1, "old")
-    s.finish(r1)
     r2 = s.run("c1")
+    s.output(r1, "old")
     s.output(r2, "live")
+    s.finish(r1)
     s.delete("c1")
     assert _detached(s.state_at("main", s.tick)) == [(r2, ["live"], False)]
     assert [g.runId for g in s.state_at("main", 6).notebook.cells[0].outputs] == [r1, r2]  # earlier position intact

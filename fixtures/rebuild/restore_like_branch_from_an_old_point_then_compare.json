@@ -416,21 +416,6 @@
          {
           "items": [
            {
-            "contentHash": "sha256:d9d1f239ce22e651",
-            "mimeTypes": [
-             "text/plain"
-            ],
-            "outputType": "stream",
-            "preview": "1000 rows",
-            "sizeBytes": 9,
-            "truncated": false
-           }
-          ],
-          "runId": "run-1"
-         },
-         {
-          "items": [
-           {
             "contentHash": "sha256:14b36d7e04c3dc59",
             "mimeTypes": [
              "text/plain"

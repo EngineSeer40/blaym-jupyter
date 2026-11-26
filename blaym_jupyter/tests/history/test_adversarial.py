@@ -49,10 +49,20 @@ def oracle_model(line):
     run_cell: dict[str, str] = {}
     on_cell: dict[str, dict[str, list]] = {}  # cell -> run -> [items, pending]
     detached: dict[str, list] = {}  # run -> [items, pending]
+    is_code: dict[str, bool] = {}
 
     def home(run):
         c = run_cell[run]
-        return on_cell[c] if c in on_cell else detached
+        if run in detached or c not in on_cell:
+            return detached
+        return on_cell[c] if is_code[c] or run in on_cell[c] else detached
+
+    def set_kind(cid, kind):
+        is_code[cid] = getattr(kind, "value", kind) == "code"
+
+    def rescue(groups):  # a running run's group leaves a cell that can no longer hold it
+        for run in [r for r in groups if runs.get(r) == "running"]:
+            detached[run] = groups.pop(run)
 
     for e in line:
         p = e.payload
@@ -64,13 +74,32 @@ def oracle_model(line):
                     for run, grp in on_cell[cid].items():
                         if runs.get(run) == "running":
                             detached[run] = grp
+            known = set(order)
+            taken = {}
+            for c in p.cells:
+                from_event = {g.runId: list(_oracle_items(g)) for g in c.outputs}
+                if t == "changed_outside_editor":
+                    taken[c.cellId] = from_event
+                elif getattr(c.cellType, "value", c.cellType) != "code":
+                    rescue(dict(on_cell.get(c.cellId, {})) if c.cellId in known else {})
+                    taken[c.cellId] = {}  # a snapshot: only code cells have outputs
+                else:  # what was recorded wins; only an unseen cell takes the snapshot's
+                    taken[c.cellId] = on_cell[c.cellId] if c.cellId in known else from_event
             cells = {c.cellId: c.code for c in p.cells}
             order = [c.cellId for c in p.cells]
-            on_cell = {c.cellId: {g.runId: list(_oracle_items(g)) for g in c.outputs} for c in p.cells}
+            on_cell = taken
+            for c in p.cells:
+                set_kind(c.cellId, c.cellType)
         elif t == "cell_inserted":
             cells[p.cellId] = p.code
             order.insert(p.index, p.cellId)
             on_cell[p.cellId] = {}
+            set_kind(p.cellId, p.cellType)
+        elif t == "cell_type_changed":
+            set_kind(p.cellId, p.cellType)
+            if not is_code[p.cellId]:
+                rescue(on_cell[p.cellId])
+                on_cell[p.cellId] = {}  # nothing is shown under a cell that is not code
         elif t == "cell_deleted":
             cells.pop(p.cellId)
             order.remove(p.cellId)
@@ -87,6 +116,10 @@ def oracle_model(line):
         elif t == "chat_message_updated":
             chat[(p.chatSource, p.messageId)] = p.body
         elif t == "run_started":
+            # starting again wipes what the cell shows from anything already over
+            for old in list(on_cell[p.cellId]):
+                if runs.get(old) != "running":
+                    del on_cell[p.cellId][old]
             runs[p.runId] = "running"
             run_cell[p.runId] = p.cellId
         elif t == "run_finished":

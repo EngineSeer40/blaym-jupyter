@@ -20,7 +20,13 @@ Rules in one place:
   point gap (started and ended together, source `kernel`) is written and the run's events are dropped.
 * One ordered lane per kernel carries `kernel_started`, `kernel_restarted` and the starts of runs.
   A run starts (writes `run_started`) when its revision is known and so is its `runCount`: from
-  `execute_input`, or after `run_count_wait_ms` the recorder's own count for that kernel session.
+  `execute_input`, or after `run_count_wait_ms` the recorder's own count for that kernel session,
+  only if something else shows the run ran (output, or a reply that is not an abort). Without that
+  it waits; it is dropped with a point gap if the kernel has gone past it (a later run has its
+  count) or it stays idle with no reply for `reply_grace_ms`.
+* A request with an aborted reply and no `execute_input` was skipped by the kernel (Run All after an
+  error): it was never run, so nothing is written, not even a gap. It is counted and leaves the lane
+  at once. A restart or a vanished kernel still settles every other waiting run as before.
   A later run waits behind an earlier one that is still waiting for its code (Run All keeps request
   order) and behind a run that is still executing (a kernel runs one cell at a time). A restart
   resolves or drops the waiting runs first, then writes `kernel_restarted`.
@@ -106,6 +112,7 @@ class _Run:
     revision: Optional[int] = None
     exec_count: Optional[int] = None
     count_expired: bool = False
+    input_seen: bool = False
     count_timer: Optional[Cancel] = None
     poll_timer: Optional[Cancel] = None
     grace_timer: Optional[Cancel] = None
@@ -215,8 +222,13 @@ class RunRecorder:
             k.busy = True
             replay = self._discard_unknown(k, run_id)
             for msg_type, content in replay:
-                self._deliver(k, run, msg_type, content)
-        self._poll(run)
+                if run.state != "dropped":
+                    self._deliver(k, run, msg_type, content)
+            skipped = run.state == "dropped"
+        if skipped:
+            self._progress(k)
+        else:
+            self._poll(run)
 
     def kernel_message(self, kernel_ref: str, parent_msg_id: str, msg_type: str, content: Mapping[str, Any]) -> None:
         if msg_type not in _RELEVANT:
@@ -308,9 +320,19 @@ class RunRecorder:
             if count is None:
                 if not force and any(r.state == "started" for r in k.runs.values()):
                     break  # the kernel runs one cell at a time: this one has not begun
-                if force or head.count_expired:
+                ran = bool(head.held or head.degraded or head.reply_status is not None)
+                if force or (head.count_expired and ran):
                     count = k.session_count + 1
                     self.stats["count_fallbacks"] += 1
+                elif head.count_expired:  # nothing shows it ran: never invent a run
+                    if head.grace_expired or any(r.exec_count is not None for r in k.runs.values()
+                                                 if r is not head):
+                        self._drop(head, "no_evidence")
+                        continue
+                    if head.idle_seen and head.grace_timer is None:
+                        head.grace_timer = self._sched.call_later(self._s.reply_grace_ms,
+                                                                  lambda r=head: self._grace(r))
+                    break
                 else:
                     if head.count_timer is None:
                         head.count_timer = self._sched.call_later(self._s.run_count_wait_ms,
@@ -407,6 +429,13 @@ class RunRecorder:
 
     def _drop(self, run: _Run, why: str) -> None:
         """Forget a run that never started: one point gap, its held messages freed. Under the lock."""
+        self._forget(run, "dropped")
+        self._point_gap(run.exploration_id)
+        self.stats["runs_dropped_" + why] += 1
+        log.warning("run %s dropped (%s)", run.run_id, why)
+
+    def _forget(self, run: _Run, how: str) -> None:
+        """Take a run that never started out of the lane and free what it holds. Under the lock."""
         k = run.kernel
         self._release_held(len(run.held), sum(_approx(c) for _, c in run.held))
         run.held.clear()
@@ -418,10 +447,7 @@ class RunRecorder:
         except ValueError:
             pass
         k.runs.pop(run.run_id, None)
-        self._close_id(k, run.run_id, "dropped")
-        self._point_gap(run.exploration_id)
-        self.stats["runs_dropped_" + why] += 1
-        log.warning("run %s dropped (%s): its code never appeared in the history", run.run_id, why)
+        self._close_id(k, run.run_id, how)
 
     def _point_gap(self, exploration_id: str) -> None:
         gap_id = self._ids.new()
@@ -437,6 +463,7 @@ class RunRecorder:
     def _deliver(self, k: _Kernel, run: _Run, msg_type: str, content: Mapping[str, Any]) -> None:
         """Take one message of a known run. Under the lock."""
         if msg_type == "execute_input":
+            run.input_seen = True
             count = content.get("execution_count")
             if run.exec_count is None and isinstance(count, int) and count >= 1:
                 run.exec_count = count
@@ -449,6 +476,10 @@ class RunRecorder:
         elif msg_type == "execute_reply":
             status = content.get("status")
             run.reply_status = status if isinstance(status, str) else "ok"
+            if run.reply_status in ("abort", "aborted") and not run.input_seen and run.state != "started":
+                self._forget(run, "skipped")  # never run: no events and no gap
+                self.stats["skipped_runs"] += 1
+                return
             count = content.get("execution_count")
             if run.exec_count is None and isinstance(count, int) and count >= 1:
                 run.exec_count = count

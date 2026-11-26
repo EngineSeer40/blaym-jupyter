@@ -194,66 +194,13 @@
           "originId": "tab1",
           "editor": "jupyterlab",
           "authorHint": "unknown",
-          "type": "notebook_snapshot",
+          "type": "cell_type_changed",
           "payload": {
-            "path": "a.ipynb",
-            "notebookMetadata": {
-              "x": 1
-            },
-            "kernelName": "python3",
-            "language": "python",
-            "cells": [
-              {
-                "cellId": "c2",
-                "cellType": "markdown",
-                "code": "# Title",
-                "revision": 1,
-                "metadata": {},
-                "outputs": []
-              },
-              {
-                "cellId": "c3",
-                "cellType": "raw",
-                "code": "df.head()",
-                "revision": 1,
-                "metadata": {},
-                "outputs": [
-                  {
-                    "runId": "snapshot:00000000-0000-4000-8000-000100000005",
-                    "items": [
-                      {
-                        "outputType": "stream",
-                        "mimeTypes": [
-                          "text/plain"
-                        ],
-                        "contentHash": "h0",
-                        "preview": "a b\n",
-                        "truncated": false,
-                        "sizeBytes": 4
-                      },
-                      {
-                        "outputType": "stream",
-                        "mimeTypes": [
-                          "text/plain"
-                        ],
-                        "contentHash": "h1",
-                        "preview": "1 2\n",
-                        "truncated": false,
-                        "sizeBytes": 4
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "cellId": "c4",
-                "cellType": "code",
-                "code": "y = 2",
-                "revision": 1,
-                "metadata": {},
-                "outputs": []
-              }
-            ]
+            "cellId": "c3",
+            "cellType": "raw"
+          },
+          "links": {
+            "cellId": "c3"
           }
         }
       ]

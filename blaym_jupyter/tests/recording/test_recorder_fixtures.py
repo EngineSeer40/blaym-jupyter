@@ -69,7 +69,9 @@ def test_scenario_ingests_and_rebuilds_to_the_fake_notebook(path, make, tmp_path
         final = scenario["final"]
         got = [{"id": c.cellId, "type": c.cellType.value if hasattr(c.cellType, "value") else c.cellType,
                 "code": c.code, "metadata": c.metadata, "outputs": _outputs(c)} for c in notebook.cells]
-        assert got == final["cells"]
+        # The fake notebook keeps outputs on a cell made raw; a snapshot gives a non-code cell none.
+        want = [c if c["type"] == "code" else {**c, "outputs": []} for c in final["cells"]]
+        assert got == want
         assert notebook.metadata == final["notebookMetadata"]
 
         # the second delivery of every request: nothing changes, everything is a duplicate

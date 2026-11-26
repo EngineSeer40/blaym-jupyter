@@ -282,7 +282,9 @@ def test_rule_10_runs_keep_their_revision_and_outputs_belong_to_their_run(h):
     """Rule 10. At every sampled position: a run records the revision that was sent,
     which is the cell's revision at the tick the run started and never changes later
     (the cell may have been edited during the run); every output group sits on the cell
-    its run belongs to, or among the detached outputs when that cell is gone. The
+    its run belongs to, or among the detached outputs (the cell is gone or stopped being
+    code while the run ran), never both; a cell that is not code holds no running run's
+    group. Exact placement is checked against the independent oracle. The
     named scenario `edit_a_cell_while_it_runs` shows it on a readable case."""
     rb = _rebuilt(h.events)
     for branch, tick in _positions(h):
@@ -292,8 +294,12 @@ def test_rule_10_runs_keep_their_revision_and_outputs_belong_to_their_run(h):
         for c in s.notebook.cells:
             for g in c.outputs:
                 assert g.runId in by_run and by_run[g.runId].cellId == c.cellId, (branch, tick, g.runId)
+        on_cells = {g.runId for c in s.notebook.cells for g in c.outputs}
         for g in s.detachedOutputs:
-            assert g.runId in by_run and by_run[g.runId].cellId not in cells, (branch, tick, g.runId)
+            assert g.runId in by_run and g.runId not in on_cells, (branch, tick, g.runId)
+        for c in s.notebook.cells:
+            if getattr(c.cellType, "value", c.cellType) != "code":
+                assert all(by_run[g.runId].status.root != "running" for g in c.outputs), (branch, tick)
         for r in s.runs:
             at_start = rb.state_at(branch, r.startedTick).state
             cell = next(c for c in at_start.notebook.cells if c.cellId == r.cellId)

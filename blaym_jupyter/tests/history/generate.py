@@ -153,10 +153,13 @@ class _Builder:
         return [r for r in self.state.runs if r.cellId in ids]
 
     def group(self, run):
-        """The run's output group: on its cell if the cell exists, else detached
+        """The run's output group: detached if it ever moved there, else on its cell
         (outputs follow the run)."""
-        groups = next((c.outputs for c in self.state.notebook.cells if c.cellId == run.cellId),
-                      self.state.detachedOutputs)
+        if any(g.runId == run.runId for g in self.state.detachedOutputs):
+            groups = self.state.detachedOutputs
+        else:
+            groups = next((c.outputs for c in self.state.notebook.cells if c.cellId == run.cellId),
+                          self.state.detachedOutputs)
         return next((g for g in groups if g.runId == run.runId), None)
 
     def cell_gone(self, run) -> bool:
@@ -191,8 +194,8 @@ def _applicable(b: _Builder, step: int) -> list[str]:
         names += ["chat_update", "chat_update"]
     if any(g.endedTick is None for g in st_.gaps):
         names += ["gap_end", "gap_end", "recover"]
-    if b.service_safe and running:  # the service refuses a snapshot or outside change during a run (S5-T)
-        names = [n for n in names if n not in ("outside", "recover")]
+    if b.service_safe and running:  # the service refuses an outside change during a run (S5-T)
+        names = [n for n in names if n != "outside"]
     if len(b.order) > 1:
         names += ["switch", "switch"]
     if len(b.order) - 1 < b.max_branches and step >= 1:
@@ -384,7 +387,7 @@ def _finish(b: _Builder) -> History:
 @st.composite
 def histories(draw, shapes=SHAPES, max_events: int = 80, service_safe: bool = False) -> History:
     """A valid history: the reference answers `ok` at every tick on every branch.
-    `service_safe` (opt-in) never emits a non-first snapshot or outside change while a run is
+    `service_safe` (opt-in) never emits an outside change while a run is
     running on the current branch: the service refuses those (S5-T); the rebuilder accepts them."""
     shape = draw(st.sampled_from(shapes))
     bands = [st.integers(0, min(8, max_events))]

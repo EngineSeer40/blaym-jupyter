@@ -4,8 +4,7 @@ import { MetadataPolicy, stableStringify } from './metadata';
 import type { EventDraft, NotebookView } from './types';
 import { readView } from './view';
 
-export type ResyncReason =
-  'not_started' | 'replaced' | 'outputs_emptied' | 'duplicate_ids';
+export type ResyncReason = 'not_started' | 'replaced' | 'duplicate_ids';
 
 export type ReconcileResult =
   | { kind: 'resync'; reason: ResyncReason }
@@ -19,17 +18,11 @@ export type ReconcileResult =
       flushBefore: string[];
     };
 
-export interface ReconcileContext {
-  /** True while a run of the cell is open (its outputs may change and be cleared). */
-  isRunning?: (cellId: string) => boolean;
-}
-
 interface Known {
   id: string;
   type: CellType;
   code: string;
   mdKey: string;
-  outputsCount: number;
 }
 
 /** Indexes (into `seq`) of one longest strictly increasing subsequence. */
@@ -59,8 +52,9 @@ function lisIndexes(seq: number[]): Set<number> {
  * Keeps the last recorded model of the notebook and, given the editor's view
  * after any change, returns what changed (S5-K). A move or a type change is
  * seen as the same cell id with a new place or type, never as a delete plus an
- * insert. Whole-notebook changes and outputs emptied outside a run give
- * `resync`: the owner then sends a snapshot and calls `reset`.
+ * insert. Whole-notebook changes give `resync`: the owner then sends a
+ * snapshot and calls `reset`. Outputs alone are never a change: the server
+ * records them from the kernel.
  */
 export class Reconciler {
   private model: Known[] | null = null;
@@ -79,17 +73,12 @@ export class Reconciler {
       id: c.id,
       type: c.type,
       code: c.code,
-      mdKey: stableStringify(c.metadata),
-      outputsCount: c.outputs.length
+      mdKey: stableStringify(c.metadata)
     }));
     this.notebookKey = stableStringify(v.notebookMetadata);
   }
 
-  reconcile(
-    view: NotebookView,
-    identity: CellIdentity,
-    ctx: ReconcileContext = {}
-  ): ReconcileResult {
+  reconcile(view: NotebookView, identity: CellIdentity): ReconcileResult {
     if (this.model === null) {
       return { kind: 'resync', reason: 'not_started' };
     }
@@ -103,16 +92,6 @@ export class Reconciler {
     const common = cells.filter(c => prevById.has(c.id));
     if (prev.length > 0 && cells.length > 0 && common.length === 0) {
       return { kind: 'resync', reason: 'replaced' };
-    }
-    for (const c of common) {
-      const p = prevById.get(c.id) as Known;
-      if (
-        p.outputsCount > 0 &&
-        c.outputs.length === 0 &&
-        !(ctx.isRunning && ctx.isRunning(c.id))
-      ) {
-        return { kind: 'resync', reason: 'outputs_emptied' };
-      }
     }
 
     const drafts: EventDraft[] = [];
@@ -214,8 +193,7 @@ export class Reconciler {
       id: c.id,
       type: c.type,
       code: c.code,
-      mdKey: stableStringify(c.metadata),
-      outputsCount: c.outputs.length
+      mdKey: stableStringify(c.metadata)
     }));
     this.notebookKey = nbKey;
     return { kind: 'changes', drafts, edits, flushBefore: Array.from(flush) };

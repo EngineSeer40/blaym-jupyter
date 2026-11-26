@@ -77,24 +77,12 @@ export interface SessionContextLike {
   statusChanged?: SignalLike<string>;
 }
 
-/** A cell's output-area model (its `changed` fires for appended and cleared outputs). */
-export interface OutputsLike {
-  length: number;
-  changed: SignalLike;
-}
-
-export interface CellModelLike {
-  sharedModel: SharedCellLike;
-  outputs?: OutputsLike;
-}
-
 export interface ContextLike {
   path: string;
   ready: Promise<void>;
   model: {
     sharedModel: SharedNotebookLike;
     collaborative?: boolean;
-    cells?: Iterable<CellModelLike>;
   };
   saveState: SignalLike<string>;
   disposed: SignalLike;
@@ -167,10 +155,7 @@ export class NotebookObserver {
   private recordingOn = false;
   private starting = false;
   private pending: Array<Promise<unknown>> = [];
-  private running = new Set<string>();
-  private runByMsg = new Map<string, string>();
   private cellHandlers = new Map<SharedCellLike, () => void>();
-  private outputHandlers = new Map<OutputsLike, () => void>();
   private kernel?: KernelLike | null;
   private disposed = false;
   private state: ObserverState = { kind: 'starting' };
@@ -293,8 +278,6 @@ export class NotebookObserver {
     this.disposers.splice(0).forEach(d => d());
     this.cellHandlers.forEach((h, c) => c.changed.disconnect(h));
     this.cellHandlers.clear();
-    this.outputHandlers.forEach((h, o) => o.changed.disconnect(h));
-    this.outputHandlers.clear();
     this.heartbeat?.stop();
     this.outbox?.close();
   }
@@ -342,6 +325,7 @@ export class NotebookObserver {
       editor: 'jupyterlab',
       instanceId: this.instanceId,
       snapshotter: () => this.snapshotNow(),
+      onBranch: () => this.onAccepted(),
       onReport: r => this.onReport(r)
     });
     this.heartbeat = new Heartbeat({
@@ -398,12 +382,7 @@ export class NotebookObserver {
       this.disposers.push(() => ctx.saveState.disconnect(onSave));
       const onKernel = (): void => this.subscribeKernel();
       ctx.sessionContext.kernelChanged.connect(onKernel);
-      const onConnection = (_: unknown, status?: unknown): void => {
-        if (status !== undefined && status !== 'connected') {
-          this.clearRuns();
-        }
-        this.subscribeKernel();
-      };
+      const onConnection = (): void => this.subscribeKernel();
       ctx.sessionContext.connectionStatusChanged.connect(onConnection);
       this.disposers.push(() => {
         ctx.sessionContext.kernelChanged.disconnect(onKernel);
@@ -417,48 +396,7 @@ export class NotebookObserver {
   private sharedDisconnect?: () => void;
   private contextConnected = false;
 
-  /**
-   * The shared cell's `changed` does not fire for outputs (seen in a real page),
-   * so a user clearing outputs is found through the output-area models. Only an
-   * EMPTY list outside a run is looked at: appended output of a run would flood
-   * the reconciler.
-   */
-  private syncOutputHandlers(): void {
-    const cells = this.panel.context.model.cells;
-    if (!cells) {
-      return;
-    }
-    const live = new Map<OutputsLike, SharedCellLike>();
-    for (const c of cells) {
-      if (c.outputs) {
-        live.set(c.outputs, c.sharedModel);
-      }
-    }
-    this.outputHandlers.forEach((h, o) => {
-      if (!live.has(o)) {
-        o.changed.disconnect(h);
-        this.outputHandlers.delete(o);
-      }
-    });
-    live.forEach((cell, outputs) => {
-      if (this.outputHandlers.has(outputs)) {
-        return;
-      }
-      const h = (): void => {
-        if (
-          outputs.length === 0 &&
-          !this.running.has(this.identity.blaymId(cell.getId()))
-        ) {
-          this.process();
-        }
-      };
-      outputs.changed.connect(h);
-      this.outputHandlers.set(outputs, h);
-    });
-  }
-
   private syncCellHandlers(): void {
-    this.syncOutputHandlers();
     const live = new Set(this.shared.cells);
     this.cellHandlers.forEach((h, c) => {
       if (!live.has(c)) {
@@ -483,14 +421,7 @@ export class NotebookObserver {
     const handler = this.onKernelMessage;
     this.kernel?.anyMessage.disconnect(handler);
     this.kernel = kernel;
-    this.clearRuns(); // the old kernel's replies will never arrive
     kernel?.anyMessage.connect(handler);
-  }
-
-  /** Forget the runs in flight (kernel replaced, restarted or disconnected). */
-  private clearRuns(): void {
-    this.running.clear();
-    this.runByMsg.clear();
   }
 
   private readonly onKernelMessage = (
@@ -498,30 +429,19 @@ export class NotebookObserver {
     args: {
       direction: 'send' | 'recv';
       msg: {
-        header: { msg_type: string; msg_id?: string };
-        parent_header?: { msg_id?: string };
+        header: { msg_type: string };
         metadata?: Record<string, unknown>;
       };
     }
   ): void => {
     const { msg, direction } = args;
     if (direction === 'send' && msg.header.msg_type === 'execute_request') {
-      this.beforeRun(msg.header.msg_id, msg.metadata?.cellId);
-    } else if (
-      direction === 'recv' &&
-      msg.header.msg_type === 'execute_reply'
-    ) {
-      const parent = msg.parent_header?.msg_id;
-      const cell = parent ? this.runByMsg.get(parent) : undefined;
-      if (parent && cell !== undefined) {
-        this.runByMsg.delete(parent);
-        this.running.delete(cell);
-      }
+      this.beforeRun(msg.metadata?.cellId);
     }
   };
 
   /** An outgoing `execute_request` (S5-K): the code about to run is flushed first. */
-  private beforeRun(msgId: string | undefined, modelCellId: unknown): void {
+  private beforeRun(modelCellId: unknown): void {
     if (!this.recordingOn || !this.grouper) {
       return;
     }
@@ -531,10 +451,6 @@ export class NotebookObserver {
       return;
     }
     const id = this.identity.blaymId(modelCellId);
-    this.running.add(id);
-    if (msgId) {
-      this.runByMsg.set(msgId, id);
-    }
     this.grouper.beforeRun(id);
   }
 
@@ -580,9 +496,7 @@ export class NotebookObserver {
       return;
     }
     this.ensureIds();
-    const r = this.reconciler.reconcile(this.view(), this.identity, {
-      isRunning: id => this.running.has(id)
-    });
+    const r = this.reconciler.reconcile(this.view(), this.identity);
     if (r.kind === 'resync') {
       this.outbox?.requestResync(`reconcile:${r.reason}`);
       return;
@@ -730,18 +644,25 @@ export class NotebookObserver {
     await this.deps.transport.register(this.registration());
   }
 
+  /**
+   * Only a paused outbox is a problem the user sees. Other refusals and
+   * rejections are handled by the outbox itself (retry or a fresh snapshot).
+   */
   private onReport(r: OutboxReport): void {
     if (r.kind === 'paused' && r.reason === 'not_active_recorder') {
       this.recordingOn = false;
       this.setState({ kind: 'inactive', reason: 'other_recorder' });
     } else if (r.kind === 'paused') {
       this.setState({ kind: 'problem', detail: r.reason });
-    } else if (r.kind === 'refused') {
-      this.setState({ kind: 'problem', detail: r.reason });
-    } else if (r.kind === 'rejected') {
-      this.setState({ kind: 'problem', detail: `http ${r.status}` });
     }
     this.deps.onReport?.(r);
+  }
+
+  /** The server took an event: whatever was wrong is over. */
+  private onAccepted(): void {
+    if (this.recordingOn && this.state.kind === 'problem') {
+      this.setState({ kind: 'recording' });
+    }
   }
 
   private setState(state: ObserverState): void {

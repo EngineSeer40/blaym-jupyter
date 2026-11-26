@@ -394,6 +394,7 @@ def planted_events():
     s.move("c3", 2, 0)
     s.delete("c2")
     s.change_type("c3", "markdown")
+    s.clear_cell_outputs("c3")
     s.edit("c1", PLANT)
     s.cell_metadata("c1", {"a": PLANT, "b": [PLANT]})
     s.notebook_metadata({"nb": PLANT})
@@ -438,9 +439,9 @@ def _untouched(a, b):
     return da, db
 
 
-def test_all_23_event_types_are_planted():
+def test_all_24_event_types_are_planted():
     types = {e.type for e in planted_events()}
-    assert len(types) == 23, sorted(types)
+    assert len(types) == 24, sorted(types)
 
 
 @pytest.mark.parametrize("wrapped", [False, True])

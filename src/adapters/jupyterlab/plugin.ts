@@ -166,6 +166,13 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       });
       void observer.start();
     };
+    // The notebook commands act on the current notebook.
+    app.commands.commandExecuted.connect((_, args) => {
+      const p = current();
+      if (p) {
+        observers.get(p)?.commandExecuted(args.id);
+      }
+    });
     tracker.forEach(p => watch(p as unknown as PanelLike));
     tracker.widgetAdded.connect((_, p) => watch(p as unknown as PanelLike));
     const forAll = (f: (o: NotebookObserver) => void): void =>

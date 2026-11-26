@@ -100,6 +100,9 @@ def oracle_model(line):
             if not is_code[p.cellId]:
                 rescue(on_cell[p.cellId])
                 on_cell[p.cellId] = {}  # nothing is shown under a cell that is not code
+        elif t == "cell_outputs_cleared":
+            # the user wiped the cell: only what a live run is still writing survives
+            on_cell[p.cellId] = {r: g for r, g in on_cell[p.cellId].items() if runs.get(r) == "running"}
         elif t == "cell_deleted":
             cells.pop(p.cellId)
             order.remove(p.cellId)

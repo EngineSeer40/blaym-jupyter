@@ -237,6 +237,13 @@ def _cell_source_changed(s, ev):
     cell.revision = p.revision
 
 
+def _cell_outputs_cleared(s, ev):
+    # The user's clear command. Output still to come from a running run is not cleared.
+    cell = s.notebook.cells[_cell_index(s, ev.payload.cellId, ev)]
+    running = {r.runId for r in s.runs if r.status.root == "running"}
+    cell.outputs = [g for g in cell.outputs if g.runId in running]
+
+
 def _cell_metadata_changed(s, ev):
     s.notebook.cells[_cell_index(s, ev.payload.cellId, ev)].metadata = deepcopy(ev.payload.metadata)
 
@@ -429,6 +436,7 @@ _HANDLERS: dict[str, Callable] = {
     "cell_deleted": _cell_deleted,
     "cell_moved": _cell_moved,
     "cell_type_changed": _cell_type_changed,
+    "cell_outputs_cleared": _cell_outputs_cleared,
     "cell_source_changed": _cell_source_changed,
     "cell_metadata_changed": _cell_metadata_changed,
     "notebook_metadata_changed": _notebook_metadata_changed,

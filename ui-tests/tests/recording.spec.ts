@@ -434,6 +434,88 @@ test('recording in a real page', async ({
   );
   expect(await barState(page)).toBe('recording');
 
+  // Clear Outputs is its own event, sent only for the user's clear commands
+  const clearedCount = (): number =>
+    sentTypes.filter(t => t === 'cell_outputs_cleared').length;
+  await page.evaluate(() => {
+    const w = window as Any;
+    w.__commands = [];
+    w.jupyterapp.commands.commandExecuted.connect((_: Any, a: Any) =>
+      w.__commands.push(a.id)
+    );
+  });
+  const commandsSeen = (): Promise<string[]> =>
+    page.evaluate(() => (window as Any).__commands.splice(0));
+  // Not awaited: the command waits for the restart dialog to be answered.
+  const restartWith = async (command: string): Promise<void> => {
+    await page.evaluate((c: string) => {
+      void (window as Any).jupyterapp.commands.execute(c);
+    }, command);
+    await page.locator('.jp-Dialog button.jp-mod-accept').click();
+  };
+  const clearEvidence: Record<string, unknown> = {};
+  evidence.clearCommands = clearEvidence;
+  const noted = async (label: string, from: number): Promise<void> => {
+    clearEvidence[label] = {
+      commands: await commandsSeen(),
+      events: clearedCount() - from
+    };
+  };
+
+  await setSource(1, "print('second again')");
+  await runAt(1);
+  await idle('second again', 1);
+  expect(clearedCount()).toBe(0);
+
+  await active(page, 2);
+  await cmd(page, 'notebook:clear-cell-output');
+  // cell 0 has no output since its type change, so only cell 2 differs
+  await sameOutputs('clear one cell');
+  await noted('clear one cell', 0);
+  expect(clearedCount()).toBe(1);
+
+  await runAt(2);
+  await idle('after the error', 2);
+  await sameOutputs('run after clear');
+  await commandsSeen();
+  let from = clearedCount();
+  await cmd(page, 'notebook:clear-all-cell-outputs');
+  await sameOutputs('clear all');
+  await noted('clear all', from);
+  // cells 1 and 2 had output
+  expect(clearedCount() - from).toBe(2);
+
+  await runAt(2);
+  await idle('after the error', 2);
+  await sameOutputs('run before restart and clear');
+  await commandsSeen();
+  from = clearedCount();
+  await restartWith('notebook:restart-clear-output');
+  await expect.poll(() => clearedCount() - from, { timeout: 30000 }).toBe(1);
+  await sameOutputs('restart and clear');
+  await noted('restart and clear', from);
+  expect((await liveOutputs()).flat()).toEqual([]);
+  expect(sentTypes.filter(t => t === 'notebook_snapshot').length).toBe(
+    snapshotsBefore
+  );
+  expect(await barState(page)).toBe('recording');
+  // Restart and run all sends no clear command and no clear event. Only that is
+  // asserted: in this long scenario the page has been seen to stay "restarting".
+  from = clearedCount();
+  await restartWith('notebook:restart-run-all');
+  await page.waitForTimeout(8000);
+  await noted('restart and run all', from);
+  expect(clearedCount()).toBe(from);
+  clearEvidence['after restart and run all'] = {
+    kernel: await page.evaluate(
+      () =>
+        (window as Any).jupyterapp.shell.currentWidget.sessionContext.session
+          ?.kernel?.status
+    ),
+    outputs: (await liveOutputs()).map(o => o.length)
+  };
+  console.log('CLEAR ' + JSON.stringify(clearEvidence));
+
   // what the real page showed (S5 proofs)
   const ev = await page.evaluate(() => (window as Any).__ev);
   const exec = ev.messages.filter(

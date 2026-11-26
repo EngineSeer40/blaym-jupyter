@@ -91,7 +91,20 @@ export interface ContextLike {
 
 export interface PanelLike {
   context: ContextLike;
+  /** The notebook widget: which cells a command on the selection concerns. */
+  content?: {
+    widgets: ReadonlyArray<{ model: { id: string } }>;
+    isSelectedOrActive(widget: unknown): boolean;
+  };
 }
+
+/**
+ * The user's clear commands. "Restart Kernel and Clear Outputs of All Cells"
+ * (`notebook:restart-clear-output`) is not listed: after a confirmed restart it
+ * executes the clear-all command itself.
+ */
+const CLEAR_SELECTED = 'notebook:clear-cell-output';
+const CLEAR_ALL = 'notebook:clear-all-cell-outputs';
 
 /* ------------------------------------------------------------------ */
 
@@ -156,6 +169,11 @@ export class NotebookObserver {
   private starting = false;
   private pending: Array<Promise<unknown>> = [];
   private cellHandlers = new Map<SharedCellLike, () => void>();
+  /**
+   * Model ids of the cells that have shown output since the user last cleared
+   * them. A clear command is reported after the output is already gone.
+   */
+  private hadOutput = new Set<string>();
   private kernel?: KernelLike | null;
   private disposed = false;
   private state: ObserverState = { kind: 'starting' };
@@ -267,6 +285,31 @@ export class NotebookObserver {
     if (this.recordingOn) {
       this.outbox?.requestResync('model_replaced');
     }
+  }
+
+  /** A JupyterLab command ran on this panel: a clear command is recorded. */
+  commandExecuted(command: string): void {
+    if (command !== CLEAR_SELECTED && command !== CLEAR_ALL) {
+      return;
+    }
+    const content = this.panel.content;
+    const ids =
+      command === CLEAR_ALL
+        ? this.shared.cells.map(c => c.getId())
+        : (content?.widgets ?? [])
+            .filter(w => content?.isSelectedOrActive(w))
+            .map(w => w.model.id);
+    // First send any cell change not yet seen, so history knows the cell.
+    this.process();
+    ids.forEach(id => {
+      if (this.hadOutput.delete(id)) {
+        const cellId = this.identity.blaymId(id);
+        this.queue(
+          { type: 'cell_outputs_cleared', payload: { cellId }, cellId },
+          { hint: 'unknown' }
+        );
+      }
+    });
   }
 
   dispose(): void {
@@ -405,12 +448,28 @@ export class NotebookObserver {
       }
     });
     live.forEach(c => {
+      this.noteOutputs(c);
       if (!this.cellHandlers.has(c)) {
-        const h = (): void => this.process();
+        const h = (): void => {
+          this.noteOutputs(c);
+          this.process();
+        };
         c.changed.connect(h);
         this.cellHandlers.set(c, h);
       }
     });
+  }
+
+  private noteOutputs(cell: SharedCellLike): void {
+    if (cell.cell_type !== 'code') {
+      // History keeps no output on a cell that is not code.
+      this.hadOutput.delete(cell.getId());
+    } else if (
+      !this.hadOutput.has(cell.getId()) &&
+      (cell.getOutputs?.().length ?? 0) > 0
+    ) {
+      this.hadOutput.add(cell.getId());
+    }
   }
 
   private subscribeKernel(): void {

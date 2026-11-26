@@ -147,6 +147,10 @@ class Scenario:
         return self._emit("cell_type_changed", {"cellId": cell_id, "cellType": cell_type},
                           revs=self._current_revisions())
 
+    def clear_cell_outputs(self, cell_id):
+        return self._emit("cell_outputs_cleared", {"cellId": cell_id},
+                          revs=self._current_revisions())
+
     def edit(self, cell_id, code, revision=None):
         revs = self._current_revisions()
         revision = revs.get(cell_id, 0) + 1 if revision is None else revision

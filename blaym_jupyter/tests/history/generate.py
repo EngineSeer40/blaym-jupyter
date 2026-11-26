@@ -26,9 +26,10 @@ from hypothesis import strategies as st
 from blaym_jupyter.history.apply import apply
 from blaym_jupyter.tests.history.scenario import Scenario
 
-# The 23 event types of the contract (used by the generator self-tests).
+# The 24 event types of the contract (used by the generator self-tests).
 ALL_EVENT_TYPES = (
     "notebook_snapshot", "cell_inserted", "cell_deleted", "cell_moved", "cell_type_changed",
+    "cell_outputs_cleared",
     "cell_source_changed", "cell_metadata_changed", "notebook_metadata_changed",
     "run_started", "run_finished", "output_added", "output_replaced", "outputs_cleared",
     "kernel_started", "kernel_restarted", "notebook_renamed", "notebook_copied",
@@ -178,7 +179,7 @@ def _applicable(b: _Builder, step: int) -> list[str]:
     names = ["insert", "insert", "chat", "kernel_start", "gap_start", "rename", "copy",
              "nb_meta", "outside"]
     if cells:
-        names += ["delete", "move", "move", "type", "edit", "edit", "edit", "cell_meta",
+        names += ["delete", "move", "move", "type", "user_clear", "edit", "edit", "edit", "cell_meta",
                   "run", "run", "restart"]
     else:
         names += ["restart"]
@@ -242,6 +243,8 @@ def _act(b: _Builder, draw, name: str) -> None:
         s.move(cell.cellId, i, draw(st.integers(0, len(state.notebook.cells) - 1)))
     elif name == "type":
         s.change_type(_pick_cell(b, draw).cellId, draw(st.sampled_from(["code", "markdown", "raw"])))
+    elif name == "user_clear":
+        s.clear_cell_outputs(_pick_cell(b, draw).cellId)
     elif name == "edit":
         cell = _pick_cell(b, draw)
         s.edit(cell.cellId, _code(draw), revision=cell.revision + 1)

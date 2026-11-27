@@ -277,3 +277,39 @@ def test_the_api_refuses_writes_it_does_not_own(rig):
     assert all(o.root.status != "accepted" for o in out.outcomes)
     outline = rig.call("GET", "/outline", query={"explorationId": theirs.explorationId})
     assert outline.status == 404 or json.loads(outline.body).get("highestTick", 0) == 0
+
+
+class _Sink:
+    def __init__(self):
+        self.writes = []
+
+    def submit(self, write):
+        self.writes.append(write)
+
+
+def test_a_rename_is_recorded_as_notebook_renamed_and_the_registry_follows_the_new_path(rig):
+    status = rig.register("tab-1", path="a.ipynb", setRecording=True)
+    sink = _Sink()
+    rig.rec.editor = "vscode"
+    rig.rec.sink, rig.rec.clock, rig.rec.ids = sink, rig.clock, type("I", (), {"new": lambda s: "ev-1"})()
+    r = rig.call("POST", "/notebooks/rename", body={
+        "notebookId": status.notebookId, "instanceId": "tab-1", "oldPath": "a.ipynb", "newPath": "b.ipynb"})
+    assert r.status == 200 and NotebookStatus.model_validate_json(r.body).active
+    assert rig.registry.notebook_id_for_path("b.ipynb") == status.notebookId
+    [write] = sink.writes
+    assert [(e["type"], e["payload"], e["editor"], e["originId"]) for e in write.events] == [
+        ("notebook_renamed", {"oldPath": "a.ipynb", "newPath": "b.ipynb"}, "vscode", "tab-1")]
+
+
+def test_a_save_notice_from_an_instance_that_is_not_the_active_recorder_is_refused(rig):
+    first = rig.register("tab-1")
+    rig.register("tab-2")
+    seen = []
+    rig.rec.files = type("F", (), {"save_started": lambda s, p: seen.append(("started", p)),
+                                   "save_finished": lambda s, p: seen.append(("finished", p))})()
+    body = {"notebookId": first.notebookId, "path": "a.ipynb", "phase": "started"}
+    assert rig.call("POST", "/notebooks/save", body={**body, "instanceId": "tab-2"}).status == 409 and seen == []
+    assert rig.call("POST", "/notebooks/save", body={**body, "instanceId": "tab-1"}).status == 204
+    assert seen == [("started", "a.ipynb")]
+    assert rig.call("POST", "/notebooks/save", body={**body, "instanceId": "tab-1", "phase": "finished"}).status == 204
+    assert seen == [("started", "a.ipynb"), ("finished", "a.ipynb")]

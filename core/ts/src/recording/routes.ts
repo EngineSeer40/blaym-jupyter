@@ -22,6 +22,8 @@ export const ROUTES = {
   register: { method: 'POST', path: '/notebooks/register' },
   status: { method: 'GET', path: '/notebooks/{notebookId}/status' },
   close: { method: 'POST', path: '/notebooks/close' },
+  rename: { method: 'POST', path: '/notebooks/rename' },
+  save: { method: 'POST', path: '/notebooks/save' },
   info: { method: 'GET', path: '/info' },
   state: { method: 'GET', path: '/state' },
   outline: { method: 'GET', path: '/outline' },

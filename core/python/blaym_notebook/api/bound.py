@@ -15,6 +15,8 @@ from blaym_notebook_types import (
     StateAtRequest,
 )
 
+from blaym_notebook.recording.outside import TipCell
+from blaym_notebook.recording.watcher import StateSource
 from blaym_notebook.service.core import Service
 
 
@@ -71,3 +73,19 @@ class ServiceProbe:
             return []
         return [OpenGap(gapId=g.gapId, source=g.source, reason=g.reason)
                 for g in state.gaps if g.endedTick is None]
+
+
+def state_source(service: Service, credential: Any) -> StateSource:
+    """Cell revisions and the tip's cells from the service, for the file watcher (the tip is
+    None before any history exists)."""
+
+    def source(nb_id: str):
+        probe = ServiceProbe(service, credential)
+        state = probe.tip(nb_id)
+        if state is None:
+            return {}, None
+        tip = [TipCell(c["cellId"], c["cellType"], c["code"])
+               for c in state.model_dump(mode="json")["notebook"]["cells"]]
+        return probe.cell_revisions(nb_id), tip
+
+    return source

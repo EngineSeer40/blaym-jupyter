@@ -96,7 +96,7 @@ describe('the status stays honest', () => {
     handler: (req: any) => Promise<any>
   ): Promise<{ states: string[]; recover: () => Promise<string> }> {
     const t = await setup();
-    const kind = (): string => (t.observer as any).state.kind;
+    const kind = (): string => t.observer.currentState.kind;
     const accepting = t.transport.ingestHandler;
     const states: string[] = [];
     const step = async (source: string): Promise<void> => {
@@ -111,7 +111,7 @@ describe('the status stays honest', () => {
       states,
       recover: async () => {
         t.transport.ingestHandler = accepting;
-        (t.observer as any).outbox.resume();
+        (t.observer as any).session.outbox.resume();
         await step('x = 3');
         return kind();
       }

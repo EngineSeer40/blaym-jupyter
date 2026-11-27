@@ -51,6 +51,20 @@
       "response": "none"
     },
     {
+      "name": "rename",
+      "method": "POST",
+      "path": "/notebooks/rename",
+      "request": "NotebookRenameRequest",
+      "response": "NotebookStatus"
+    },
+    {
+      "name": "save",
+      "method": "POST",
+      "path": "/notebooks/save",
+      "request": "NotebookSaveNotice",
+      "response": "none"
+    },
+    {
       "name": "info",
       "method": "GET",
       "path": "/info",

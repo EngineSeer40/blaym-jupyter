@@ -271,6 +271,7 @@ def _run_started(s, ev):
             runCount=p.runCount,
             status="running",
             startedTick=ev.tick,
+            **({"codeLink": p.codeLink} if p.codeLink is not None else {}),
         )
     )
 

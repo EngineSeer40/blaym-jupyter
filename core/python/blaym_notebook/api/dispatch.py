@@ -15,6 +15,8 @@ from blaym_notebook_types import (
     IngestRequest,
     IngestResponse,
     NotebookRegistration,
+    NotebookRenameRequest,
+    NotebookSaveNotice,
     OutlineRequest,
     PrepareOutputsRequest,
     PrepareOutputsResponse,
@@ -27,7 +29,10 @@ from blaym_notebook_types import (
 from blaym_notebook.ports.blobs import BlobCorrupt, BlobNotFound
 from blaym_notebook.recording.edges import startup_gap
 from blaym_notebook.recording.outputs import OutputLimits, item_from_output
+from blaym_notebook.recording.ports import Clock, Ids, SaveNotices
 from blaym_notebook.recording.registry import Registry
+from blaym_notebook.recording.renames import record_rename
+from blaym_notebook.recording.runs import WriteSink
 from blaym_notebook.service.auth import Unauthorized
 from blaym_notebook.service.core import Service, ServiceBusy, UnknownHistory
 
@@ -67,6 +72,13 @@ class Recording:
     service: Service
     registry: Registry
     output_limits: OutputLimits = field(default_factory=OutputLimits)
+    # Optional parts for an editor with no contents hooks of its own (the Jupyter host leaves them unset):
+    # the rename route needs `sink`, `clock` and `ids`; the save route needs `files`.
+    sink: WriteSink | None = None
+    clock: Clock | None = None
+    ids: Ids | None = None
+    files: SaveNotices | None = None
+    editor: str | None = None  # the editor the host records renames as
 
 
 def _json(status: int, value: Any, headers: Mapping[str, str] | None = None) -> ApiResponse:
@@ -193,6 +205,30 @@ def _close(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     return ApiResponse(204)
 
 
+def _only_active(rec: Recording, notebook_id: str, instance_id: str) -> None:
+    if rec.registry.gate_ingest(instance_id, notebook_id) != "ok":
+        raise ApiError(409, "another recorder instance is active for this notebook")
+
+
+def _rename(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    body = codec.parse(NotebookRenameRequest, req.body)
+    if rec.sink is None or rec.clock is None or rec.ids is None or rec.editor is None:
+        raise ApiError(404, "not_supported_here")
+    _only_active(rec, body.notebookId, body.instanceId)
+    record_rename(rec.registry, rec.sink, rec.clock, rec.ids, body.oldPath, body.newPath,
+                  editor=rec.editor, origin_id=body.instanceId)
+    return _json(200, rec.registry.status(body.notebookId, body.instanceId))
+
+
+def _save(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    body = codec.parse(NotebookSaveNotice, req.body)
+    if rec.files is None:
+        raise ApiError(404, "not_supported_here")
+    _only_active(rec, body.notebookId, body.instanceId)
+    (rec.files.save_started if body.phase.value == "started" else rec.files.save_finished)(body.path)
+    return ApiResponse(204)
+
+
 def _info(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     return _json(200, rec.service.info(cred))
 
@@ -265,6 +301,7 @@ def _get_blob(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
 _HANDLERS: dict[str, Callable[..., ApiResponse]] = {
     "ingest": _ingest, "put_blob": _put_blob, "prepare_outputs": _prepare_outputs,
     "resolve_cell_revision": _resolve, "register": _register, "status": _status, "close": _close,
+    "rename": _rename, "save": _save,
     "info": _info, "state": _state, "outline": _outline, "events_since": _events_since,
     "timeline": _timeline, "events_between": _events_between,
     "search": _search, "get_blob": _get_blob,

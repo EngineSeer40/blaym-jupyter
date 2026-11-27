@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling>=1.5.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blaym-vscode"
+version = "0.1.0"
+description = "Standalone Blaym service for the VS Code extension: the editor-neutral core behind a local HTTP server"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["blaym-notebook", "blaym-notebook-types"]
+
+[tool.uv.sources]
+blaym-notebook = { workspace = true }
+blaym-notebook-types = { path = "../../../blaym-notebook-types", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["blaym_vscode"]

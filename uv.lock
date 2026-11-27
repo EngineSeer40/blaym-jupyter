@@ -13,6 +13,7 @@ members = [
     "blaym-jupyter",
     "blaym-notebook",
     "blaym-notebook-workspace",
+    "blaym-vscode",
 ]
 
 [[package]]
@@ -245,6 +246,7 @@ source = { virtual = "." }
 dev = [
     { name = "blaym-jupyter", extra = ["dev", "test"] },
     { name = "blaym-notebook" },
+    { name = "blaym-vscode" },
 ]
 
 [package.metadata]
@@ -253,6 +255,22 @@ dev = [
 dev = [
     { name = "blaym-jupyter", extras = ["dev", "test"], editable = "jupyter" },
     { name = "blaym-notebook", editable = "core/python" },
+    { name = "blaym-vscode", editable = "vscode/python" },
+]
+
+[[package]]
+name = "blaym-vscode"
+version = "0.1.0"
+source = { editable = "vscode/python" }
+dependencies = [
+    { name = "blaym-notebook" },
+    { name = "blaym-notebook-types" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "blaym-notebook", editable = "core/python" },
+    { name = "blaym-notebook-types", editable = "../blaym-notebook-types" },
 ]
 
 [[package]]

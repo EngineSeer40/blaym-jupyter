@@ -1,33 +1,20 @@
 import type {
   CellType,
   NotebookRegistration,
-  NotebookStatus,
-  RecorderEvent
+  NotebookStatus
 } from 'blaym-notebook-types';
-import {
-  alignCells,
-  EventBuilder,
-  GapKeeper,
-  CellIdentity,
-  Heartbeat,
-  Outbox,
-  Reconciler,
-  TypingGrouper,
-  AuthorMarker,
-  readView
-} from 'blaym-notebook-core';
+import { notebookFingerprint, RecorderSession } from 'blaym-notebook-core';
 import type {
   TipCell,
   MetadataPolicy,
   OutboxReport,
   Transport,
-  AuthorMark,
   AuthorSignals,
   CellView,
   Clock,
-  EventDraft,
   Ids,
-  NotebookView,
+  RecorderSettings,
+  RecorderState,
   Scheduler,
   TabElection
 } from 'blaym-notebook-core';
@@ -111,21 +98,9 @@ const CLEAR_ALL = 'notebook:clear-all-cell-outputs';
 
 /* ------------------------------------------------------------------ */
 
-export type ObserverState =
-  | { kind: 'starting' }
-  | { kind: 'off' }
-  | { kind: 'recording' }
-  | {
-      kind: 'inactive';
-      reason: 'other_tab' | 'other_recorder' | 'collaboration';
-    }
-  | { kind: 'problem'; detail: string };
+export type ObserverState = RecorderState;
 
-export interface ObserverSettings {
-  heartbeatMs?: number;
-  pauseMs?: number;
-  maxMs?: number;
-}
+export type ObserverSettings = RecorderSettings;
 
 export interface ObserverDeps {
   transport: Transport & { tip?(explorationId: string): Promise<TipCell[]> };
@@ -158,22 +133,8 @@ function formatIsStable(nbformat: number, minor: number): boolean {
 /** Records one notebook panel: the JupyterLab side of the neutral recorder. */
 export class NotebookObserver {
   readonly instanceId: string;
+  private readonly session: RecorderSession;
   private shared: SharedNotebookLike;
-  private identity: CellIdentity;
-  private readonly reconciler: Reconciler;
-  private builder?: EventBuilder;
-  private grouper?: TypingGrouper;
-  private outbox?: Outbox;
-  private heartbeat?: Heartbeat;
-  private gaps?: GapKeeper;
-  private lastStatus?: NotebookStatus;
-  private fingerprint?: NotebookRegistration['fingerprint'];
-  private sentAliases = '{}';
-  private recordingOn = false;
-  private starting = false;
-  /** The `switched_off` gap is open: no snapshot closes it until recording is on again. */
-  private goingOff = false;
-  private pending: Array<Promise<unknown>> = [];
   private cellHandlers = new Map<SharedCellLike, () => void>();
   /**
    * Model ids of the cells that have shown output since the user last cleared
@@ -182,21 +143,54 @@ export class NotebookObserver {
   private hadOutput = new Set<string>();
   private kernel?: KernelLike | null;
   private disposed = false;
-  private state: ObserverState = { kind: 'starting' };
   private readonly disposers: Array<() => void> = [];
 
   constructor(
     private readonly panel: PanelLike,
     private readonly deps: ObserverDeps
   ) {
-    this.instanceId = deps.ids.uuid();
     this.shared = panel.context.model.sharedModel;
-    this.identity = new CellIdentity(this.stable(), deps.ids);
-    this.reconciler = new Reconciler(deps.policy);
+    const stable = (): boolean => this.stable();
+    this.session = new RecorderSession(
+      {
+        get cellIdsStable(): boolean {
+          return stable();
+        },
+        notebookMetadata: () => this.shared.getMetadata(),
+        cells: (): CellView[] =>
+          this.shared.cells.map(c => ({
+            id: c.getId(),
+            type: c.cell_type as CellType,
+            source: c.getSource(),
+            metadata: c.getMetadata(),
+            outputs: c.cell_type === 'code' ? (c.getOutputs?.() ?? []) : []
+          }))
+      },
+      {
+        transport: deps.transport,
+        clock: deps.clock,
+        scheduler: deps.scheduler,
+        ids: deps.ids,
+        policy: deps.policy,
+        editor: 'jupyterlab',
+        path: () => panel.context.path,
+        ensureIds: () => this.ensureIds(),
+        kernelNameFallback: () =>
+          panel.context.sessionContext.session?.kernel?.name,
+        collaboration: () => !!panel.context.model.collaborative,
+        settings: deps.settings,
+        signals: deps.signals,
+        switching: deps.switching,
+        onState: deps.onState,
+        onReport: deps.onReport,
+        onStatus: deps.onStatus
+      }
+    );
+    this.instanceId = this.session.instanceId;
   }
 
   get currentState(): ObserverState {
-    return this.state;
+    return this.session.state;
   }
 
   private stable(): boolean {
@@ -211,26 +205,21 @@ export class NotebookObserver {
       return;
     }
     this.shared = ctx.model.sharedModel;
-    this.identity = new CellIdentity(this.stable(), this.deps.ids);
+    this.session.resetIdentity();
     this.ensureIds();
     this.attach();
-    this.fingerprint = await this.computeFingerprint();
-    let status: NotebookStatus;
-    try {
-      status = await this.deps.transport.register(this.registration());
-    } catch (e) {
-      this.setState({ kind: 'problem', detail: String(e) });
+    this.session.setFingerprint(await this.computeFingerprint());
+    const status = await this.session.register();
+    if (!status) {
       return;
     }
-    this.lastStatus = status;
     const notebookId = status.notebookId;
-    this.deps.onStatus?.(status);
     if (status.reason === 'collaboration_not_supported') {
-      this.setState({ kind: 'inactive', reason: 'collaboration' });
+      this.session.setState({ kind: 'inactive', reason: 'collaboration' });
       return;
     }
     if ((await this.deps.election.acquire(notebookId)) === 'inactive') {
-      this.setState({ kind: 'inactive', reason: 'other_tab' });
+      this.session.setState({ kind: 'inactive', reason: 'other_tab' });
       void this.waitForTakeover(notebookId);
       return;
     }
@@ -238,8 +227,7 @@ export class NotebookObserver {
       this.deps.election.releaseLock?.();
       return;
     }
-    this.build(notebookId);
-    await this.heartbeat?.start();
+    await this.session.start(notebookId);
   }
 
   /** A tab that lost the election takes over when the holder goes away. */
@@ -254,50 +242,24 @@ export class NotebookObserver {
     if (!won) {
       return;
     }
-    this.build(notebookId);
-    await this.heartbeat?.start();
+    await this.session.start(notebookId);
   }
 
   /** Switch recording on or off for this notebook (the registry holds the flag). */
-  async setRecording(on: boolean): Promise<void> {
-    try {
-      if (!on && this.recordingOn) {
-        this.gaps?.open('switched_off');
-        this.goingOff = true;
-        await Promise.all(this.pending);
-      }
-      const status = await this.deps.transport.register({
-        ...this.registration(),
-        setRecording: on
-      });
-      this.onStatus(status);
-    } catch (e) {
-      // recording stays on: the next snapshot closes the gap
-      this.goingOff = false;
-      this.setState({ kind: 'problem', detail: String(e) });
-    }
+  setRecording(on: boolean): Promise<void> {
+    return this.session.setRecording(on);
   }
 
   /** `visibilitychange` to hidden: send what is queued. `pagehide`: also a clean close. */
   hide(kind: 'hidden' | 'pagehide'): void {
-    if (!this.grouper) {
-      return;
-    }
-    this.grouper.flushAll();
-    const outbox = this.outbox;
-    void Promise.all(this.pending).then(() => outbox?.flushKeepalive());
-    if (kind === 'pagehide') {
-      this.heartbeat?.close();
-    }
+    this.session.flushKeepalive(kind === 'pagehide');
   }
 
   /** The model object behind the panel was replaced (revert, reload): a resync. */
   modelReplaced(): void {
     this.shared = this.panel.context.model.sharedModel;
     this.attach();
-    if (this.recordingOn) {
-      this.outbox?.requestResync('model_replaced');
-    }
+    this.session.modelReplaced();
   }
 
   /** A JupyterLab command ran on this panel: a clear command is recorded. */
@@ -316,11 +278,7 @@ export class NotebookObserver {
     this.process();
     ids.forEach(id => {
       if (this.hadOutput.delete(id)) {
-        const cellId = this.identity.blaymId(id);
-        this.queue(
-          { type: 'cell_outputs_cleared', payload: { cellId }, cellId },
-          { hint: 'unknown' }
-        );
+        this.session.outputsCleared(id);
       }
     });
   }
@@ -334,89 +292,10 @@ export class NotebookObserver {
     this.disposers.splice(0).forEach(d => d());
     this.cellHandlers.forEach((h, c) => c.changed.disconnect(h));
     this.cellHandlers.clear();
-    this.heartbeat?.stop();
-    this.outbox?.close();
+    this.session.close();
   }
 
   /* ----------------------------- wiring ----------------------------- */
-
-  private build(notebookId: string): void {
-    const d = this.deps;
-    const builder = new EventBuilder({
-      clock: d.clock,
-      ids: d.ids,
-      transport: d.transport,
-      explorationId: notebookId,
-      editor: 'jupyterlab',
-      originId: this.instanceId,
-      policy: d.policy
-    });
-    this.builder = builder;
-    const marker = d.signals
-      ? new AuthorMarker({
-          signals: d.signals,
-          clock: d.clock,
-          scheduler: d.scheduler,
-          boundary: id =>
-            id ? this.grouper?.boundary(id) : this.grouper?.flushAll()
-        })
-      : undefined;
-    if (marker) {
-      this.disposers.push(() => marker.close());
-    }
-    this.grouper = new TypingGrouper({
-      scheduler: d.scheduler,
-      clock: d.clock,
-      pauseMs: d.settings?.pauseMs,
-      maxMs: d.settings?.maxMs,
-      emit: (draft, author) => this.queue(draft, author),
-      mark: (id, from, to) =>
-        marker ? marker.mark(id, from, to) : { hint: 'unknown' }
-    });
-    this.gaps = new GapKeeper({
-      ids: d.ids,
-      emit: (draft, first) => this.emitGap(draft, first)
-    });
-    this.outbox = new Outbox({
-      transport: d.transport,
-      scheduler: d.scheduler,
-      clock: d.clock,
-      explorationId: notebookId,
-      editor: 'jupyterlab',
-      instanceId: this.instanceId,
-      snapshotter: () => this.snapshotNow(),
-      onBranch: () => this.onAccepted(),
-      onReport: r => this.onReport(r)
-    });
-    this.heartbeat = new Heartbeat({
-      transport: d.transport,
-      scheduler: d.scheduler,
-      notebookId,
-      instanceId: this.instanceId,
-      heartbeatMs: d.settings?.heartbeatMs ?? 15000,
-      registration: () => this.registration(),
-      onStatus: s => this.onStatus(s),
-      onActive: active => {
-        if (active) {
-          this.outbox?.resume();
-        } else {
-          this.recordingOn = false;
-          this.setState({ kind: 'inactive', reason: 'other_recorder' });
-        }
-      },
-      onResync: reason => {
-        if (this.recordingOn) {
-          this.outbox?.requestResync(reason);
-        }
-      },
-      // while recording is off nothing closes a gap (its `switched_off` gap stays open)
-      snapshotPending: () =>
-        !this.recordingOn || (this.outbox?.needsResync ?? false),
-      closeGap: gap => this.gaps?.close(gap),
-      onError: (kind, e) =>
-        this.setState({ kind: 'problem', detail: `${kind}: ${String(e)}` })
-    });
-  }
 
   private attach(): void {
     const shared = this.shared;
@@ -433,7 +312,7 @@ export class NotebookObserver {
       this.contextConnected = true;
       const onSave = (_: unknown, state: string): void => {
         if (state === 'started') {
-          this.grouper?.flushAll();
+          this.session.flushTyping();
         }
       };
       ctx.saveState.connect(onSave);
@@ -510,41 +389,11 @@ export class NotebookObserver {
   ): void => {
     const { msg, direction } = args;
     if (direction === 'send' && msg.header.msg_type === 'execute_request') {
-      this.beforeRun(msg.metadata?.cellId);
+      // the panel's own check first (a replaced model is a resync), as before the lift
+      this.process();
+      this.session.beforeRun(msg.metadata?.cellId);
     }
   };
-
-  /** An outgoing `execute_request`: the code about to run is flushed first. */
-  private beforeRun(modelCellId: unknown): void {
-    if (!this.recordingOn || !this.grouper) {
-      return;
-    }
-    this.process();
-    if (typeof modelCellId !== 'string') {
-      this.grouper.flushAll();
-      return;
-    }
-    const id = this.identity.blaymId(modelCellId);
-    this.grouper.beforeRun(id);
-  }
-
-  /* --------------------------- the recorder -------------------------- */
-
-  private view(): NotebookView {
-    const shared = this.shared;
-    return {
-      cellIdsStable: this.identity.stable,
-      notebookMetadata: () => shared.getMetadata(),
-      cells: (): CellView[] =>
-        shared.cells.map(c => ({
-          id: c.getId(),
-          type: c.cell_type as CellType,
-          source: c.getSource(),
-          metadata: c.getMetadata(),
-          outputs: c.cell_type === 'code' ? (c.getOutputs?.() ?? []) : []
-        }))
-    };
-  }
 
   private ensureIds(): void {
     const missing = this.shared.cells.filter(c => !c.getId() && c.setId);
@@ -558,211 +407,24 @@ export class NotebookObserver {
   }
 
   private process(): void {
-    const grouper = this.grouper;
-    if (this.disposed || !grouper || !this.recordingOn) {
+    if (!this.session.active) {
       return;
     }
     if (this.panel.context.model.sharedModel !== this.shared) {
       this.modelReplaced();
       return;
     }
-    if (this.deps.switching?.() || this.outbox?.needsResync) {
-      return;
-    }
-    this.ensureIds();
-    const r = this.reconciler.reconcile(this.view(), this.identity);
-    if (r.kind === 'resync') {
-      this.outbox?.requestResync(`reconcile:${r.reason}`);
-      return;
-    }
-    r.edits.forEach(e => grouper.edit(e.cellId, e.code));
-    r.flushBefore.forEach(id => grouper.flushCell(id));
-    for (const d of r.drafts) {
-      this.queue(d, { hint: 'unknown' });
-      if (d.type === 'cell_inserted') {
-        grouper.baseline(d.cellId as string, String(d.payload.code));
-      }
-      if (d.type === 'cell_deleted') {
-        grouper.forget(d.cellId as string);
-      }
-    }
-    this.reregisterIfAliasesChanged();
+    this.session.process();
   }
 
-  private queue(draft: EventDraft, author?: AuthorMark): void {
-    const builder = this.builder;
-    if (!builder || !this.recordingOn) {
-      return;
-    }
-    const p = builder.build(draft, author).then(
-      (ev: RecorderEvent) => this.outbox?.enqueue(ev),
-      e => this.setState({ kind: 'problem', detail: String(e) })
+  private computeFingerprint(): Promise<NotebookRegistration['fingerprint']> {
+    return notebookFingerprint(
+      this.shared.cells.map(c => c.getSource()),
+      `${this.shared.nbformat}.${this.shared.nbformat_minor}`,
+      this.session.cellIdsStable
+        ? this.shared.cells.map(c => c.getId())
+        : undefined,
+      this.deps.sha256Hex
     );
-    this.pending.push(p);
-    void p.then(() => {
-      this.pending = this.pending.filter(x => x !== p);
-    });
-  }
-
-  /** A gap event: built and queued whether or not recording is on (the off gap is written as it goes off). */
-  private emitGap(draft: EventDraft, first: boolean): void {
-    const builder = this.builder;
-    if (!builder) {
-      return;
-    }
-    const p = builder.build(draft).then(
-      (ev: RecorderEvent) => this.outbox?.enqueue(ev, first),
-      e => this.setState({ kind: 'problem', detail: String(e) })
-    );
-    this.pending.push(p);
-    void p.then(() => {
-      this.pending = this.pending.filter(x => x !== p);
-    });
-  }
-
-  /** The snapshotter of the outbox: the notebook as it is now, and the reconciler reset to it. */
-  private snapshotNow(): Promise<RecorderEvent> {
-    const builder = this.builder as EventBuilder;
-    this.ensureIds();
-    if (this.lastStatus) {
-      builder.noteStatus(this.lastStatus.cellRevisions);
-    }
-    const view = this.view();
-    const v = readView(view, this.identity, this.deps.policy);
-    const meta = view.notebookMetadata() as {
-      kernelspec?: { name?: string; language?: string };
-      language_info?: { name?: string };
-    };
-    const kernelName =
-      meta.kernelspec?.name ??
-      this.panel.context.sessionContext.session?.kernel?.name ??
-      'unknown';
-    const language =
-      meta.language_info?.name ?? meta.kernelspec?.language ?? 'unknown';
-    const p = builder.snapshot({
-      path: this.panel.context.path,
-      notebookMetadata: view.notebookMetadata(),
-      kernelName,
-      language,
-      cells: v.cells
-    });
-    this.reconciler.reset(view, this.identity);
-    v.cells.forEach(c => this.grouper?.baseline(c.id, c.code));
-    return p;
-  }
-
-  /* ------------------------ status and registration ------------------ */
-
-  private registration(): NotebookRegistration {
-    const aliases = this.identity.aliases();
-    this.sentAliases = JSON.stringify(aliases);
-    return {
-      path: this.panel.context.path,
-      editor: 'jupyterlab',
-      instanceId: this.instanceId,
-      cellIdsStable: this.identity.stable,
-      fingerprint: this.fingerprint as NotebookRegistration['fingerprint'],
-      cellAliases: aliases,
-      ...(this.panel.context.model.collaborative ? { collaboration: true } : {})
-    };
-  }
-
-  private reregisterIfAliasesChanged(): void {
-    if (JSON.stringify(this.identity.aliases()) !== this.sentAliases) {
-      this.deps.transport.register(this.registration()).catch(() => undefined);
-    }
-  }
-
-  private async computeFingerprint(): Promise<
-    NotebookRegistration['fingerprint']
-  > {
-    const sources = this.shared.cells.map(c => c.getSource());
-    const fp: NotebookRegistration['fingerprint'] = {
-      nbformat: `${this.shared.nbformat}.${this.shared.nbformat_minor}`,
-      sourceHash: await this.deps.sha256Hex(JSON.stringify(sources))
-    };
-    if (this.identity.stable) {
-      fp.cellIds = this.shared.cells.map(c => c.getId());
-    }
-    return fp;
-  }
-
-  private onStatus(status: NotebookStatus): void {
-    this.lastStatus = status;
-    this.deps.onStatus?.(status);
-    if (!status.recording) {
-      this.recordingOn = false;
-      this.setState({ kind: 'off' });
-    } else if (status.active) {
-      void this.startRecording();
-    }
-  }
-
-  private async startRecording(): Promise<void> {
-    if (this.recordingOn || this.starting || !this.builder || !this.outbox) {
-      return;
-    }
-    this.starting = true;
-    try {
-      if (!this.identity.stable) {
-        await this.align();
-      }
-      this.recordingOn = true;
-      this.goingOff = false;
-      this.setState({ kind: 'recording' });
-      this.outbox.requestResync('start');
-    } catch (e) {
-      this.setState({ kind: 'problem', detail: String(e) });
-    } finally {
-      this.starting = false;
-    }
-  }
-
-  /** Page-open alignment with the recorded tip, then the aliases go to the server. */
-  private async align(): Promise<void> {
-    const status = this.lastStatus as NotebookStatus;
-    const tip = (await this.deps.transport.tip?.(status.notebookId)) ?? [];
-    const view = this.view().cells();
-    const result = alignCells(
-      view.map(c => ({ id: c.id, type: c.type, source: c.source })),
-      tip
-    );
-    Object.entries(result.matches).forEach(([modelId, blaymId]) =>
-      this.identity.setAlias(modelId, blaymId)
-    );
-    this.builder?.noteStatus(status.cellRevisions);
-    this.builder?.noteTip(tip);
-    await this.deps.transport.register(this.registration());
-  }
-
-  /**
-   * Only a paused outbox is a problem the user sees. Other refusals and
-   * rejections are handled by the outbox itself (retry or a fresh snapshot).
-   */
-  private onReport(r: OutboxReport): void {
-    if (r.kind === 'dropped') {
-      this.gaps?.open('unknown');
-    } else if (r.kind === 'snapshot_accepted') {
-      this.gaps?.closeAll(!this.goingOff);
-    }
-    if (r.kind === 'paused' && r.reason === 'not_active_recorder') {
-      this.recordingOn = false;
-      this.setState({ kind: 'inactive', reason: 'other_recorder' });
-    } else if (r.kind === 'paused') {
-      this.setState({ kind: 'problem', detail: r.reason });
-    }
-    this.deps.onReport?.(r);
-  }
-
-  /** The server took an event: whatever was wrong is over. */
-  private onAccepted(): void {
-    if (this.recordingOn && this.state.kind === 'problem') {
-      this.setState({ kind: 'recording' });
-    }
-  }
-
-  private setState(state: ObserverState): void {
-    this.state = state;
-    this.deps.onState?.(state);
   }
 }

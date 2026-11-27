@@ -11,3 +11,5 @@ export * from './outbox';
 export * from './heartbeat';
 export * from './transport';
 export * from './gaps';
+export * from './session';
+export * from './runs';

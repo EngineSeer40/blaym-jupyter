@@ -97,6 +97,9 @@ export class EventBuilder {
           });
           break;
         }
+        case 'run_started':
+          cellRevision = Number(payload.cellRevision);
+          break;
         case 'cell_deleted':
           this.revisions.delete(String(payload.cellId));
           break;
@@ -113,7 +116,8 @@ export class EventBuilder {
         draft.atMs,
         author,
         draft.cellId,
-        cellRevision
+        cellRevision,
+        draft.runId
       );
     });
   }
@@ -196,7 +200,8 @@ export class EventBuilder {
     atMs: number | undefined,
     author: AuthorMark | undefined,
     cellId?: string,
-    cellRevision?: number
+    cellRevision?: number,
+    runId?: string
   ): RecorderEvent {
     const hint = author?.hint ?? 'unknown';
     const event: Record<string, unknown> = {
@@ -219,6 +224,9 @@ export class EventBuilder {
       const links: Record<string, unknown> = { cellId };
       if (cellRevision !== undefined) {
         links.cellRevision = cellRevision;
+      }
+      if (runId !== undefined) {
+        links.runId = runId;
       }
       event.links = links;
     }

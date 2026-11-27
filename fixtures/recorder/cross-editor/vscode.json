@@ -1,0 +1,1029 @@
+[
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "c2ae02d3-dad6-4abd-83d8-342cee47b82a",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 1",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "/tmp/tmp.X3lDsw1AxO/workspace/e2e.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 1,
+  "type": "notebook_snapshot",
+  "userId": "local",
+  "wallTimeMs": 1795769802366,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "9f18477d-be64-44f2-878c-88b94b95d98b",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-x",
+   "cellRevision": 2
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-x",
+   "code": "x = 1  # edited",
+   "revision": 2
+  },
+  "schemaVersion": 2,
+  "tick": 2,
+  "type": "cell_source_changed",
+  "userId": "local",
+  "wallTimeMs": 1795769804340,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "1bec366c-6a1c-4be9-ac16-42be673d8633",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "fdddeb51",
+   "cellRevision": 1
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "fdddeb51",
+   "cellType": "code",
+   "code": "y = 2",
+   "index": 6,
+   "revision": 1
+  },
+  "schemaVersion": 2,
+  "tick": 3,
+  "type": "cell_inserted",
+  "userId": "local",
+  "wallTimeMs": 1795769807063,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "ce94414b-0923-44b0-8da0-eb3e46caf2eb",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-error"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-error",
+   "fromIndex": 5,
+   "toIndex": 6
+  },
+  "schemaVersion": 2,
+  "tick": 4,
+  "type": "cell_moved",
+  "userId": "local",
+  "wallTimeMs": 1795769809337,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "5c2f5cc1-3b90-450a-9dd8-fa3dee034589",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "fdddeb51"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "fdddeb51"
+  },
+  "schemaVersion": 2,
+  "tick": 5,
+  "type": "cell_deleted",
+  "userId": "local",
+  "wallTimeMs": 1795769811223,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "32ad8322-e641-4a00-8eee-c1427ae14188",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "kernelId": "9bd95b53-1732-4505-b309-c0939de4e60b",
+   "kernelName": "python3",
+   "language": "python"
+  },
+  "schemaVersion": 2,
+  "tick": 6,
+  "type": "kernel_started",
+  "userId": "local",
+  "wallTimeMs": 1795769813310,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "4b69f4db-8660-4f1b-905a-498d35371de4",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "cellRevision": 1,
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-text",
+   "cellRevision": 1,
+   "codeLink": "by_time",
+   "runCount": 1,
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "schemaVersion": 2,
+  "tick": 7,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795769813310,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "174d0626-4ae0-4cc2-a006-f1c0fe702014",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "stream",
+    "preview": "hello\n",
+    "sizeBytes": 6,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "schemaVersion": 2,
+  "tick": 8,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769813338,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "04afd47a-58b1-42a3-81ac-6e763b8546eb",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "execute_result",
+    "preview": "42",
+    "sizeBytes": 2,
+    "truncated": false
+   },
+   "outputIndex": 1,
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "schemaVersion": 2,
+  "tick": 9,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769813338,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "31a63613-0b81-4229-98fa-a0c758d399f4",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "runId": "91550164-dc49-4990-a808-3c42b306cdbf",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 10,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795769813339,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "dc71fa14-0af7-47a2-8f70-87aae77d2592",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-table",
+   "cellRevision": 1,
+   "runId": "93cbaf2c-4034-4428-b07c-8b30b36837ea"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-table",
+   "cellRevision": 1,
+   "codeLink": "by_time",
+   "runCount": 2,
+   "runId": "93cbaf2c-4034-4428-b07c-8b30b36837ea"
+  },
+  "schemaVersion": 2,
+  "tick": 11,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795769815433,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "6867bb51-4910-4f55-9637-760615b70c1b",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-table",
+   "runId": "93cbaf2c-4034-4428-b07c-8b30b36837ea"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-table",
+   "item": {
+    "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+    "mimeTypes": [
+     "text/html",
+     "text/plain"
+    ],
+    "outputType": "display_data",
+    "preview": "   a\n0  1",
+    "searchText": "a",
+    "sizeBytes": 147,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "93cbaf2c-4034-4428-b07c-8b30b36837ea"
+  },
+  "schemaVersion": 2,
+  "tick": 12,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769815484,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "b57bba3a-c021-4907-9053-40c8dc04481b",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-table",
+   "runId": "93cbaf2c-4034-4428-b07c-8b30b36837ea"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "runId": "93cbaf2c-4034-4428-b07c-8b30b36837ea",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 13,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795769815484,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "52b3933b-e0a3-45fb-ae5e-edf20485f9df",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-chart",
+   "cellRevision": 1,
+   "runId": "ab90a9d0-0b2e-4c88-8847-16d5052d5293"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-chart",
+   "cellRevision": 1,
+   "codeLink": "by_time",
+   "runCount": 3,
+   "runId": "ab90a9d0-0b2e-4c88-8847-16d5052d5293"
+  },
+  "schemaVersion": 2,
+  "tick": 14,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795769817539,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "df26259a-51a3-4113-b5de-8f2ceb3bf820",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-chart",
+   "runId": "ab90a9d0-0b2e-4c88-8847-16d5052d5293"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-chart",
+   "item": {
+    "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+    "mimeTypes": [
+     "image/png",
+     "text/plain"
+    ],
+    "outputType": "display_data",
+    "preview": "<Figure>",
+    "sizeBytes": 192,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "ab90a9d0-0b2e-4c88-8847-16d5052d5293"
+  },
+  "schemaVersion": 2,
+  "tick": 15,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769817585,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "63a5ce31-5d51-4e20-aaf6-6afcd7324a29",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-chart",
+   "runId": "ab90a9d0-0b2e-4c88-8847-16d5052d5293"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "runId": "ab90a9d0-0b2e-4c88-8847-16d5052d5293",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 16,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795769817585,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "3931d9e8-e9ed-4662-a3f7-f443deef42f4",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-error",
+   "cellRevision": 1,
+   "runId": "166e4a6c-e7bd-4f00-bea2-5d1d84e30686"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-error",
+   "cellRevision": 1,
+   "codeLink": "by_time",
+   "runCount": 4,
+   "runId": "166e4a6c-e7bd-4f00-bea2-5d1d84e30686"
+  },
+  "schemaVersion": 2,
+  "tick": 17,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795769819630,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "dc2a86b9-1450-4391-8eae-b8594cced741",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-error",
+   "runId": "166e4a6c-e7bd-4f00-bea2-5d1d84e30686"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-error",
+   "item": {
+    "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "error",
+    "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+    "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+    "sizeBytes": 352,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "166e4a6c-e7bd-4f00-bea2-5d1d84e30686"
+  },
+  "schemaVersion": 2,
+  "tick": 18,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769819671,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "da1c4e68-f3f4-4fe8-bcd7-cf7d61dc8441",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-error",
+   "runId": "166e4a6c-e7bd-4f00-bea2-5d1d84e30686"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "runId": "166e4a6c-e7bd-4f00-bea2-5d1d84e30686",
+   "status": "error"
+  },
+  "schemaVersion": 2,
+  "tick": 19,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795769819671,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "fb699bf3-8b23-49f7-a984-1fd632cc0658",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "kernelId": "9bd95b53-1732-4505-b309-c0939de4e60b",
+   "reason": "requested"
+  },
+  "schemaVersion": 2,
+  "tick": 20,
+  "type": "kernel_restarted",
+  "userId": "local",
+  "wallTimeMs": 1795769821730,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "8e12a1a0-7cac-4be3-b23c-92d68f9ccc20",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "cellRevision": 1,
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-text",
+   "cellRevision": 1,
+   "codeLink": "by_time",
+   "runCount": 1,
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "schemaVersion": 2,
+  "tick": 21,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795769823832,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "05d9b3e2-4996-4aab-8075-c67f6f4360fd",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "stream",
+    "preview": "hello\n",
+    "sizeBytes": 6,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "schemaVersion": 2,
+  "tick": 22,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769823855,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "815ccfeb-8e55-4bc4-bf5c-4074f41bccdb",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "execute_result",
+    "preview": "42",
+    "sizeBytes": 2,
+    "truncated": false
+   },
+   "outputIndex": 1,
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "schemaVersion": 2,
+  "tick": 23,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795769823855,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "8ffd3028-9443-43b5-8635-c3343ef5cc92",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b"
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "runId": "862b37d8-2e9d-4a11-b066-467a75fbfd4b",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 24,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795769823855,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "419378ed-e11c-42fe-bafa-65137b1d8c15",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "newPath": "/tmp/tmp.X3lDsw1AxO/workspace/e2e_renamed.ipynb",
+   "oldPath": "/tmp/tmp.X3lDsw1AxO/workspace/e2e.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 25,
+  "type": "notebook_renamed",
+  "userId": "local",
+  "wallTimeMs": 1795769826033,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "c1560672-fda9-425b-8372-400b57c5cfe2",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "links": {
+   "cellId": "e2e-outside",
+   "cellRevision": 1
+  },
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cellId": "e2e-outside",
+   "cellType": "code",
+   "code": "print(\"added from outside\")",
+   "index": 6,
+   "revision": 1
+  },
+  "schemaVersion": 2,
+  "tick": 26,
+  "type": "cell_inserted",
+  "userId": "local",
+  "wallTimeMs": 1795769830182,
+  "workspaceId": "local"
+ },
+ {
+  "authorConfidence": "known",
+  "authorHint": "outside",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "1733939a-8997-463d-91e1-9811dd303a7c",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "originId": "blaym-files",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 100  # changed outside VS Code",
+     "metadata": {},
+     "outputs": [],
+     "revision": 3
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "stream",
+         "preview": "hello\n",
+         "sizeBytes": 6,
+         "truncated": false
+        },
+        {
+         "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "execute_result",
+         "preview": "42",
+         "sizeBytes": 2,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:1733939a8997463d91e19811dd303a7c"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+         "mimeTypes": [
+          "text/html",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "   a\n0  1",
+         "searchText": "a",
+         "sizeBytes": 147,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:1733939a8997463d91e19811dd303a7c"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+         "mimeTypes": [
+          "image/png",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "<Figure>",
+         "sizeBytes": 192,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:1733939a8997463d91e19811dd303a7c"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "error",
+         "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+         "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+         "sizeBytes": 352,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:1733939a8997463d91e19811dd303a7c"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-outside",
+     "cellType": "code",
+     "code": "print(\"added from outside\")",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "/tmp/tmp.X3lDsw1AxO/workspace/e2e_renamed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 27,
+  "type": "changed_outside_editor",
+  "userId": "local",
+  "wallTimeMs": 1795769830237,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "d9c58d51-935b-4a65-a82d-187f02fcf549",
+  "editor": "vscode",
+  "eventId": "61864425-ddbb-4a64-a18b-e5dde6ea1c71",
+  "explorationId": "c27b5b33a07e4d1a9f80f71617164b6b",
+  "originId": "8954f1a6-cec4-4b14-9893-ae91257aa0b6",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 100  # changed outside VS Code",
+     "metadata": {},
+     "outputs": [],
+     "revision": 4
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "stream",
+         "preview": "hello\n",
+         "sizeBytes": 6,
+         "truncated": false
+        },
+        {
+         "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "execute_result",
+         "preview": "42",
+         "sizeBytes": 2,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:61864425-ddbb-4a64-a18b-e5dde6ea1c71"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+         "mimeTypes": [
+          "text/html",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "   a\n0  1",
+         "searchText": "a",
+         "sizeBytes": 147,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:61864425-ddbb-4a64-a18b-e5dde6ea1c71"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+         "mimeTypes": [
+          "image/png",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "<Figure>",
+         "sizeBytes": 192,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:61864425-ddbb-4a64-a18b-e5dde6ea1c71"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "error",
+         "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+         "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+         "sizeBytes": 352,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:61864425-ddbb-4a64-a18b-e5dde6ea1c71"
+      }
+     ],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-outside",
+     "cellType": "code",
+     "code": "print(\"added from outside\")",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "/tmp/tmp.X3lDsw1AxO/workspace/e2e_renamed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 28,
+  "type": "notebook_snapshot",
+  "userId": "local",
+  "wallTimeMs": 1795769830332,
+  "workspaceId": "local"
+ }
+]

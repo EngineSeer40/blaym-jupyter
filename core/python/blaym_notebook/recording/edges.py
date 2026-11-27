@@ -1,7 +1,7 @@
 """Server-side gap rules. Neutral: dicts in, dicts out; no Jupyter and no service.
 
 A gap says "the recorder could not see here". Who opens and closes each kind is in
-`docs/s5-edges.md`. This module builds the events the server writes for others:
+`docs/findings/s5-edges.md`. This module builds the events the server writes for others:
 
 * `point_gap`: a gap that is written closed (started and ended together), for a recorder that lost
   sight of something already gone (dropped output, a run that could not be linked).

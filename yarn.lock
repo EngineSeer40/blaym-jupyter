@@ -3976,6 +3976,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/node@npm:^20.17.0":
+  version: 20.19.43
+  resolution: "@types/node@npm:20.19.43"
+  dependencies:
+    undici-types: ~6.21.0
+  checksum: c959b5d256b073da95aa1892acb071b487c2f652f98b2cb75e92657d51b99bd691aa811023fb13acd6752bc1bcb75dc579db02190a4da70926cf6f372011bc4e
+  languageName: node
+  linkType: hard
+
 "@types/normalize-package-data@npm:^2.4.0":
   version: 2.4.4
   resolution: "@types/normalize-package-data@npm:2.4.4"
@@ -4037,6 +4046,13 @@ __metadata:
   version: 2.0.7
   resolution: "@types/trusted-types@npm:2.0.7"
   checksum: 8e4202766a65877efcf5d5a41b7dd458480b36195e580a3b1085ad21e948bc417d55d6f8af1fd2a7ad008015d4117d5fdfe432731157da3c68678487174e4ba3
+  languageName: node
+  linkType: hard
+
+"@types/vscode@npm:1.95.0":
+  version: 1.95.0
+  resolution: "@types/vscode@npm:1.95.0"
+  checksum: 2b369a5fa4a79ac1417c8eca2e9fb03daffec9efeb950622145fac56345c75e1f99126941ce9cefd0dd8c818aad87ec0e011c3c25a9245b69681e63fdd87a6db
   languageName: node
   linkType: hard
 
@@ -4625,9 +4641,28 @@ __metadata:
   languageName: node
   linkType: soft
 
+"blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-vscode%40workspace%3Avscode":
+  version: 0.0.0-use.local
+  resolution: "blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-vscode%40workspace%3Avscode"
+  languageName: node
+  linkType: soft
+
 "blaym-notebook@workspace:.":
   version: 0.0.0-use.local
   resolution: "blaym-notebook@workspace:."
+  languageName: unknown
+  linkType: soft
+
+"blaym-vscode@workspace:vscode":
+  version: 0.0.0-use.local
+  resolution: "blaym-vscode@workspace:vscode"
+  dependencies:
+    "@types/node": ^20.17.0
+    "@types/vscode": 1.95.0
+    blaym-notebook-types: "link:../../blaym-notebook-types"
+    prettier: ^3.0.0
+    rimraf: ^5.0.1
+    typescript: ~5.5.4
   languageName: unknown
   linkType: soft
 
@@ -9891,6 +9926,13 @@ __metadata:
   bin:
     uglifyjs: bin/uglifyjs
   checksum: 7ed6272fba562eb6a3149cfd13cda662f115847865c03099e3995a0e7a910eba37b82d4fccf9e88271bb2bcbe505bb374967450f433c17fa27aa36d94a8d0553
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 46331c7d6016bf85b3e8f20c159d62f5ae471aba1eb3dc52fff35a0259d58dcc7d592d4cc4f00c5f9243fa738a11cfa48bd20203040d4a9e6bc25e807fab7ab3
   languageName: node
   linkType: hard
 

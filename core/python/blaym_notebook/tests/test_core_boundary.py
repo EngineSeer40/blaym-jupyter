@@ -200,6 +200,8 @@ def _recording_violations(source: str, package: str = "blaym_notebook.recording"
         if part != "recording":
             bad.append(f"blaym_notebook.{part}")
     tree = ast.parse(source)
+    lazy = {id(n) for f in ast.walk(tree) if isinstance(f, (ast.FunctionDef, ast.AsyncFunctionDef))
+            for n in ast.walk(f)}
     for node in ast.walk(tree):
         names = []
         if isinstance(node, ast.Import):
@@ -207,6 +209,8 @@ def _recording_violations(source: str, package: str = "blaym_notebook.recording"
         elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
             names = [node.module.split(".")[0]]
         for name in names:
+            if name == "watchdog" and id(node) in lazy:
+                continue  # watchdog is allowed only as a lazy import inside a function (the file watcher)
             if name in RECORDING_FORBIDDEN_MODULES or (
                 name not in stdlib and name not in ALLOWED_THIRD_PARTY and name != "blaym_notebook"
             ):
@@ -266,6 +270,8 @@ def _importers_outside(part: str, allowed: set[str], allowed_files: set[tuple[st
 def test_the_editor_neutral_layers_and_who_may_import_what():
     """`recording/` and `api/` stay free of Jupyter, web and storage libraries; only the
     composition point and the named layers import store, service, privacy and adapters."""
+    assert _recording_violations("import watchdog\n") == ["watchdog"]  # only a lazy import is allowed
+    assert _recording_violations("def f():\n    import watchdog\n") == []
     bad = _folder_violations("recording", _recording_violations) + _folder_violations("api", _api_violations)
     bad += _importers_outside("store", {"store", "testing", "tests"})
     bad += _importers_outside("service", {"service", "api", "adapters", "testing", "tests"})
@@ -275,12 +281,15 @@ def test_the_editor_neutral_layers_and_who_may_import_what():
 
 
 def test_the_core_imports_no_jupyter_and_never_the_adapters():
-    """Every core folder: no `jupyter_server`, `jupyter_core`, `tornado` or `traitlets`, and no
-    `adapters` (adapters import the core, never the reverse)."""
-    banned = {"jupyter_server", "jupyter_core", "tornado", "traitlets"}
+    """Every core folder: no `jupyter_server`, `jupyter_core`, `tornado`, `traitlets`, `blaym_jupyter` or
+    `blaym_vscode`, and no `adapters` (adapters import the core, never the reverse)."""
+    banned = {"jupyter_server", "jupyter_core", "tornado", "traitlets", "blaym_vscode", "blaym_jupyter"}
     bad = []
     for folder in ["recording", "api", "service", "store", "history", "ports", "privacy"]:
         for path in _core_files(folder):
             bad += [f"{path.relative_to(ROOT)}: {n}" for n in _top_level_imports(path) if n in banned]
             bad += [f"{path.relative_to(ROOT)}: adapters" for p in _package_imports(path) if p == "adapters"]
+    host = {"jupyter_server", "jupyter_core", "jupyter_client", "jupyterlab", "tornado", "traitlets", "blaym_jupyter"}
+    for path in sorted((ROOT.parents[1] / "vscode" / "python" / "blaym_vscode").glob("*.py")):
+        bad += [f"{path.name}: {n}" for n in _top_level_imports(path) if n in host or n.startswith("jupyter")]
     assert not bad, bad

@@ -35,6 +35,8 @@ ROUTES: tuple[Route, ...] = (
     Route("register", "POST", "/notebooks/register", "NotebookRegistration", "NotebookStatus"),
     Route("status", "GET", "/notebooks/{notebookId}/status", "query:instanceId", "NotebookStatus"),
     Route("close", "POST", "/notebooks/close", "json:notebookId,instanceId", "none"),
+    Route("rename", "POST", "/notebooks/rename", "NotebookRenameRequest", "NotebookStatus"),
+    Route("save", "POST", "/notebooks/save", "NotebookSaveNotice", "none"),
     Route("info", "GET", "/info", "none", "ServiceInfo"),
     Route("state", "GET", "/state", "query:explorationId,branchId,tick", "RebuildResult"),
     Route("outline", "GET", "/outline", "query:explorationId", "HistoryOutline"),

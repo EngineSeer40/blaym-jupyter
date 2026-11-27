@@ -2,6 +2,8 @@ import type {
   IngestRequest,
   IngestResponse,
   NotebookRegistration,
+  NotebookRenameRequest,
+  NotebookSaveNotice,
   NotebookStatus,
   PrepareOutputsRequest,
   PrepareOutputsResponse
@@ -21,6 +23,10 @@ export interface Transport {
    * for the last batch when the page hides.
    */
   ingestKeepalive?(req: IngestRequest): void;
+  /** Optional: a rename of the notebook file seen by the editor. */
+  rename?(req: NotebookRenameRequest): Promise<NotebookStatus>;
+  /** Optional: the editor's own save of the file begins or ends (so the watcher ignores it). */
+  saveNotice?(req: NotebookSaveNotice): Promise<void>;
 }
 
 /**

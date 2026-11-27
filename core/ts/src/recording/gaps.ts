@@ -2,7 +2,7 @@ import type { OpenGap } from 'blaym-notebook-types';
 import type { EventDraft, Ids } from './types';
 
 /**
- * The browser-side gap rules (the table is in `docs/s5-edges.md`).
+ * The browser-side gap rules (the table is in `docs/findings/s5-edges.md`).
  * A gap says "this recorder could not see here". The browser opens a gap for
  * three things and closes it itself at its next accepted snapshot; a gap left
  * open by an earlier instance (a lost page, another tab) is closed through

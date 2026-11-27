@@ -3,7 +3,8 @@
     "private": true,
     "workspaces": [
         "core/ts",
-        "jupyter"
+        "jupyter",
+        "vscode"
     ],
     "scripts": {
         "test": "(cd core/ts && npx jest) && (cd jupyter && npx jest)"

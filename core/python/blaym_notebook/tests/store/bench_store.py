@@ -8,7 +8,7 @@ It builds a generated month (about 7,600 events, 500 runs, 270 chat turns, 50 ch
 through `local.open_service`, measures it, prints the numbers and writes `results.json` to
 `--out` (default: a temporary folder). Cold start and the 100 MB put run in fresh child processes
 (this same module with `--child`), so memory is measured from a clean interpreter. Compare with
-Probe C in `docs/s2-findings.md`.
+Probe C in `docs/findings/s2-findings.md`.
 """
 
 from __future__ import annotations

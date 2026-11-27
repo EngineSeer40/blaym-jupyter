@@ -141,3 +141,6 @@ CLAUDE.md
 AGENT-ARCHITECTURE-HANDOFF.md
 docs/
 probes/
+
+# VS Code extension build output
+vscode/out/

@@ -1,0 +1,1177 @@
+[
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "c389ef3d-ae9e-4044-bf3d-ad3a9b54cdcb",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "9e260494-8e24-4f68-8ded-391f3ddbf581",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 1",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "xed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 1,
+  "type": "notebook_snapshot",
+  "userId": "local",
+  "wallTimeMs": 1795768628114,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "d96b8812-57d3-45b1-80f5-fc459344b64c",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-x",
+   "cellRevision": 2
+  },
+  "originId": "9e260494-8e24-4f68-8ded-391f3ddbf581",
+  "payload": {
+   "cellId": "e2e-x",
+   "code": "x = 1  # edited",
+   "revision": 2
+  },
+  "schemaVersion": 2,
+  "tick": 2,
+  "type": "cell_source_changed",
+  "userId": "local",
+  "wallTimeMs": 1795768628238,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "bca79aca-1b22-4e80-b6b4-bc0a19099b6e",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "5a2bd5c9-8b75-4f0f-860d-006b30a922ba",
+   "cellRevision": 1
+  },
+  "originId": "9e260494-8e24-4f68-8ded-391f3ddbf581",
+  "payload": {
+   "cellId": "5a2bd5c9-8b75-4f0f-860d-006b30a922ba",
+   "cellType": "code",
+   "code": "",
+   "index": 6,
+   "revision": 1
+  },
+  "schemaVersion": 2,
+  "tick": 3,
+  "type": "cell_inserted",
+  "userId": "local",
+  "wallTimeMs": 1795768630285,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "0e6f4fdf-14c5-4b26-8a3c-57e2330d4408",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "5a2bd5c9-8b75-4f0f-860d-006b30a922ba",
+   "cellRevision": 2
+  },
+  "originId": "9e260494-8e24-4f68-8ded-391f3ddbf581",
+  "payload": {
+   "cellId": "5a2bd5c9-8b75-4f0f-860d-006b30a922ba",
+   "code": "y = 2",
+   "revision": 2
+  },
+  "schemaVersion": 2,
+  "tick": 4,
+  "type": "cell_source_changed",
+  "userId": "local",
+  "wallTimeMs": 1795768630307,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "cf133485-32cd-4ec6-a8f8-3ecf71e0b287",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-error"
+  },
+  "originId": "9e260494-8e24-4f68-8ded-391f3ddbf581",
+  "payload": {
+   "cellId": "e2e-error",
+   "fromIndex": 5,
+   "toIndex": 6
+  },
+  "schemaVersion": 2,
+  "tick": 5,
+  "type": "cell_moved",
+  "userId": "local",
+  "wallTimeMs": 1795768632349,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "67340e99-10f2-41a9-9994-4ac747990dd1",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "5a2bd5c9-8b75-4f0f-860d-006b30a922ba"
+  },
+  "originId": "9e260494-8e24-4f68-8ded-391f3ddbf581",
+  "payload": {
+   "cellId": "5a2bd5c9-8b75-4f0f-860d-006b30a922ba"
+  },
+  "schemaVersion": 2,
+  "tick": 6,
+  "type": "cell_deleted",
+  "userId": "local",
+  "wallTimeMs": 1795768634393,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "cc713550-5fca-4b1c-8dd3-3e770819e444",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "blaym-kernel",
+  "payload": {
+   "kernelId": "4d498cb3-fc73-43fc-bb34-f4b61c9a171d",
+   "kernelName": "python3",
+   "language": "python"
+  },
+  "schemaVersion": 2,
+  "tick": 7,
+  "type": "kernel_started",
+  "userId": "local",
+  "wallTimeMs": 1795768627941,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "7f4f1d7b-ded3-4e9b-92c9-8e7dbef824d3",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "cellRevision": 1,
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-text",
+   "cellRevision": 1,
+   "runCount": 1,
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "schemaVersion": 2,
+  "tick": 8,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795768636457,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "97f9d542-0ea5-4bcb-920b-78dd629f7d00",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "stream",
+    "preview": "hello\n",
+    "sizeBytes": 6,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "schemaVersion": 2,
+  "tick": 9,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768636463,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "36a6907f-9369-443b-b11d-4f1d8d1eaab2",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "execute_result",
+    "preview": "42",
+    "sizeBytes": 2,
+    "truncated": false
+   },
+   "outputIndex": 1,
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "schemaVersion": 2,
+  "tick": 10,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768636464,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "c2cb5770-3896-4fc4-a7e2-4c5341d6a55a",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "runId": "8a9e585d-d612-4ae2-b10c-9ac3b8bff8d7",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 11,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795768636466,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "b3ca07f7-4cdf-4940-bf53-14826b3f40c7",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-table",
+   "cellRevision": 1,
+   "runId": "08d3b62d-b4ed-4f34-bf53-2a90006a5ae0"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-table",
+   "cellRevision": 1,
+   "runCount": 2,
+   "runId": "08d3b62d-b4ed-4f34-bf53-2a90006a5ae0"
+  },
+  "schemaVersion": 2,
+  "tick": 12,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795768638518,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "94651d31-ebaa-47d7-916d-ea4946f08000",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-table",
+   "runId": "08d3b62d-b4ed-4f34-bf53-2a90006a5ae0"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-table",
+   "item": {
+    "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+    "mimeTypes": [
+     "text/html",
+     "text/plain"
+    ],
+    "outputType": "display_data",
+    "preview": "   a\n0  1",
+    "searchText": "a",
+    "sizeBytes": 147,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "08d3b62d-b4ed-4f34-bf53-2a90006a5ae0"
+  },
+  "schemaVersion": 2,
+  "tick": 13,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768638520,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "4ae84e36-cf8c-481a-8f23-55c905950928",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-table",
+   "runId": "08d3b62d-b4ed-4f34-bf53-2a90006a5ae0"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "runId": "08d3b62d-b4ed-4f34-bf53-2a90006a5ae0",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 14,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795768638522,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "cb2507f7-7d76-43b3-9022-562dc651cbee",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-chart",
+   "cellRevision": 1,
+   "runId": "90af5ae2-3ff2-4a97-9227-6da8cd3b2013"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-chart",
+   "cellRevision": 1,
+   "runCount": 3,
+   "runId": "90af5ae2-3ff2-4a97-9227-6da8cd3b2013"
+  },
+  "schemaVersion": 2,
+  "tick": 15,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795768640591,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "5118ce99-8594-4c58-9a0f-5e1aebb07fa7",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-chart",
+   "runId": "90af5ae2-3ff2-4a97-9227-6da8cd3b2013"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-chart",
+   "item": {
+    "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+    "mimeTypes": [
+     "image/png",
+     "text/plain"
+    ],
+    "outputType": "display_data",
+    "preview": "<Figure>",
+    "sizeBytes": 192,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "90af5ae2-3ff2-4a97-9227-6da8cd3b2013"
+  },
+  "schemaVersion": 2,
+  "tick": 16,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768640592,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "3ba60ddd-f5a2-4365-974f-1672d28cf527",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-chart",
+   "runId": "90af5ae2-3ff2-4a97-9227-6da8cd3b2013"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "runId": "90af5ae2-3ff2-4a97-9227-6da8cd3b2013",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 17,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795768640597,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "9f3ed605-abed-43f3-ab78-c60919dc94e8",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-error",
+   "cellRevision": 1,
+   "runId": "3b7f54b9-d67c-4fc7-8d54-94d27d89c94b"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-error",
+   "cellRevision": 1,
+   "runCount": 4,
+   "runId": "3b7f54b9-d67c-4fc7-8d54-94d27d89c94b"
+  },
+  "schemaVersion": 2,
+  "tick": 18,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795768642648,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "16128137-dddd-4409-8e72-f06d5adf82b8",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-error",
+   "runId": "3b7f54b9-d67c-4fc7-8d54-94d27d89c94b"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-error",
+   "item": {
+    "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "error",
+    "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+    "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+    "sizeBytes": 352,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "3b7f54b9-d67c-4fc7-8d54-94d27d89c94b"
+  },
+  "schemaVersion": 2,
+  "tick": 19,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768642693,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "ff3806eb-b601-479e-9bab-e2f89d7b96e9",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-error",
+   "runId": "3b7f54b9-d67c-4fc7-8d54-94d27d89c94b"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "runId": "3b7f54b9-d67c-4fc7-8d54-94d27d89c94b",
+   "status": "error"
+  },
+  "schemaVersion": 2,
+  "tick": 20,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795768642699,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "3b043c6b-05cc-4d1c-80ed-13209f65172f",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "blaym-kernel",
+  "payload": {
+   "kernelId": "4d498cb3-fc73-43fc-bb34-f4b61c9a171d",
+   "reason": "unknown"
+  },
+  "schemaVersion": 2,
+  "tick": 21,
+  "type": "kernel_restarted",
+  "userId": "local",
+  "wallTimeMs": 1795768644913,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "1343747a-f220-44fd-abad-d1396c8108cb",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "blaym-kernel",
+  "payload": {
+   "gapId": "c3c03e3910274f1ba7b7d0af721e8004",
+   "reason": "kernel_restart",
+   "source": "kernel"
+  },
+  "schemaVersion": 2,
+  "tick": 22,
+  "type": "recording_gap_started",
+  "userId": "local",
+  "wallTimeMs": 1795768644913,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "d3ab26dd-fd2f-43e0-80a6-3ea7ec1f202e",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "blaym-kernel",
+  "payload": {
+   "gapId": "c3c03e3910274f1ba7b7d0af721e8004"
+  },
+  "schemaVersion": 2,
+  "tick": 23,
+  "type": "recording_gap_ended",
+  "userId": "local",
+  "wallTimeMs": 1795768649307,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "658039d9-5133-4ad0-9709-a657401b8d2a",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "2d4c9e60-5f82-4723-8c2c-d0d49ba61c67",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 1  # edited",
+     "metadata": {},
+     "outputs": [],
+     "revision": 3
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "stream",
+         "preview": "hello\n",
+         "sizeBytes": 6,
+         "truncated": false
+        },
+        {
+         "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "execute_result",
+         "preview": "42",
+         "sizeBytes": 2,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:658039d9-5133-4ad0-9709-a657401b8d2a"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+         "mimeTypes": [
+          "text/html",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "   a\n0  1",
+         "searchText": "a",
+         "sizeBytes": 147,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:658039d9-5133-4ad0-9709-a657401b8d2a"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+         "mimeTypes": [
+          "image/png",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "<Figure>",
+         "sizeBytes": 192,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:658039d9-5133-4ad0-9709-a657401b8d2a"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "error",
+         "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+         "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+         "sizeBytes": 352,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:658039d9-5133-4ad0-9709-a657401b8d2a"
+      }
+     ],
+     "revision": 2
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "xed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 24,
+  "type": "notebook_snapshot",
+  "userId": "local",
+  "wallTimeMs": 1795768649345,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "b1d0627c-2cb4-442d-a656-e5a27c651a71",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "cellRevision": 2,
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-text",
+   "cellRevision": 2,
+   "runCount": 1,
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "schemaVersion": 2,
+  "tick": 25,
+  "type": "run_started",
+  "userId": "local",
+  "wallTimeMs": 1795768652585,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "ec5cb689-6e0e-4111-9960-281a691c431f",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "stream",
+    "preview": "hello\n",
+    "sizeBytes": 6,
+    "truncated": false
+   },
+   "outputIndex": 0,
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "schemaVersion": 2,
+  "tick": 26,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768652589,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "13f18562-279b-4437-bbde-f5f410f51b85",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "cellId": "e2e-text",
+   "item": {
+    "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+    "mimeTypes": [
+     "text/plain"
+    ],
+    "outputType": "execute_result",
+    "preview": "42",
+    "sizeBytes": 2,
+    "truncated": false
+   },
+   "outputIndex": 1,
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "schemaVersion": 2,
+  "tick": 27,
+  "type": "output_added",
+  "userId": "local",
+  "wallTimeMs": 1795768652592,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "c8920780-2ed3-46c1-9f61-065954519a9e",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "links": {
+   "cellId": "e2e-text",
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d"
+  },
+  "originId": "blaym-kernel",
+  "payload": {
+   "runId": "5bbdba8d-6ec6-4801-a4ea-fe89ee4cb85d",
+   "status": "ok"
+  },
+  "schemaVersion": 2,
+  "tick": 28,
+  "type": "run_finished",
+  "userId": "local",
+  "wallTimeMs": 1795768652594,
+  "workspaceId": "local"
+ },
+ {
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "98b92bfc-5e87-4bbd-91c5-6f937b962d2f",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "blaym-contents",
+  "payload": {
+   "newPath": "xed_renamed.ipynb",
+   "oldPath": "xed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 29,
+  "type": "notebook_renamed",
+  "userId": "local",
+  "wallTimeMs": 1795768654755,
+  "workspaceId": "local"
+ },
+ {
+  "authorConfidence": "known",
+  "authorHint": "outside",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "e6529eb2-cecd-4187-8bb2-4698842fadc2",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "blaym-files",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 100  # changed outside VS Code",
+     "metadata": {},
+     "outputs": [],
+     "revision": 4
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "stream",
+         "preview": "hello\n",
+         "sizeBytes": 6,
+         "truncated": false
+        },
+        {
+         "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "execute_result",
+         "preview": "42",
+         "sizeBytes": 2,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:e6529eb2cecd41878bb24698842fadc2"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+         "mimeTypes": [
+          "text/html",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "   a\n0  1",
+         "searchText": "a",
+         "sizeBytes": 147,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:e6529eb2cecd41878bb24698842fadc2"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+         "mimeTypes": [
+          "image/png",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "<Figure>",
+         "sizeBytes": 192,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:e6529eb2cecd41878bb24698842fadc2"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "error",
+         "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+         "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+         "sizeBytes": 352,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:e6529eb2cecd41878bb24698842fadc2"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-outside",
+     "cellType": "code",
+     "code": "print(\"added from outside\")",
+     "metadata": {},
+     "outputs": [],
+     "revision": 1
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "xed_renamed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 30,
+  "type": "changed_outside_editor",
+  "userId": "local",
+  "wallTimeMs": 1795768661563,
+  "workspaceId": "local"
+ },
+ {
+  "authorHint": "unknown",
+  "branchId": "2a6e0126-7fb0-4964-acc8-f46f438a4031",
+  "editor": "jupyterlab",
+  "eventId": "db31a922-445d-4f8d-89ce-cfc516bcce7e",
+  "explorationId": "641e18d2c504456e8f7a79ed1d5057c2",
+  "originId": "2d4c9e60-5f82-4723-8c2c-d0d49ba61c67",
+  "payload": {
+   "cells": [
+    {
+     "cellId": "e2e-md",
+     "cellType": "markdown",
+     "code": "# End to end",
+     "metadata": {},
+     "outputs": [],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-x",
+     "cellType": "code",
+     "code": "x = 1  # edited",
+     "metadata": {},
+     "outputs": [],
+     "revision": 5
+    },
+    {
+     "cellId": "e2e-text",
+     "cellType": "code",
+     "code": "print('hello')\n42",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "stream",
+         "preview": "hello\n",
+         "sizeBytes": 6,
+         "truncated": false
+        },
+        {
+         "contentHash": "sha256:73475cb40a568e8da8a045ced110137e159f890ac4da883b6b17dc651b3a8049",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "execute_result",
+         "preview": "42",
+         "sizeBytes": 2,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:db31a922-445d-4f8d-89ce-cfc516bcce7e"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-table",
+     "cellType": "code",
+     "code": "from IPython.display import display\ndisplay({'text/html': '<table><tr><th>a</th></tr><tr><td>1</td></tr></table>', 'text/plain': '   a\\n0  1'}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:b4bb8564813d5fc949faea87a21cd74c3e732687a0d184ac627728c40bbd4445",
+         "mimeTypes": [
+          "text/html",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "   a\n0  1",
+         "searchText": "a",
+         "sizeBytes": 147,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:db31a922-445d-4f8d-89ce-cfc516bcce7e"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-chart",
+     "cellType": "code",
+     "code": "import base64, zlib, struct\nfrom IPython.display import display\ndef chunk(t, d): return struct.pack(\">I\", len(d)) + t + d + struct.pack(\">I\", zlib.crc32(t + d) & 0xffffffff)\nraw = b\"\".join(b\"\\x00\" + bytes([255, 0, 0]) * 8 for _ in range(8))\npng = b\"\\x89PNG\\r\\n\\x1a\\n\" + chunk(b\"IHDR\", struct.pack(\">IIBBBBB\", 8, 8, 8, 2, 0, 0, 0)) + chunk(b\"IDAT\", zlib.compress(raw)) + chunk(b\"IEND\", b\"\")\ndisplay({\"image/png\": base64.b64encode(png).decode(), \"text/plain\": \"<Figure>\"}, raw=True)",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:292c4799f6e801c7a003ce1782d84b9c6589e24f25d980fdc3c3bc87fd62aca6",
+         "mimeTypes": [
+          "image/png",
+          "text/plain"
+         ],
+         "outputType": "display_data",
+         "preview": "<Figure>",
+         "sizeBytes": 192,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:db31a922-445d-4f8d-89ce-cfc516bcce7e"
+      }
+     ],
+     "revision": 2
+    },
+    {
+     "cellId": "e2e-error",
+     "cellType": "code",
+     "code": "raise ValueError('e2e error')",
+     "metadata": {},
+     "outputs": [
+      {
+       "items": [
+        {
+         "contentHash": "sha256:cba2e670bf94d0f92a6a67d5324b10e6e53940d4e9d536124ef74e20a000c6a7",
+         "mimeTypes": [
+          "text/plain"
+         ],
+         "outputType": "error",
+         "preview": "\u001b[31m---------------------------------------------------------------------------\u001b[39m\n\u001b[31mValueError\u001b[39m                                Traceback (most recent call last)\n\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[4]\u001b[39m\u001b[32m, line 1\u001b[39m\n\u001b[32m----> \u001b[39m\u001b[32m1\u001b[39m \u001b[38;5;28;01mraise\u001b[39;00m ValueError(\u001b[33m'e2e error'\u001b[39m)\n\n\u001b[31mValueError\u001b[39m: e2e error",
+         "searchText": "ValueError: e2e error\n---------------------------------------------------------------------------\nValueError                                Traceback (most recent call last)\nCell In[4], line 1\n----> 1 raise ValueError('e2e error')\n\nValueError: e2e error",
+         "sizeBytes": 352,
+         "truncated": false
+        }
+       ],
+       "runId": "snapshot:db31a922-445d-4f8d-89ce-cfc516bcce7e"
+      }
+     ],
+     "revision": 2
+    }
+   ],
+   "kernelName": "python3",
+   "language": "python",
+   "notebookMetadata": {},
+   "path": "xed_renamed.ipynb"
+  },
+  "schemaVersion": 2,
+  "tick": 31,
+  "type": "notebook_snapshot",
+  "userId": "local",
+  "wallTimeMs": 1795768664357,
+  "workspaceId": "local"
+ }
+]

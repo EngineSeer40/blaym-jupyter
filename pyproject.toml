@@ -6,20 +6,21 @@ requires-python = ">=3.11"
 dependencies = []
 
 [dependency-groups]
-dev = ["blaym-notebook", "blaym-jupyter[dev,test]"]
+dev = ["blaym-notebook", "blaym-jupyter[dev,test]", "blaym-vscode"]
 
 [tool.uv]
 package = false
 
 [tool.uv.workspace]
-members = ["core/python", "jupyter"]
+members = ["core/python", "jupyter", "vscode/python"]
 
 [tool.uv.sources]
 blaym-notebook = { workspace = true }
 blaym-jupyter = { workspace = true }
+blaym-vscode = { workspace = true }
 blaym-notebook-types = { path = "../blaym-notebook-types", editable = true }
 
 [tool.pytest.ini_options]
-testpaths = ["core/python", "jupyter"]
+testpaths = ["core/python", "jupyter", "vscode/python"]
 markers = ["slow: real-process and real-kernel tests, left out of the default run (use -m slow)"]
 addopts = "-m 'not slow'"

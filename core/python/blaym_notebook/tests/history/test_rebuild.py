@@ -227,3 +227,15 @@ def _case_asks_below_the_first_event_and_on_nothing_are_typed_answers():
 def test_typed_answers_for_missing_branch_points_and_empty_asks():
     _case_real_rebuilder_reports_missing_events_for_a_branch_point_at_a_missing_tick()
     _case_asks_below_the_first_event_and_on_nothing_are_typed_answers()
+
+
+def test_run_started_by_time_keeps_its_code_link_in_the_rebuilt_run():
+    s = _long_scenario(2)
+    s._emit("run_started", {"runId": "run-t", "cellId": "c1", "cellRevision": 1,
+                            "runCount": 1, "codeLink": "by_time"}, revs=s._current_revisions())
+    plain = s.run("c1")
+    rb = Rebuilder()
+    rb.add(s.events)
+    runs = {r["runId"]: r for r in dump(rb.state_at("main", s.tick))["state"]["runs"]}
+    assert runs["run-t"]["codeLink"] == "by_time"
+    assert "codeLink" not in {k: v for k, v in runs[plain].items() if v is not None}

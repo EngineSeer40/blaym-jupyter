@@ -64,6 +64,8 @@ export interface EventDraft {
   payload: Record<string, unknown>;
   /** Cell the event concerns (becomes `links.cellId`). */
   cellId?: string;
+  /** Run the event belongs to (becomes `links.runId`). */
+  runId?: string;
   /** Raw nbformat outputs of an inserted cell (the builder turns them into items). */
   rawOutputs?: Record<string, unknown>[];
   /** When the change was seen; defaults to the clock at build time. */

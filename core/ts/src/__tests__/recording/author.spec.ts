@@ -72,5 +72,8 @@ describe('AuthorMarker', () => {
       confidence: 'known'
     });
     expect(h.marker!.mark(id, t + 2000, t + 2000)).toEqual({ hint: 'unknown' });
+    signal('person', t + 9000, id);
+    signal('ai', t + 9000, id);
+    expect(h.marker!.mark(id, t + 9000, t + 9000).hint).toBe('ai');
   });
 });

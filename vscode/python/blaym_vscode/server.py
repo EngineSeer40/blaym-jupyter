@@ -13,6 +13,8 @@ from urllib.parse import parse_qsl, urlsplit
 
 from blaym_notebook.api import ApiRequest, Recording, handle
 from blaym_notebook.api.dispatch import MAX_JSON_BODY_BYTES
+from blaym_notebook.api.stream import AdvancedStream
+from blaym_notebook.service.auth import Unauthorized
 
 CHUNK = 1 << 20
 _REFUSALS = {401: b'{"error": "not signed in"}', 403: b'{"error": "bad host"}', 413: b'{"error": "the request body is too large"}'}
@@ -34,9 +36,11 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _send(self, status: int, body: bytes = b"", headers: Any = None) -> None:
         self.send_response(status)
-        for name, value in (headers or {"Content-Type": "application/json"}).items():
+        headers = headers or {"Content-Type": "application/json"}
+        for name, value in headers.items():
             self.send_header(name, value)
-        self.send_header("Cache-Control", "no-store")
+        if "Cache-Control" not in headers:
+            self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", "0" if status == 204 else str(len(body)))
         self.end_headers()
         if status != 204:
@@ -58,6 +62,8 @@ class _Handler(BaseHTTPRequestHandler):
         if not auth.startswith("Bearer ") or not self.server.authorizer.check(auth[7:]):
             return self._send(401, _REFUSALS[401])
         url = urlsplit(self.path)
+        if self.command == "GET" and url.path == "/stream":
+            return self._stream(auth[7:], dict(parse_qsl(url.query)))
         try:
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
@@ -75,5 +81,32 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception:  # noqa: BLE001  # always answer; say nothing about the request
             return self._send(500, b'{"error": "internal error"}')
         self._send(response.status, response.body, dict(response.headers))
+
+    def _stream(self, credential: str, query: dict[str, str]) -> None:
+        """Frames until the client goes (a failed write), then the iterator is closed."""
+        try:
+            after = int(query["afterTick"]) if query.get("afterTick") else None
+        except ValueError:
+            return self._send(400, b'{"error": "afterTick: not an integer"}')
+        if not query.get("explorationId"):
+            return self._send(400, b'{"error": "explorationId: required"}')
+        try:
+            stream = AdvancedStream(self.server.recording.service, credential, query["explorationId"], after)
+        except Unauthorized:
+            return self._send(401, _REFUSALS[401])
+        try:
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.flush()
+            for frame in stream:
+                self.wfile.write(frame)
+                self.wfile.flush()
+        except OSError:  # the client went
+            pass
+        finally:
+            stream.close()
+            self.close_connection = True
 
     do_GET = do_POST = do_PUT = _serve

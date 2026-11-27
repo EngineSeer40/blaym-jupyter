@@ -22,7 +22,7 @@ from blaym_notebook_types import (
 )
 
 API = ("blaym-jupyter", "api")
-_ANY = {"explorationId": "e", "notebookId": "n", "contentHash": "sha256:" + "0" * 64}
+_ANY = {"explorationId": "e", "notebookId": "n", "name": "index.html", "contentHash": "sha256:" + "0" * 64}
 
 
 def registration(path="a.ipynb", instance="tab-1", **extra):

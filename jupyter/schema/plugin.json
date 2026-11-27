@@ -24,6 +24,13 @@
       "description": "How often the page tells the server that it is still recording. Applies when the notebook is next opened.",
       "default": 15000,
       "minimum": 1000
+    },
+    "viewerPlacement": {
+      "type": "string",
+      "title": "History view placement",
+      "description": "Where \"Blaym: show history\" opens the history: in a panel of JupyterLab, or in a separate window.",
+      "enum": ["panel", "window"],
+      "default": "panel"
     }
   },
   "additionalProperties": false

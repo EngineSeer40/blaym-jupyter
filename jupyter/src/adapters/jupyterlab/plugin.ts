@@ -2,7 +2,11 @@ import type {
   JupyterFrontEnd,
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
-import { Notification } from '@jupyterlab/apputils';
+import {
+  ICommandPalette,
+  IThemeManager,
+  Notification
+} from '@jupyterlab/apputils';
 import { INotebookTracker } from '@jupyterlab/notebook';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { IStatusBar } from '@jupyterlab/statusbar';
@@ -14,6 +18,8 @@ import { WebLocksElection } from './election';
 import { metadataPolicy as policy } from 'blaym-notebook-core';
 import { NotebookObserver } from './observer';
 import type { ObserverDeps, PanelLike } from './observer';
+import { HistoryViews } from './history';
+import type { HistoryPanel } from './history';
 import { LiveSettings } from './settings';
 import type { SettingsLike } from './settings';
 import { createSignals } from './signals';
@@ -73,12 +79,14 @@ export const plugin: JupyterFrontEndPlugin<void> = {
   description: 'History, replay and branching for Jupyter notebooks',
   autoStart: true,
   requires: [INotebookTracker],
-  optional: [ISettingRegistry, IStatusBar],
+  optional: [ISettingRegistry, IStatusBar, ICommandPalette, IThemeManager],
   activate: async (
     app: JupyterFrontEnd,
     tracker: INotebookTracker,
     registry: ISettingRegistry | null,
-    statusBar: IStatusBar | null
+    statusBar: IStatusBar | null,
+    palette: ICommandPalette | null,
+    themeManager: IThemeManager | null
   ) => {
     let source: SettingsLike | undefined;
     try {
@@ -89,6 +97,7 @@ export const plugin: JupyterFrontEndPlugin<void> = {
     const live = new LiveSettings(source);
     const statusItem = new StateWidget('span', 'blaym-status');
     const presenters = new Map<PanelLike, NotebookPresenter>();
+    const notebookIds = new Map<PanelLike, string>();
     const current = (): PanelLike | null =>
       tracker.currentWidget as unknown as PanelLike | null;
     statusBar?.registerStatusItem('blaym-jupyter:status', {
@@ -121,6 +130,15 @@ export const plugin: JupyterFrontEndPlugin<void> = {
         }
       }
     });
+    const history = new HistoryViews({
+      app,
+      tracker,
+      palette,
+      themeManager,
+      placement: () =>
+        source?.composite.viewerPlacement === 'window' ? 'window' : 'panel',
+      notebookId: p => notebookIds.get(p as unknown as PanelLike)
+    });
     const transport = new ServerTransport(app.serviceManager.serverSettings);
     const deps: ObserverDeps = {
       transport,
@@ -146,7 +164,10 @@ export const plugin: JupyterFrontEndPlugin<void> = {
         ...deps,
         election: new WebLocksElection(),
         onState: s => presenter.onState(s),
-        onStatus: s => presenter.onStatus(s)
+        onStatus: s => {
+          notebookIds.set(panel, s.notebookId);
+          presenter.onStatus(s);
+        }
       });
       observers.set(panel, observer);
       button.node.addEventListener('click', () => {
@@ -157,12 +178,14 @@ export const plugin: JupyterFrontEndPlugin<void> = {
           toolbar?: { insertItem(i: number, n: string, w: Widget): boolean };
         }
       ).toolbar?.insertItem(11, 'blaym-recording', button);
+      history.addButton(panel as unknown as HistoryPanel);
       panel.context.sessionContext.statusChanged?.connect((_, status) =>
         presenter.onKernelStatus(String(status))
       );
       panel.context.disposed.connect(() => {
         observers.delete(panel);
         presenters.delete(panel);
+        notebookIds.delete(panel);
       });
       void observer.start();
     };

@@ -63,3 +63,36 @@ def entry_of(event) -> tuple:
     author = _value(event.authorHint) if event.authorHint is not None else "unknown"
     conf = _value(event.authorConfidence) if event.authorConfidence is not None else None
     return event.tick, event.wallTimeMs, kind_of(event), author, conf, cell, run
+
+
+class CellFold:
+    """Folds a branch's line, in tick order, into the cell order, so each entry can say where its
+    cell sits (`position`) and how many cells there were. Pure: `observe` takes events one by one."""
+
+    def __init__(self) -> None:
+        self.order: list[str] = []
+
+    def observe(self, event) -> tuple:
+        """`(cell index or None, cell count)` for this event: the index after the change
+        (before it for a delete), the count after."""
+        t, p, order = event.type, event.payload, self.order
+        if t in ("notebook_snapshot", "changed_outside_editor"):
+            self.order = [c.cellId for c in p.cells]
+            return None, len(self.order)
+        cell = getattr(p, "cellId", None)
+        index = None
+        if t == "cell_inserted":
+            index = min(max(p.index, 0), len(order))
+            order.insert(index, p.cellId)
+        elif t == "cell_deleted":
+            if cell in order:
+                index = order.index(cell)
+                order.remove(cell)
+        elif t == "cell_moved":
+            if cell in order:
+                order.remove(cell)
+                index = min(max(p.toIndex, 0), len(order))
+                order.insert(index, cell)
+        elif cell in order and t in ("cell_source_changed", "cell_type_changed"):
+            index = order.index(cell)
+        return index, len(order)

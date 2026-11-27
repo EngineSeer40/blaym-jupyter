@@ -56,3 +56,25 @@ def test_limits_and_windows(seeded):
     assert [e.root.tick for e in part.events] == [3, 4, 5] and part.truncated and part.nextTick == 6
 
 
+
+
+def test_cell_positions_fold_across_snapshot_insert_move_delete():
+    rig = Rig()
+    s = Scenario()
+    s.start(cells=[("a", "1"), ("b", "2")])  # tick 1: [a, b]
+    s.insert("c", "3", index=1)  # 2: [a, c, b], c at 1
+    s.edit("b", "22")  # 3: b at 2
+    s.move("b", 2, 0)  # 4: [b, a, c], b at 0
+    run = s.run("a")  # 5: no cell position
+    s.delete("c")  # 6 (after run's end events): c was at 2, then 2 cells
+    replay(rig, s.events)
+    got = rig.service.timeline_index(TOKEN, TimelineIndexRequest(explorationId=rig.exp, branchId=rig.root))
+    def pos(r):
+        return list(zip([None if i is None else i.root for i in r.cellIndexes], [n.root for n in r.cellCounts]))
+
+    at = dict(zip(ticks_of(got), pos(got)))
+    assert [at[t] for t in (1, 2, 3, 4)] == [(None, 2), (1, 3), (2, 3), (0, 3)]
+    assert at[5] == (None, 3) and at[6] == (2, 2)
+    windowed = rig.service.timeline_index(
+        TOKEN, TimelineIndexRequest(explorationId=rig.exp, branchId=rig.root, fromTick=3, toTick=4))
+    assert pos(windowed) == [(2, 3), (0, 3)]

@@ -6,7 +6,9 @@ function setup(provider?: string) {
   let handler: ((s: unknown, a: { id: string }) => void) | undefined;
   let now = 1000;
   const got: AuthorSignal[] = [];
+  let typing: ((t: string) => void) | undefined;
   const signals = createSignalsFor({
+    onTyping: f => ((typing = f), () => (typing = undefined)),
     commands: {
       commandExecuted: {
         connect: f => void (handler = f),
@@ -19,6 +21,7 @@ function setup(provider?: string) {
   });
   const off = signals.onSignal(s => got.push(s));
   return {
+    type: (t: string) => typing?.(t),
     run: (id: string) => handler?.(null, { id }),
     got,
     off,
@@ -37,6 +40,22 @@ describe('JupyterLab author signals', () => {
     ]);
     s.off();
     expect(s.has()).toBe(false);
+  });
+
+  test('typing inputs signal person/known, throttled per cell; paste and drop do not', () => {
+    const s = setup();
+    s.type('insertFromPaste');
+    s.type('insertFromDrop');
+    expect(s.got).toEqual([]);
+    s.type('insertText');
+    s.at(1100);
+    s.type('deleteContentBackward');
+    s.at(1300);
+    s.type('historyUndo');
+    expect(s.got.map(g => [g.kind, g.confidence, g.atMs])).toEqual([
+      ['person', 'known', 1000],
+      ['person', 'known', 1300]
+    ]);
   });
 
   test('window boundaries: 0 and 249 ms match on either side, 251 does not', () => {

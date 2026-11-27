@@ -11,5 +11,5 @@
     "types": [],
     "skipLibCheck": true
   },
-  "include": ["src/recording/*.ts"]
+  "include": ["src/recording/*.ts", "src/viewer/tokens.ts"]
 }

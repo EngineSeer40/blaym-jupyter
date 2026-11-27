@@ -56,9 +56,13 @@ export class AuthorMarker {
       if (s.atMs < fromMs - this.windowMs || s.atMs > toMs + this.windowMs) {
         continue;
       }
+      // known beats guess; within the same confidence, ai beats person
       if (
         best === undefined ||
-        (best.confidence === 'guess' && s.confidence === 'known')
+        (best.confidence === 'guess' && s.confidence === 'known') ||
+        (best.confidence === s.confidence &&
+          best.kind === 'person' &&
+          s.kind === 'ai')
       ) {
         best = s;
       }

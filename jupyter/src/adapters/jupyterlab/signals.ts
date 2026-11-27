@@ -15,6 +15,8 @@ export interface CommandsLike {
 
 export interface SignalDeps {
   commands: CommandsLike;
+  /** Typing input in a notebook cell editor: calls back with the `inputType` of each `beforeinput` event. */
+  onTyping?: (cb: (inputType: string) => void) => () => void;
   clock: Clock;
   /** The id of the cell being edited right now (the active cell of the current notebook), if any. */
   activeCellId: () => string | undefined;
@@ -23,6 +25,11 @@ export interface SignalDeps {
   /** Whether an inline completion provider is an AI one; default: its id names AI. */
   isAiProvider?: (providerId: string) => boolean;
 }
+
+/** `beforeinput` types that are the user typing; paste, drop and the rest are never one. */
+const TYPING_INPUT =
+  /^(insertText|insertLineBreak|insertCompositionText|deleteContent\w*|historyUndo|historyRedo)$/;
+const TYPING_THROTTLE_MS = 200;
 
 const AI_COMMANDS = 'jupyterlab-ai-commands:';
 const INLINE_ACCEPT = 'inline-completer:accept';
@@ -60,7 +67,24 @@ export function createSignalsFor(d: SignalDeps): AuthorSignals {
         }
       };
       d.commands.commandExecuted.connect(handler);
-      return () => void d.commands.commandExecuted.disconnect(handler);
+      const lastTyped = new Map<string | undefined, number>();
+      const offTyping = d.onTyping?.(inputType => {
+        if (!TYPING_INPUT.test(inputType)) {
+          return;
+        }
+        const now = d.clock.nowMs();
+        const cellId = d.activeCellId();
+        const last = lastTyped.get(cellId);
+        if (last !== undefined && now - last < TYPING_THROTTLE_MS) {
+          return;
+        }
+        lastTyped.set(cellId, now);
+        cb({ kind: 'person', confidence: 'known', atMs: now, cellId });
+      });
+      return () => {
+        d.commands.commandExecuted.disconnect(handler);
+        offTyping?.();
+      };
     }
   };
 }
@@ -91,6 +115,16 @@ export function createSignals(app?: AppLike): AuthorSignals | undefined {
   });
   return createSignalsFor({
     commands: app.commands,
+    onTyping: cb => {
+      const on = (e: Event): void => {
+        const t = e.target as Element | null;
+        if (t?.closest?.('.jp-Notebook .jp-Cell .cm-editor')) {
+          cb((e as InputEvent).inputType);
+        }
+      };
+      document.addEventListener('beforeinput', on, true);
+      return () => document.removeEventListener('beforeinput', on, true);
+    },
     clock: { nowMs: () => Date.now() },
     activeCellId: () => {
       const w = app.shell.currentWidget as

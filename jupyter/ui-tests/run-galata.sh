@@ -48,6 +48,8 @@ export BLAYM_PORT="$("$PY" -c 'import socket;s=socket.socket();s.bind(("127.0.0.
 export BLAYM_TOKEN="$("$PY" -c 'import secrets;print(secrets.token_hex(24))')"
 export BLAYM_ROOT="$WORK/root" BLAYM_CHROMIUM="$CHROMIUM" BLAYM_RESULTS="$WORK/results"
 export JUPYTER_DATA_DIR="$WORK/data" JUPYTER_CONFIG_DIR="$WORK/config"
+# the venv may hold an older installed copy of the extension: the linked build must win
+export JUPYTER_PREFER_ENV_PATH=0
 
 "$ROOT/.venv/bin/jupyter" lab --no-browser --ip=127.0.0.1 --port="$BLAYM_PORT" --port-retries=0 \
   --ServerApp.token="$BLAYM_TOKEN" --ServerApp.root_dir="$WORK/root" --ServerApp.password='' \

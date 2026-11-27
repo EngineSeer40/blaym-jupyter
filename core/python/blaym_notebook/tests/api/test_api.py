@@ -91,7 +91,7 @@ def _raw(rig, method, path, body=b"", query=None, cred=TOKEN):
 
 
 SECRET = "sk-LIVE-9f8e7d6c5b4a"
-_ANY = {"explorationId": "e", "notebookId": "n", "contentHash": "sha256:" + "0" * 64}
+_ANY = {"explorationId": "e", "notebookId": "n", "name": "index.html", "contentHash": "sha256:" + "0" * 64}
 POST_ROUTES = [r.path for r in ROUTES if r.method == "POST"]
 
 
@@ -104,6 +104,15 @@ def test_ingest_and_the_reads_round_trip(rig):
     assert [e.root.tick for e in EventsSinceResponse.model_validate_json(since.body).events] == [2]
     hits = rig.call("GET", "/search", query={"explorationId": exp, "query": "needle", "limit": "5"})
     assert SearchResponse.model_validate_json(hits.body).hits
+
+
+def test_the_viewer_route_serves_allowed_files_with_type_and_csp_and_refuses_everything_else(rig):
+    page = rig.call("GET", "/viewer/index.html")
+    assert page.status == 200 and page.headers["Content-Type"].startswith("text/html")
+    assert "script-src 'self'" in page.headers["Content-Security-Policy"] and page.headers["Cache-Control"] == "no-cache"
+    for name in ("nope.html", "..", "%2e%2e", "..%2findex.html", "%2Fetc%2Fpasswd", "..\\index.html", "manifest.json"):
+        assert rig.call("GET", f"/viewer/{name}").status == 404, name
+    assert rig.call("GET", "/viewer/../../etc/passwd").status == 404
 
 
 def test_register_status_heartbeat_and_close(rig):

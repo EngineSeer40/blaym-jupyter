@@ -119,6 +119,20 @@
       "path": "/blobs/{explorationId}/{contentHash}",
       "request": "none",
       "response": "bytes"
+    },
+    {
+      "name": "stream",
+      "method": "GET",
+      "path": "/stream",
+      "request": "query:explorationId,afterTick?",
+      "response": "event-stream"
+    },
+    {
+      "name": "viewer_asset",
+      "method": "GET",
+      "path": "/viewer/{name}",
+      "request": "none",
+      "response": "bytes"
     }
   ]
 }

@@ -47,6 +47,8 @@ ROUTES: tuple[Route, ...] = (
           "EventsBetweenResponse"),
     Route("search", "GET", "/search", "query:explorationId,query,kinds?,limit?", "SearchResponse"),
     Route("get_blob", "GET", "/blobs/{explorationId}/{contentHash}", "none", "bytes"),
+    Route("stream", "GET", "/stream", "query:explorationId,afterTick?", "event-stream"),
+    Route("viewer_asset", "GET", "/viewer/{name}", "none", "bytes"),
 )
 
 

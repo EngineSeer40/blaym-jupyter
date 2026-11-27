@@ -10,6 +10,7 @@ import {
   notebookFingerprint
 } from '../../core/ts/src/recording/session';
 import type {
+  AuthorSignal,
   CellView,
   Clock,
   Ids,
@@ -208,6 +209,8 @@ function attach(
   const nbMeta = (): Record<string, unknown> => doc.metadata.metadata ?? {};
   const stable = doc.getCells().every(c => nbformatId(c) !== undefined);
 
+  // the user's typing, from small text changes in the focused cell (see onDidChangeTextDocument)
+  const signalSinks = new Set<(s: AuthorSignal) => void>();
   const session = new RecorderSession(
     {
       cellIdsStable: stable,
@@ -239,6 +242,12 @@ function attach(
       ids,
       policy: policy as MetadataPolicy,
       editor: 'vscode',
+      signals: {
+        onSignal: cb => {
+          signalSinks.add(cb);
+          return () => void signalSinks.delete(cb);
+        }
+      },
       path: () => pathNow,
       onState: changed
     }
@@ -301,7 +310,34 @@ function attach(
   const subs: vscode.Disposable[] = [
     // typing comes from the cell's text document; the notebook duplicates carry only `document`
     api.workspace.onDidChangeTextDocument(e => {
-      if (doc.getCells().some(c => c.document === e.document)) {
+      const cell = doc.getCells().find(c => c.document === e.document);
+      if (cell) {
+        // a small change (at most 3 characters inserted, or a pure deletion) in the focused cell,
+        // not an undo or redo, is the user typing; larger changes are pastes or tool edits and stay unknown
+        const focused = api.window.activeTextEditor?.document === e.document;
+        const undone =
+          e.reason === api.TextDocumentChangeReason.Undo ||
+          e.reason === api.TextDocumentChangeReason.Redo;
+        const inserted = e.contentChanges.reduce(
+          (n, c) => n + c.text.length,
+          0
+        );
+        const id = viewId(cell);
+        if (
+          focused &&
+          !undone &&
+          id !== undefined &&
+          e.contentChanges.length > 0 &&
+          inserted <= 3
+        ) {
+          const sig: AuthorSignal = {
+            kind: 'person',
+            confidence: 'known',
+            atMs: clock.nowMs(),
+            cellId: id
+          };
+          signalSinks.forEach(f => f(sig));
+        }
         session.process();
       }
     }),

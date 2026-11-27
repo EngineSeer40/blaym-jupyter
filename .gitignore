@@ -144,3 +144,11 @@ probes/
 
 # VS Code extension build output
 vscode/out/
+# Generated design-harness bundle
+core/ts/harness/harness.js
+
+# Viewer design harness and its recorded fixtures: local only (owner, 2026-11-28)
+core/ts/harness/
+core/ts/scripts/build-harness.js
+core/python/blaym_notebook/testing/viewer_fixtures.py
+fixtures/viewer/

@@ -8,11 +8,17 @@ requests skip it, as Jupyter does).
 
 from __future__ import annotations
 
+import asyncio
+
 import tornado.web
 from jupyter_server.base.handlers import APIHandler
 from tornado.ioloop import IOLoop
 
+from tornado.iostream import StreamClosedError
+
 from blaym_notebook.api import ApiRequest, handle
+from blaym_notebook.api.stream import KEEPALIVE_S, KEEP_ALIVE, MAX_PENDING, advanced_frame, catch_up_frame, offer
+from blaym_notebook.service.auth import Unauthorized
 
 
 class BlaymApiHandler(APIHandler):
@@ -49,3 +55,61 @@ class BlaymApiHandler(APIHandler):
     @tornado.web.authenticated
     async def put(self, path: str) -> None:
         await self._serve(path)
+
+
+class BlaymStreamHandler(APIHandler):
+    """`GET <base>/blaym-jupyter/api/stream`: the frames of `api.stream`, flushed one by one.
+    No thread waits for a stream: the service callback hands each advance to the IOLoop."""
+
+    def initialize(self, host) -> None:
+        self.host = host
+        self._unsubscribe = None
+
+    def _stop(self) -> None:
+        unsubscribe, self._unsubscribe = self._unsubscribe, None
+        if unsubscribe is not None:
+            unsubscribe()
+
+    def on_connection_close(self) -> None:
+        self._stop()
+
+    @tornado.web.authenticated
+    async def get(self) -> None:
+        query = {k: v[-1].decode("utf-8", "replace") for k, v in self.request.query_arguments.items()}
+        try:
+            after = int(query["afterTick"]) if query.get("afterTick") else None
+        except ValueError:
+            raise tornado.web.HTTPError(400, "afterTick: not an integer")
+        if not query.get("explorationId"):
+            raise tornado.web.HTTPError(400, "explorationId: required")
+        service, credential, loop = self.host.recording.service, self.host.credential(), IOLoop.current()
+        advances: asyncio.Queue = asyncio.Queue(maxsize=MAX_PENDING)
+        try:
+            service.info(credential)  # the sign-in check
+            self._unsubscribe = service.subscribe(
+                query["explorationId"], lambda advance: loop.add_callback(offer, advances, advance))
+            catch_up = await loop.run_in_executor(
+                None, catch_up_frame, service, credential, query["explorationId"], after)
+        except Unauthorized:
+            self._stop()
+            raise tornado.web.HTTPError(401, "not signed in")
+        except BaseException:  # the connection may stay open, so on_connection_close would not run
+            self._stop()
+            raise
+        self.set_header("Content-Type", "text/event-stream")
+        self.set_header("Cache-Control", "no-cache")
+        self.set_header("X-Accel-Buffering", "no")
+        try:
+            self.write(catch_up if catch_up is not None else KEEP_ALIVE)  # opens the response at once
+            await self.flush()
+            while self._unsubscribe is not None:
+                try:
+                    frame = advanced_frame(await asyncio.wait_for(advances.get(), KEEPALIVE_S))
+                except asyncio.TimeoutError:
+                    frame = KEEP_ALIVE
+                self.write(frame)
+                await self.flush()
+        except StreamClosedError:
+            pass
+        finally:
+            self._stop()

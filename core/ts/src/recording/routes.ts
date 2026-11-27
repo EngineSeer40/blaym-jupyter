@@ -31,7 +31,9 @@ export const ROUTES = {
   timeline: { method: 'GET', path: '/timeline' },
   events_between: { method: 'GET', path: '/events-between' },
   search: { method: 'GET', path: '/search' },
-  get_blob: { method: 'GET', path: '/blobs/{explorationId}/{contentHash}' }
+  get_blob: { method: 'GET', path: '/blobs/{explorationId}/{contentHash}' },
+  stream: { method: 'GET', path: '/stream' },
+  viewer_asset: { method: 'GET', path: '/viewer/{name}' }
 } as const satisfies Record<string, Route>;
 
 export type RouteName = keyof typeof ROUTES;

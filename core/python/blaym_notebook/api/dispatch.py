@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 import time
+from importlib import resources
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable, Mapping
+from urllib.parse import unquote
 
 from blaym_notebook_types import (
     EventsBetweenRequest,
@@ -298,11 +300,49 @@ def _get_blob(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     return ApiResponse(200, data, {"Content-Type": "application/octet-stream"})
 
 
+def _stream(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    raise ApiError(501, "the stream is served by the host, not as a JSON answer")
+
+
+_VIEWER_FILES = ("index.html", "viewer.js", "viewer.css")
+_CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
+                  ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png",
+                  ".json": "application/json", ".woff2": "font/woff2"}
+_VIEWER_CSP = ("default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; "
+               "connect-src 'self'; frame-ancestors 'self'")
+
+
+def _viewer_asset(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    """A built page file by name: only allow-listed names (the fixed three, plus any the build lists
+    in `manifest.json`), so no path reaches the disk. The page holds no secret; the sign-in check
+    in `handle` still runs, as for every route."""
+    folder = resources.files("blaym_notebook").joinpath("viewer_static")
+    name = unquote(params["name"])
+    allowed = set(_VIEWER_FILES)
+    manifest = folder.joinpath("manifest.json")
+    if manifest.is_file():
+        try:
+            listed = json.loads(manifest.read_bytes())
+            allowed.update(n for n in listed if isinstance(n, str))
+        except (ValueError, TypeError):
+            pass
+    ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+    if name not in allowed or "/" in name or "\\" in name or ext not in _CONTENT_TYPES \
+            or not folder.joinpath(name).is_file():
+        raise ApiError(404, "no such file")
+    headers = {"Content-Type": _CONTENT_TYPES[ext], "Cache-Control": "no-cache",
+               "X-Content-Type-Options": "nosniff"}
+    if name == "index.html":
+        headers["Content-Security-Policy"] = _VIEWER_CSP
+    return ApiResponse(200, folder.joinpath(name).read_bytes(), headers)
+
+
 _HANDLERS: dict[str, Callable[..., ApiResponse]] = {
     "ingest": _ingest, "put_blob": _put_blob, "prepare_outputs": _prepare_outputs,
     "resolve_cell_revision": _resolve, "register": _register, "status": _status, "close": _close,
     "rename": _rename, "save": _save,
     "info": _info, "state": _state, "outline": _outline, "events_since": _events_since,
     "timeline": _timeline, "events_between": _events_between,
-    "search": _search, "get_blob": _get_blob,
+    "search": _search, "get_blob": _get_blob, "stream": _stream,
+    "viewer_asset": _viewer_asset,
 }

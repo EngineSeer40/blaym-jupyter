@@ -15,3 +15,6 @@ blaym-notebook-types = { path = "../../../blaym-notebook-types", editable = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["blaym_notebook"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"blaym_notebook/viewer_static" = "blaym_notebook/viewer_static"

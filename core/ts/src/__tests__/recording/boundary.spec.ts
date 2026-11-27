@@ -44,8 +44,10 @@ describe('src/recording boundary', () => {
     }
   });
 
-  test('src/navigation and src/recording import no @jupyterlab, and nothing in them imports adapters', () => {
-    const nav = readdirSync(join(ROOT, 'src', 'navigation')).filter((f: string) => f.endsWith('.ts'));
+  test('src/navigation and src/recording import no @jupyterlab and no adapters, and src/viewer imports no host or framework', () => {
+    const nav = readdirSync(join(ROOT, 'src', 'navigation')).filter(
+      (f: string) => f.endsWith('.ts')
+    );
     expect(nav.length).toBeGreaterThan(0);
     const bad: string[] = [];
     for (const [dir, list] of [
@@ -53,10 +55,28 @@ describe('src/recording boundary', () => {
       ['navigation', nav]
     ] as [string, string[]][]) {
       for (const f of list) {
-        for (const spec of importsOf(readFileSync(join(ROOT, 'src', dir, f), 'utf8'))) {
+        for (const spec of importsOf(
+          readFileSync(join(ROOT, 'src', dir, f), 'utf8')
+        )) {
           if (spec.startsWith('@jupyterlab') || spec.includes('adapters')) {
             bad.push(`${dir}/${f}: ${spec}`);
           }
+        }
+      }
+    }
+    const view = readdirSync(join(ROOT, 'src', 'viewer')).filter((f: string) =>
+      f.endsWith('.ts')
+    );
+    expect(view.length).toBeGreaterThan(0);
+    for (const f of view) {
+      for (const spec of importsOf(
+        readFileSync(join(ROOT, 'src', 'viewer', f), 'utf8')
+      )) {
+        if (
+          /^(@jupyterlab|@lumino|react)(\/|$)/.test(spec) ||
+          spec === 'vscode'
+        ) {
+          bad.push(`viewer/${f}: ${spec}`);
         }
       }
     }

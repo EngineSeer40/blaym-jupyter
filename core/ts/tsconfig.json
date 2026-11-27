@@ -25,6 +25,7 @@
     "src/*",
     "src/navigation/*",
     "src/recording/*",
-    "src/recording/metadata-policy.json"
+    "src/recording/metadata-policy.json",
+    "src/viewer/tokens.ts"
   ]
 }

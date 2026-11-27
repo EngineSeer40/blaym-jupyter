@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "lib": ["DOM", "ES2018"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noEmit": true,
+    "noImplicitAny": true,
+    "noUnusedLocals": true,
+    "resolveJsonModule": true,
+    "strict": true,
+    "target": "ES2018",
+    "types": [],
+    "skipLibCheck": true
+  },
+  "include": ["src/viewer/*", "src/navigation/*"]
+}

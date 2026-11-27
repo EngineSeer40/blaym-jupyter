@@ -111,7 +111,7 @@ from .indexing import TEXT_LIMIT, cut_text, documents_for, needs_state, truncate
 from .lease import RecorderLease
 from .notify import Callback, Notifier
 from .recovery import RecoveryReport, recover
-from .timeline import entry_of
+from .timeline import CellFold, entry_of
 from .revisions import RevisionIndex, code_hash
 
 RETRY_SLEEPS = (0.05, 0.1, 0.2)
@@ -782,9 +782,16 @@ class Service:
         rows = [entry_of(ev) for ev in events]
         cols = list(zip(*rows)) if rows else [()] * 7
         ticks, times, kinds, authors, confs, cells, runs = (list(c) for c in cols)
+        fold, positions = CellFold(), {}  # fold the whole line, from its start; emit only the window
+        for ev in line:
+            if events and ev.tick > events[-1].tick:
+                break
+            positions[ev.tick] = fold.observe(ev)
+        placed = [positions[t] for t in ticks]
         return TimelineIndexResponse.model_validate({
             "apiVersion": 1, "ticks": ticks, "timesMs": times, "kinds": kinds, "authors": authors,
-            "confidences": confs, "cellIds": cells, "runIds": runs, "truncated": next_tick is not None,
+            "confidences": confs, "cellIds": cells, "runIds": runs,
+            "cellIndexes": [i for i, _ in placed], "cellCounts": [n for _, n in placed], "truncated": next_tick is not None,
             **({"nextTick": next_tick} if next_tick is not None else {})})
 
     def events_between(self, credential: Any, request: EventsBetweenRequest) -> EventsBetweenResponse:

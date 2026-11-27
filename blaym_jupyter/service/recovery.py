@@ -1,4 +1,4 @@
-"""Recovery after a stop or a crash (S4, Task 9; decision D).
+"""Recovery after a stop or a crash.
 
 Pure rules over the `Service`'s own methods and ports; no SQLite, no files. For every
 history, under its lock and through the same commit path as ingest (cached tip state, tick,

@@ -1,4 +1,4 @@
-"""`handle`: one request in, one answer out (S5, decision G). No web framework, no logging of bodies."""
+"""`handle`: one request in, one answer out. No web framework, no logging of bodies."""
 
 from __future__ import annotations
 

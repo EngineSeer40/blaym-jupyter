@@ -1,4 +1,4 @@
-"""The run recorder (S5, decisions C, D, F, N, T): kernel messages become run events.
+"""The run recorder: kernel messages become run events.
 
 Neutral: it knows kernel messaging (Jupyter's message content, which every editor's kernel path
 sees) and nothing of Jupyter itself. Time, ids, timers and the service come in through the
@@ -48,7 +48,7 @@ import logging
 import threading
 from collections import Counter, OrderedDict, deque
 from dataclasses import dataclass, field
-from typing import Any, Callable, Mapping, Optional, Protocol
+from typing import Any, Mapping, Optional, Protocol
 
 from blaym_jupyter_types import ResolveCellRevisionRequest
 
@@ -147,10 +147,9 @@ class _Kernel:
         self.unknown: "OrderedDict[str, _Unknown]" = OrderedDict()
         self.session_count = 0
         self.session_gap = False
-        self.busy = False
 
 
-def _approx(value: Any) -> int:
+def approx_size(value: Any) -> int:
     """A cheap size estimate of a message content (text and bytes lengths, shallow for the rest)."""
     total, stack = 0, [value]
     while stack:
@@ -178,10 +177,9 @@ class RunRecorder:
         registry: Optional[NotebookView] = None,
         settings: RunRecorderSettings = RunRecorderSettings(),
         limits: OutputLimits = OutputLimits(),
-        on_idle: Optional[Callable[[str], None]] = None,
     ) -> None:
         self._ing, self._sink, self._clock, self._sched, self._ids = ingestor, sink, clock, scheduler, ids
-        self._registry, self._s, self._limits, self._on_idle = registry, settings, limits, on_idle
+        self._registry, self._s, self._limits = registry, settings, limits
         self._lock = threading.RLock()
         self._kernels: dict[str, _Kernel] = {}
         self._held_messages = 0
@@ -219,7 +217,6 @@ class RunRecorder:
             run = _Run(run_id, k, exploration_id, cell_id, code, self._clock.now_ms())
             k.runs[run_id] = run
             k.lane.append(run)
-            k.busy = True
             replay = self._discard_unknown(k, run_id)
             for msg_type, content in replay:
                 if run.state != "dropped":
@@ -285,7 +282,6 @@ class RunRecorder:
             for u in list(k.unknown):
                 self._discard_unknown(k, u)
             self._kernels.pop(kernel_ref, None)
-        self._notify_idle(k)
 
     def close(self) -> None:
         """Shutdown: every kernel is treated as gone."""
@@ -437,7 +433,7 @@ class RunRecorder:
     def _forget(self, run: _Run, how: str) -> None:
         """Take a run that never started out of the lane and free what it holds. Under the lock."""
         k = run.kernel
-        self._release_held(len(run.held), sum(_approx(c) for _, c in run.held))
+        self._release_held(len(run.held), sum(approx_size(c) for _, c in run.held))
         run.held.clear()
         run.state = "dropped"
         for name in ("poll_timer", "count_timer", "grace_timer"):
@@ -493,7 +489,7 @@ class RunRecorder:
             self._hold(run, msg_type, content)
 
     def _hold(self, run: _Run, msg_type: str, content: Mapping[str, Any]) -> None:
-        size = _approx(content)
+        size = approx_size(content)
         if (self._held_messages + 1 > self._s.max_held_messages
                 or self._held_bytes + size > self._s.max_held_bytes):
             run.degraded = True
@@ -518,7 +514,7 @@ class RunRecorder:
                                              lambda: self._unknown_timer(k, parent))
         if msg_type == "execute_input":
             u.has_input = True
-        size = _approx(content)
+        size = approx_size(content)
         if msg_type in _OUTPUT_TYPES and (self._held_messages + 1 > self._s.max_held_messages
                                           or self._held_bytes + size > self._s.max_held_bytes):
             self.stats["held_dropped"] += 1
@@ -534,7 +530,7 @@ class RunRecorder:
             return []
         if u.timer is not None:
             u.timer()
-        self._release_held(len(u.msgs), sum(_approx(c) for _, c in u.msgs))
+        self._release_held(len(u.msgs), sum(approx_size(c) for _, c in u.msgs))
         return u.msgs
 
     def _unknown_timer(self, k: _Kernel, parent: str) -> None:
@@ -572,7 +568,7 @@ class RunRecorder:
                 if run.state != "started" or run.draining or not run.held:
                     return did
                 batch, run.held = run.held, []
-                self._release_held(len(batch), sum(_approx(c) for _, c in batch))
+                self._release_held(len(batch), sum(approx_size(c) for _, c in batch))
                 run.draining = True
             try:
                 for msg_type, content in batch:
@@ -659,19 +655,6 @@ class RunRecorder:
                 moved = self._maybe_finish(run) or moved
             if not moved:
                 break
-        self._notify_idle(k)
-
-    def _notify_idle(self, k: _Kernel) -> None:
-        with self._lock:
-            idle = k.busy and not k.runs
-            if idle:
-                k.busy = False
-            exploration = k.exploration_id
-        if idle and exploration is not None and self._on_idle is not None:
-            try:
-                self._on_idle(exploration)
-            except Exception:  # noqa: BLE001 - a hook must not stop the recorder
-                log.exception("the idle hook failed")
 
     # -- small helpers --------------------------------------------------------------------------
 

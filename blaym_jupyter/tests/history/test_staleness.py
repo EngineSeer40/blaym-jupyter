@@ -14,7 +14,8 @@ import uuid
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from blaym_jupyter.history import Rebuilder, reference_rebuild, reference_replay_all
+from blaym_jupyter.history import Rebuilder
+from blaym_jupyter.tests.history.reference import reference_rebuild, reference_replay_all
 from blaym_jupyter.tests.history.conftest import DEEP, MAX_EVENTS
 from blaym_jupyter.tests.history.generate import histories
 from blaym_jupyter.tests.history.scenario import Scenario

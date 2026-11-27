@@ -33,7 +33,7 @@ export function defaultIsAiProvider(id: string): boolean {
 }
 
 /**
- * Author signals for JupyterLab (S5-L): the AI tool commands, and accepting an inline
+ * Author signals for JupyterLab: the AI tool commands, and accepting an inline
  * suggestion from an AI provider. The command runs in the tab that made the edit.
  * Anything else (a person typing, a provider that is not AI) sends no signal.
  */

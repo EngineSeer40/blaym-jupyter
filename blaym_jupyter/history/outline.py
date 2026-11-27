@@ -1,8 +1,7 @@
-"""The history outline, made from recorded events (S3b, Task 2).
+"""The history outline, made from recorded events.
 
 The outline is the shape of a history without any notebook content: each branch, its
-parent and branch point, the ticks of its own events and the runs on it. Navigation
-(S3b) uses it to step and place positions; it can always be rebuilt from the events.
+parent and branch point, the ticks of its own events and the runs on it. Navigation uses it to step and place positions; it can always be rebuilt from the events.
 
 It reuses `EventLog` (what is missing, conflicting or clashing) and `Lineage` (each
 branch's own ticks and branch point) and never re-derives their rules. Only ticks

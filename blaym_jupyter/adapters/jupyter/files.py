@@ -1,4 +1,4 @@
-"""Changes to notebook files from outside Jupyter (S5, Task 18): the file watcher and the save step.
+"""Changes to notebook files from outside Jupyter: the file watcher and the save step.
 
 Telling the editor's saves from other writers: Jupyter's contents manager runs registered
 pre-save and post-save hooks around its own write (`register_pre_save_hook` and
@@ -27,6 +27,7 @@ from blaym_jupyter.recording.outside import (
     NotebookParseError,
     OutsideChangeDetector,
     TipCell,
+    choose_mode,
     content_hash,
     parse_notebook,
 )
@@ -38,19 +39,6 @@ SAVE_STALE_MS = 15_000  # a save whose post hook never came (the save failed) st
 
 # (cell revisions, tip cells); the tip is None while the notebook has no recorded history yet
 StateSource = Callable[[str], "tuple[dict[str, int], Optional[list[TipCell]]]"]
-
-
-def choose_mode(base_dir: Path, *, force: Optional[str] = None) -> tuple[str, str]:
-    """(`watchdog` or `polling`, why)."""
-    if force == "polling":
-        return "polling", "polling was asked for"
-    if str(base_dir.resolve()).startswith("/mnt/"):
-        return "polling", "files under /mnt have no change events; checking every 2 seconds"
-    try:
-        import watchdog.observers  # noqa: F401
-    except ImportError:
-        return "polling", "watchdog is not installed; checking every 2 seconds"
-    return "watchdog", "watching for changes"
 
 
 class FileWatcher:
@@ -283,11 +271,11 @@ class FileWatcher:
 def host_state_source(host: Any) -> StateSource:
     """Cell revisions and the tip's cells from the host's service (the tip is None before any
     history exists)."""
-    from .host import ServiceProbe
+    from blaym_jupyter.api.bound import ServiceProbe
 
     def source(nb_id: str):
         probe = ServiceProbe(host.service, host.credential())
-        state = probe._tip(nb_id)  # noqa: SLF001 - the one reader of the tip
+        state = probe.tip(nb_id)
         if state is None:
             return {}, None
         tip = []
@@ -299,10 +287,11 @@ def host_state_source(host: Any) -> StateSource:
 
 
 def install_file_watcher(server_app: Any, host: Any) -> FileWatcher:
-    from blaym_jupyter.local import SystemClock
+    from blaym_jupyter.ports.clock import SystemClock
+    from blaym_jupyter.recording.ids import RandomIds
+    from blaym_jupyter.recording.scheduler import ThreadScheduler
 
-    from .host import SERVER_EDITOR, RandomIds
-    from .scheduler import ThreadScheduler
+    from .host import SERVER_EDITOR
 
     ids = RandomIds()
     detector = OutsideChangeDetector(SystemClock(), ids, editor=SERVER_EDITOR, origin_id="blaym-files",

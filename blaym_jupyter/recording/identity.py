@@ -1,4 +1,4 @@
-"""Notebook identity: which known record, if any, a registering notebook is (S5-I).
+"""Notebook identity: which known record, if any, a registering notebook is.
 
 Pure. nbformat 4.5 and newer notebooks match by the overlap of their stable cell ids (these
 survive copy and rename). Older notebooks have no stable ids, so they match only by an exact

@@ -1,4 +1,4 @@
-"""Sign-in check implementations (S4, decision I)."""
+"""Sign-in check implementations."""
 
 from __future__ import annotations
 

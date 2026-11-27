@@ -50,7 +50,7 @@ function lisIndexes(seq: number[]): Set<number> {
 
 /**
  * Keeps the last recorded model of the notebook and, given the editor's view
- * after any change, returns what changed (S5-K). A move or a type change is
+ * after any change, returns what changed. A move or a type change is
  * seen as the same cell id with a new place or type, never as a delete plus an
  * insert. Whole-notebook changes give `resync`: the owner then sends a
  * snapshot and calls `reset`. Outputs alone are never a change: the server

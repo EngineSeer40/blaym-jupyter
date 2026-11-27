@@ -28,11 +28,10 @@ class BlaymConfig(Configurable):
              "blobGzipLevel). Unset names keep the defaults.",
     ).tag(config=True)
 
-    run_link_wait_ms = Int(5_000, help="How long a run waits for its code to arrive (S5-D).").tag(config=True)
+    run_link_wait_ms = Int(5_000, help="How long a run waits for its code to arrive.").tag(config=True)
     run_link_max_wait_ms = Int(30_000, help="The same wait while a browser is known to be alive.").tag(config=True)
     alive_window_ms = Int(90_000, help="A recorder instance heard within this window is alive.").tag(config=True)
     reply_grace_ms = Int(10_000, help="How long output is accepted after a run's reply.").tag(config=True)
-    heartbeat_ms = Int(15_000, help="How often the browser recorder calls the heartbeat (told to it, not used here).").tag(config=True)
     max_queued_events = Int(1_000, help="Bound on events queued for writing.").tag(config=True)
     max_pending_blob_mb = Int(64, help="Bound on blob bytes queued for writing, in MB.").tag(config=True)
     max_held_messages = Int(1_000, help="Bound on kernel messages held for a run that waits for its code.").tag(config=True)

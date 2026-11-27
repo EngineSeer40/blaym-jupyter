@@ -13,15 +13,15 @@ export interface AuthorOptions {
   scheduler: Scheduler;
   /** Called to end the open typing step of a cell (or all cells when no id). */
   boundary: (cellId?: string) => void;
-  /** Half width of the match window around a change (S5-L); default 250 ms. */
+  /** Half width of the match window around a change; default 250 ms. */
   windowMs?: number;
   /** How long a signal is kept for late matching; default 60 s. */
   keepMs?: number;
 }
 
 /**
- * Authorship marking, retroactive and behind an interface (S5-L). A change has
- * `authorHint: unknown` and no confidence (O2) unless a signal lies within
+ * Authorship marking, retroactive and behind an interface. A change has
+ * `authorHint: unknown` and no confidence unless a signal lies within
  * `[t - window, t + window]` of it; then it carries the signal's kind and
  * confidence. A signal forces a step boundary when it arrives and again once
  * its window has passed, so a person's typing never merges into an AI step.

@@ -1,4 +1,4 @@
-"""The Jupyter host (S5, Task 9): builds the recording parts once per server start.
+"""The Jupyter host: builds the recording parts once per server start.
 
 The service (with start-up recovery, because this process owns recording), the notebook
 registry over its folder store, the ordered sink, the run recorder and a scheduler, wired in
@@ -11,33 +11,24 @@ from __future__ import annotations
 
 import logging
 import threading
-import uuid
 from pathlib import Path
-from typing import Any, Callable, Iterable
-
-from blaym_jupyter_types import (
-    IngestRequest,
-    IngestResponse,
-    OpenGap,
-    OutlineRequest,
-    PutBlobResponse,
-    ResolveCellRevisionRequest,
-    ResolveCellRevisionResponse,
-    StateAtRequest,
-)
+from typing import Any, Callable
 
 from blaym_jupyter.api import Recording
-from blaym_jupyter.local import SystemClock, open_service
+from blaym_jupyter.api.bound import BoundIngestor, ServiceProbe
+from blaym_jupyter.local import open_service
+from blaym_jupyter.ports.clock import SystemClock
+from blaym_jupyter.recording.ids import RandomIds
 from blaym_jupyter.recording.outputs import OutputLimits
 from blaym_jupyter.recording.registry import Registry
 from blaym_jupyter.recording.registry_store import FolderRegistryStore
 from blaym_jupyter.recording.runs import RunRecorder
+from blaym_jupyter.recording.scheduler import ThreadScheduler
 from blaym_jupyter.recording.sink import OrderedSink
 from blaym_jupyter.service.core import Service
 
 from .auth import Credential, JupyterAuthorizer
 from .config import BlaymConfig
-from .scheduler import ThreadScheduler
 
 log = logging.getLogger("blaym_jupyter.host")
 
@@ -45,67 +36,6 @@ log = logging.getLogger("blaym_jupyter.host")
 # (the lease is per editor), with an instance id no browser uses.
 SERVER_EDITOR = "jupyterlab"
 SERVER_INSTANCE_ID = "blaym-server"
-
-
-class RandomIds:
-    """Random ids for notebook records (never a hash of a path)."""
-
-    def new(self) -> str:
-        return uuid.uuid4().hex
-
-
-class BoundIngestor:
-    """The service with the credential bound: the `Ingestor` of the in-process recorders."""
-
-    def __init__(self, service: Service, credential: Credential):
-        self._s, self._c = service, credential
-
-    def ingest(self, request: IngestRequest) -> IngestResponse:
-        return self._s.ingest(self._c, request)
-
-    def put_blob(self, exploration_id: str, data: bytes | Iterable[bytes]) -> PutBlobResponse:
-        return self._s.put_blob(self._c, exploration_id, data)
-
-    def resolve_cell_revision(self, request: ResolveCellRevisionRequest) -> ResolveCellRevisionResponse:
-        return self._s.resolve_cell_revision(self._c, request)
-
-    def cell_revisions(self, exploration_id: str) -> dict[str, int]:
-        return self._s.cell_revisions(self._c, exploration_id)
-
-
-class ServiceProbe:
-    """The heartbeat's view of committed state (`StateProbe`), read from the service.
-
-    The branch read is the one holding the newest tick: until branch switching exists (S8) that is
-    the branch being recorded."""
-
-    def __init__(self, service: Service, credential: Credential):
-        self._s, self._c = service, credential
-
-    def _tip(self, exploration_id: str):
-        outline = self._s.outline(self._c, OutlineRequest(explorationId=exploration_id))
-        if outline is None:
-            return None
-        branch = next((b.branchId for b in outline.branches
-                       if b.ownTicks and max(t.root for t in b.ownTicks) == outline.highestTick),
-                      outline.rootBranchId)
-        result = self._s.state_at(self._c, StateAtRequest(
-            explorationId=exploration_id, branchId=branch, tick=outline.highestTick))
-        return getattr(result, "state", None)
-
-    def runs_open(self, exploration_id: str) -> int:
-        state = self._tip(exploration_id)
-        return 0 if state is None else sum(1 for r in state.runs if r.status.root == "running")
-
-    def cell_revisions(self, exploration_id: str) -> dict[str, int]:
-        return self._s.cell_revisions(self._c, exploration_id)
-
-    def open_gaps(self, exploration_id: str) -> list[OpenGap]:
-        state = self._tip(exploration_id)
-        if state is None:
-            return []
-        return [OpenGap(gapId=g.gapId, source=g.source, reason=g.reason)
-                for g in state.gaps if g.endedTick is None]
 
 
 class BlaymHost:
@@ -135,7 +65,7 @@ class BlaymHost:
             limits = OutputLimits.from_contract(config.store_limits())
             self.run_recorder = RunRecorder(
                 ingestor, self.sink, clock, self.scheduler, RandomIds(), registry=self.registry,
-                settings=config.run_settings(), limits=limits, on_idle=self.sink.on_idle)
+                settings=config.run_settings(), limits=limits)
             self.recording = Recording(self.service, self.registry, limits)
             self.registry.scan(lambda p: (base / p).exists())
         except BaseException:

@@ -1,4 +1,4 @@
-"""Branch index and line resolution (S3a, Task 5; rule 2).
+"""Branch index and line resolution.
 
 Built from the log's events. Follows the same rules as the reference: a branch
 point only counts as the first event of its branch; every non-root branch must

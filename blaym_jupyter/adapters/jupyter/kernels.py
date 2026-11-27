@@ -1,4 +1,4 @@
-"""The kernel adapter (S5, Task 10): turns what Jupyter's kernels do into the run recorder's inputs.
+"""The kernel adapter: turns what Jupyter's kernels do into the run recorder's inputs.
 
 Three observations, none of which alters or delays traffic or lets an error reach the kernel
 connection (ADR 0003, S1):
@@ -13,7 +13,7 @@ connection (ADR 0003, S1):
   shell `execute_reply` going out to that client. IOPub clients cannot see replies, so a run whose
   browser is away ends on the idle status plus `reply_grace_ms`.
 * **`jupyter_events` `kernel_actions`**: `start` (name and language from the kernelspec),
-  `restart` (`kernel_restarted`, reason `unknown`, S5-N), `shutdown`.
+  `restart` (`kernel_restarted`, reason `unknown`), `shutdown`.
 
 Threads and tasks: none of our own besides, per kernel, one asyncio task pumping its IOPub client
 and one asyncio task (the "lane") that applies items in order. Everything arrives in the event loop
@@ -44,6 +44,7 @@ from jupyter_server.services.kernels.connection.base import (
 )
 
 from blaym_jupyter.recording.ports import Clock, Ids
+from blaym_jupyter.recording.runs import approx_size
 from blaym_jupyter.recording.sink import PendingWrite
 
 from .binding import KernelBindings
@@ -56,22 +57,6 @@ _KEEP_CONTENT = ("stream", "display_data", "update_display_data", "execute_resul
 
 
 _OUTPUT_TYPES = ("stream", "display_data", "update_display_data", "execute_result", "error")
-
-
-def _approx(value: Any) -> int:
-    """A cheap size estimate of a message content (lengths of strings and bytes, 8 for the rest)."""
-    total, stack = 0, [value]
-    while stack:
-        v = stack.pop()
-        if isinstance(v, (str, bytes)):
-            total += len(v)
-        elif isinstance(v, dict):
-            stack.extend(v.values())
-        elif isinstance(v, (list, tuple)):
-            stack.extend(v)
-        else:
-            total += 8
-    return total
 
 
 @dataclass(frozen=True)
@@ -201,7 +186,7 @@ class KernelAdapter:
             self._lane(kernel_id)
 
     def note_rename(self, old: str, new: str) -> None:
-        """The notebook moved (Task 17 calls this): its kernels follow it."""
+        """The notebook moved (called on a rename): its kernels follow it."""
         self._bindings.rename_path(old, new)
 
     async def on_event(self, logger: Any, schema_id: str, data: dict) -> None:
@@ -247,7 +232,7 @@ class KernelAdapter:
         items, `status`, `execute_input` and replies are always queued (they are small)."""
         size = 0
         if item[0] == "iopub" and item[3] in _OUTPUT_TYPES and item[4] is not None:
-            size = _approx(item[4])
+            size = approx_size(item[4])
             if lane.queued_msgs + 1 > self._max_msgs or lane.queued_bytes + size > self._max_bytes:
                 self.stats["output_dropped_overflow"] += 1
                 if not lane.flood_gap:
@@ -304,7 +289,7 @@ class KernelAdapter:
         """Read the client's IOPub messages into the lane's queue, in order.
 
         A ZMQ subscriber that has just connected loses what the kernel publishes before the
-        subscription is in place (found in the Task 10 tests: the first run after a kernel start,
+        subscription is in place (found in tests: the first run after a kernel start,
         and every run after a restart, came through empty). So the pump first proves the
         subscription by asking the kernel for `kernel_info` on its own shell channel and waiting
         for the `idle` status of that request on IOPub, asking again every 250 ms until it comes.
@@ -395,7 +380,7 @@ class KernelAdapter:
             self._close_gap(lane, ops)
             if not lane.warm and lane.client is not None:
                 # the IOPub subscription is not proven yet (a kernel only just started or restarted):
-                # this run's first messages may be lost, so say so (a closed point gap, S5-R)
+                # this run's first messages may be lost, so say so (a closed point gap)
                 self.stats["runs_before_warm"] += 1
                 self._point_gap(binding.notebook_id, ops)
             ops.append(partial(self._rec.run_requested, kid, binding.notebook_id, request.msg_id,
@@ -514,9 +499,8 @@ def install_kernel_adapter(server_app: Any, host: Any) -> KernelAdapter:
     runs `await adapter.close()` when the kernels have stopped and before `host.close()`."""
     from tornado.ioloop import IOLoop
 
-    from blaym_jupyter.local import SystemClock
-
-    from .host import RandomIds
+    from blaym_jupyter.ports.clock import SystemClock
+    from blaym_jupyter.recording.ids import RandomIds
 
     existing = server_app.web_app.settings.get("blaym_kernels")
     if existing is not None:  # a second call must not wrap the class or add a listener again

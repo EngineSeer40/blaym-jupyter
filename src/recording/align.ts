@@ -22,7 +22,7 @@ export interface Alignment {
 }
 
 /**
- * Page-open alignment for a notebook with unstable ids (S5-U): first the cells
+ * Page-open alignment for a notebook with unstable ids: first the cells
  * with the same type and exact source, in order (a longest common subsequence),
  * then, between those anchors, the remaining cells of the same type by
  * position. A cell is never matched twice.

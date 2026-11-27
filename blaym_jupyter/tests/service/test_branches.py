@@ -9,7 +9,8 @@ import random
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from blaym_jupyter.history import build_outline, reference_rebuild
+from blaym_jupyter.history import build_outline
+from blaym_jupyter.tests.history.reference import reference_rebuild
 from blaym_jupyter_types import OutlineRequest, RebuildOk, SetActiveBranchRequest
 
 from blaym_jupyter.privacy.redact import redact_event

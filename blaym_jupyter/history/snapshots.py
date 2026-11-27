@@ -1,9 +1,9 @@
-"""In-memory snapshot cache (S3a, Task 5; plan 8.2).
+"""In-memory snapshot cache.
 
 A snapshot at `(branch, tick)` is the state after applying the event at `tick`
 on the line that ends in that branch. States are copied when stored and copied again
 when a walk starts from one, so a stored state is never changed. Snapshots are only a
-shortcut (rule 8): any change to the log that could alter a state drops it.
+shortcut: any change to the log that could alter a state drops it.
 """
 
 from __future__ import annotations

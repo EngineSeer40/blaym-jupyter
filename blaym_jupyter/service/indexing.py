@@ -1,4 +1,4 @@
-"""What is worth indexing (S4, Task 8, decision J): a pure function from an event to documents.
+"""What is worth indexing: a pure function from an event to documents.
 
 No store, no port, no clock. `state_after` is the rebuilt state on the event's own branch line
 after the event; `needs_state` says which events want it (`run_started`, and `cell_source_changed` when
@@ -15,6 +15,7 @@ Markdown and raw cells are not indexed as code.
 from __future__ import annotations
 
 from blaym_jupyter.ports.search import SearchDocument
+from blaym_jupyter.privacy.kinds import WHOLE_NOTEBOOK_KINDS
 from blaym_jupyter.privacy.redact import MARKER_RE
 
 TEXT_LIMIT = 65536
@@ -22,7 +23,7 @@ TEXT_LIMIT = 65536
 
 def needs_state(event, index_every_edit: bool = False) -> bool:
     """Whether `documents_for` wants the rebuilt state for this event."""
-    if event.type in ("notebook_snapshot", "changed_outside_editor"):  # which of its outputs the state took
+    if event.type in WHOLE_NOTEBOOK_KINDS:  # which of its outputs the state took
         return any(cell.outputs for cell in event.payload.cells)
     return event.type == "run_started" or (index_every_edit and event.type == "cell_source_changed")
 
@@ -117,7 +118,7 @@ def documents_for(event, state_after, *, index_every_edit: bool = False,
             cell = next((c for c in state_after.notebook.cells if c.cellId == p.cellId), None)
             if cell is not None:
                 add_code(p.code, cell.cellType)
-    elif kind in ("notebook_snapshot", "changed_outside_editor"):
+    elif kind in WHOLE_NOTEBOOK_KINDS:
         taken = None
         if state_after is not None:
             taken = {c.cellId: c.outputs for c in state_after.notebook.cells}

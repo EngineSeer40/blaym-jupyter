@@ -1,4 +1,4 @@
-"""The timeline index (S5, Task 11): a pure function from one stored event to its timeline entry.
+"""The timeline index: a pure function from one stored event to its timeline entry.
 
 No store, no lock, no clock. Chart and table kinds come from the output item's mime types, the
 same rule search indexing uses (`indexing.output_kind`).

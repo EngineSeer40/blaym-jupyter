@@ -11,7 +11,7 @@ import random
 
 import pytest
 
-from blaym_jupyter.history import reference_rebuild, reference_replay_all
+from blaym_jupyter.tests.history.reference import reference_rebuild, reference_replay_all
 from blaym_jupyter.tests.history.scenario import Scenario
 
 

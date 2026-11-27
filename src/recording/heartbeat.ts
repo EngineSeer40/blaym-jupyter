@@ -28,7 +28,7 @@ export interface HeartbeatOptions {
 }
 
 /**
- * The recorder's heartbeat (S5-S): `status` every `heartbeatMs` (15 s) and right
+ * The recorder's heartbeat: `status` every `heartbeatMs` (15 s) and right
  * after register. It reacts to `needsRegister` (register again), `needsResync`,
  * `active` (a recorder that becomes active resyncs) and `openGaps` (the gaps
  * the browser opened are closed once its snapshot is out). `close()` ends it

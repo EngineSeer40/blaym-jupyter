@@ -2,25 +2,17 @@
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 from typing import Any
 
 from blaym_jupyter_types import StoreLimits
 
 from blaym_jupyter.ports.auth import Authorizer
+from blaym_jupyter.ports.clock import SystemClock
 from blaym_jupyter.service.core import Service
 from blaym_jupyter.store.blobs import FileBlobStore
 from blaym_jupyter.store.events import SqliteEventStore
 from blaym_jupyter.store.search import SqliteSearchIndex
-
-
-class SystemClock:
-    def now_ms(self) -> int:
-        return int(time.time() * 1000)
-
-    def sleep(self, seconds: float) -> None:
-        time.sleep(seconds)
 
 
 def open_service(

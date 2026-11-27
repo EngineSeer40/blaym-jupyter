@@ -1,7 +1,7 @@
 import type { Ids } from './types';
 
 /**
- * Cell identity during one page open (S5-U). With stable ids (nbformat 4.5 or
+ * Cell identity during one page open. With stable ids (nbformat 4.5 or
  * newer) the editor's id is the Blaym id and nothing is translated. Otherwise a
  * translation table maps the editor's temporary id to the Blaym id where they
  * differ; a cell the page creates keeps its own id as the Blaym id.

@@ -1,4 +1,4 @@
-"""The one-recorder lease (S4, Task 7, decision H).
+"""The one-recorder lease.
 
 One editor at a time records a notebook; its tabs (instances) share the lease. The lease is
 in memory only: it is lost when the process stops, and the next request from an editor

@@ -1,4 +1,4 @@
-"""The service: every rule between a recorder and the store (S4, Task 6).
+"""The service: every rule between a recorder and the store.
 
 Built from ports only (an `EventStore`, a `BlobStore`, an `Authorizer`, a `Clock`); it knows
 nothing of SQLite, files or any web framework. It covers ingest, blobs, state, outline,
@@ -13,7 +13,7 @@ Public calls take the `credential` first and check it before touching anything.
 such outcome. `ingest` raises `ServiceBusy` when the store stays locked after the retries; the
 exception carries the outcomes of the events that were already committed.
 
-Rules in one place (decisions B, C, F, G of the spec):
+Rules in one place:
 
 * redaction comes first, then the size rules (a chat body over `chatMessageMaxBytes` is cut and
   ends with `[truncated: N bytes not stored]`; every preview and searchText is cut to its limit;
@@ -797,7 +797,7 @@ class Service:
             nextTick=next_tick)
 
     def resolve_cell_revision(self, credential: Any, request: ResolveCellRevisionRequest) -> ResolveCellRevisionResponse:
-        """Which committed revision of a cell held this code (S5-D). Reads the committed revision
+        """Which committed revision of a cell held this code. Reads the committed revision
         index only; never raises for an unknown history."""
         self._require(credential)
         exp = self._exp(request.explorationId)

@@ -28,7 +28,7 @@ from typing import Callable
 
 from blaym_jupyter_types import BlaymEvent
 
-from blaym_jupyter.history.reference import reference_rebuild
+from blaym_jupyter.tests.history.reference import reference_rebuild
 
 NAMESPACE = uuid.UUID("5c1f0a6e-0000-4000-8000-00000000b1a7")
 EXPLORATION = "exploration-1"

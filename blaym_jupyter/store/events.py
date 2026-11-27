@@ -1,4 +1,4 @@
-"""The SQLite event store (S4, Task 2). Implements `ports.EventStore`.
+"""The SQLite event store. Implements `ports.EventStore`.
 
 Events are kept as plain JSON of the contract in `body` (the authority); the other
 columns only make reading cheap. Ticks are `MAX(tick) + 1` taken inside the write
@@ -23,7 +23,7 @@ from blaym_jupyter.ports.events import (
     InvalidEvent,
 )
 
-from .db import open_database, translate_busy
+from .db import immediate, open_database, translate_busy
 
 
 def _parse(text: str):
@@ -58,15 +58,8 @@ class SqliteEventStore:
                 raise InvalidEvent(f"event belongs to {ev.explorationId}, not {exploration_id}")
             parsed.append(ev)
         with self._lock:
-            conn = self._conn
-            conn.execute("BEGIN IMMEDIATE")
-            try:
-                stored = self._write(conn, exploration_id, parsed, branches, active_branch_id)
-                conn.execute("COMMIT")
-            except BaseException:
-                conn.execute("ROLLBACK")
-                raise
-            return stored
+            with immediate(self._conn) as conn:
+                return self._write(conn, exploration_id, parsed, branches, active_branch_id)
 
     def _write(self, conn, exploration_id, parsed, branches, active_branch_id):
         if parsed and conn.execute(
@@ -129,14 +122,8 @@ class SqliteEventStore:
 
     def set_active_branch(self, exploration_id, branch_id) -> None:
         with self._lock:
-            conn = self._conn
-            conn.execute("BEGIN IMMEDIATE")
-            try:
+            with immediate(self._conn) as conn:
                 self._set_active(conn, exploration_id, branch_id)
-                conn.execute("COMMIT")
-            except BaseException:
-                conn.execute("ROLLBACK")
-                raise
 
     # -- reads --------------------------------------------------------------------
 

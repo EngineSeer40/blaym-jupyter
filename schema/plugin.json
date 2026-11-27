@@ -18,46 +18,12 @@
       "default": 5000,
       "minimum": 500
     },
-    "aiWindowMs": {
-      "type": "integer",
-      "title": "AI match window (ms)",
-      "description": "How close an AI action must be to a change to mark it as made by the AI.",
-      "default": 250,
-      "minimum": 0
-    },
     "heartbeatMs": {
       "type": "integer",
       "title": "Heartbeat (ms)",
       "description": "How often the page tells the server that it is still recording. Applies when the notebook is next opened.",
       "default": 15000,
       "minimum": 1000
-    },
-    "retryFirstMs": {
-      "type": "integer",
-      "title": "First retry delay (ms)",
-      "description": "Delay before the first retry when the server does not answer; doubles up to the longest delay. Applies when the notebook is next opened.",
-      "default": 500,
-      "minimum": 100
-    },
-    "retryMaxMs": {
-      "type": "integer",
-      "title": "Longest retry delay (ms)",
-      "default": 8000,
-      "minimum": 500,
-      "description": "Retry delay. Applies when the notebook is next opened."
-    },
-    "runWaitMs": {
-      "type": "integer",
-      "title": "Wait for a run's code (ms)",
-      "description": "How long the server waits for the code of a run to arrive.",
-      "default": 5000,
-      "minimum": 500
-    },
-    "runWaitAliveMs": {
-      "type": "integer",
-      "title": "Wait for a run's code while the page is alive (ms)",
-      "default": 30000,
-      "minimum": 500
     }
   },
   "additionalProperties": false

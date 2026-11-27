@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from hypothesis import given, settings, strategies as st
 
-from blaym_jupyter.history import apply, reference_all, reference_rebuild, reference_replay_all
-from blaym_jupyter.history.reference import _replay_all_clean
+from blaym_jupyter.history.apply import apply
+from blaym_jupyter.tests.history.reference import reference_all, reference_rebuild, reference_replay_all
+from blaym_jupyter.tests.history.reference import _replay_all_clean
 from blaym_jupyter.tests.history.conftest import DEEP, MAX_EVENTS
 from blaym_jupyter.tests.history.generate import deliveries, histories, invalid_histories
 from blaym_jupyter.tests.history.scenario import Scenario

@@ -29,7 +29,6 @@ def test_a_run_writes_started_outputs_finished_in_order_with_the_kernels_count()
     assert started["payload"] == {"runId": "r1", "cellId": "c1", "cellRevision": 4, "runCount": 7}
     assert started["links"] == {"cellId": "c1", "runId": "r1", "cellRevision": 4}
     assert finished(r, "r1")[0]["payload"]["status"] == "ok"
-    assert r.idle == [EXP]  # the kernel has no run left
 
 
 def test_a_run_whose_code_never_arrives_writes_one_closed_point_gap_and_nothing_else():
@@ -48,7 +47,6 @@ def test_a_run_whose_code_never_arrives_writes_one_closed_point_gap_and_nothing_
     assert r.types() == ["recording_gap_started", "recording_gap_ended"]
     assert r.rec.stats["runs_dropped_timeout"] == 1 and r.rec.stats["late_messages"] == 1
     assert r.t.pending() == 0
-    assert r.idle == [EXP]
 
 
 def test_run_all_keeps_request_order_when_the_first_code_arrives_after_the_second():
@@ -96,7 +94,6 @@ def test_kernel_gone_finishes_started_runs_as_interrupted_and_drops_waiting_ones
     assert r.rec.stats["runs_dropped_restart"] == 1
     assert r.t.pending() == 0
     r.msg("r1", "stream", {"name": "stdout", "text": "x"}, kernel="k1")  # a fresh unknown kernel; nothing breaks
-    assert r.idle == [EXP]
 
 
 @pytest.mark.parametrize("reply,code_known,reply_before_request", [("aborted", True, True), ("abort", False, False)])
@@ -128,7 +125,7 @@ def test_run_all_with_an_error_writes_nothing_for_skipped_cells_and_does_not_del
     assert [(e["type"], e["payload"]["runId"]) for e in r.sink.events()] == [
         ("run_started", "r1"), ("run_finished", "r1"), ("run_started", "r3"), ("run_finished", "r3")]
     assert r.rec.stats["skipped_runs"] == 1 and r.rec.stats["count_fallbacks"] == 0
-    assert r.rec.stats["point_gaps"] == 0 and r.idle and r.t.pending() == 0
+    assert r.rec.stats["point_gaps"] == 0 and r.t.pending() == 0
 
 
 def test_output_and_idle_arriving_after_execute_reply_are_all_recorded_before_run_finished():

@@ -1,4 +1,4 @@
-"""The SQLite connection, WAL, schema and store version (S4, Task 2).
+"""The SQLite connection, WAL, schema and store version.
 
 Layout of the store root: `<root>/metadata.sqlite3` (this database). Events are the only
 authority; every other table is bookkeeping. Nothing here updates or deletes an event.
@@ -7,6 +7,7 @@ authority; every other table is bookkeeping. Nothing here updates or deletes an 
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 
 STORE_VERSION = 1
@@ -68,6 +69,18 @@ CREATE TABLE settings_applied (
     settings   TEXT NOT NULL
 );
 """
+
+
+@contextmanager
+def immediate(conn: sqlite3.Connection):
+    """One write transaction: BEGIN IMMEDIATE, then COMMIT, or ROLLBACK if the body raises."""
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        yield conn
+        conn.execute("COMMIT")
+    except BaseException:
+        conn.execute("ROLLBACK")
+        raise
 
 
 class StoreVersionError(RuntimeError):

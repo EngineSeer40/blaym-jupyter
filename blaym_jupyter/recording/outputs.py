@@ -1,4 +1,4 @@
-"""Neutral output building (S5, decision E): the one place outputs become `OutputItem`s.
+"""Neutral output building: the one place outputs become `OutputItem`s.
 
 Two parts:
 

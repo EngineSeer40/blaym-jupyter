@@ -1,4 +1,4 @@
-"""Search text for rich outputs (S5, Task 5): pure extractors, never raising.
+"""Search text for rich outputs: pure extractors, never raising.
 
 Plotly: layout title, axis titles, series names. Vega-Lite: title and field names.
 Data resource (tables): column names. HTML tables: header cells and captions. The text is

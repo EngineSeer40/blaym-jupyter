@@ -1,9 +1,10 @@
-"""SQLite FTS5 search index in `<root>/search.sqlite3` (S4, Task 8; decision J).
+"""SQLite FTS5 search index in `<root>/search.sqlite3`.
 
 A separate file from the history database: it is derived data, and deleting it loses
 nothing that `Service.rebuild_search` cannot restore. Two FTS5 tables: `code_fts` uses the
 `trigram` tokenizer (partial matches inside identifiers, like `resid` in `residuals`);
-`text_fts` uses `unicode61` for chat and output text (words, the last one matched as a prefix). Imports only ports, contracts, stdlib.
+`text_fts` uses `unicode61` for chat and output text (whole words, the last one matched as
+a prefix). Imports the ports, the contracts, `store.db` and the standard library.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from blaym_jupyter_types import SearchHit
 
 from blaym_jupyter.ports.search import WORD_RE, SearchDocument, plain_snippet
 
-from .db import translate_busy
+from .db import immediate, translate_busy
 
 INDEX_NAME = "search.sqlite3"
 _COLUMNS = "text, exploration_id UNINDEXED, branch_id UNINDEXED, tick UNINDEXED, kind UNINDEXED"
@@ -51,28 +52,18 @@ class SqliteSearchIndex:
         docs = list(documents)
         if not docs:
             return
-        self._conn.execute("BEGIN IMMEDIATE")
-        try:
+        with immediate(self._conn) as conn:
             for d in docs:
                 table = "code_fts" if d.kind == "code" else "text_fts"
-                self._conn.execute(
+                conn.execute(
                     f"INSERT INTO {table}(text, exploration_id, branch_id, tick, kind) VALUES (?,?,?,?,?)",
                     (d.text, d.exploration_id, d.branch_id, int(d.tick), d.kind))
-            self._conn.execute("COMMIT")
-        except BaseException:
-            self._conn.execute("ROLLBACK")
-            raise
 
     @translate_busy
     def remove_exploration(self, exploration_id: str) -> None:
-        self._conn.execute("BEGIN IMMEDIATE")
-        try:
+        with immediate(self._conn) as conn:
             for table in ("code_fts", "text_fts"):
-                self._conn.execute(f"DELETE FROM {table} WHERE exploration_id = ?", (exploration_id,))
-            self._conn.execute("COMMIT")
-        except BaseException:
-            self._conn.execute("ROLLBACK")
-            raise
+                conn.execute(f"DELETE FROM {table} WHERE exploration_id = ?", (exploration_id,))
 
     @translate_busy
     def query(self, exploration_id: str, text: str, kinds: Iterable[str] | None = None,

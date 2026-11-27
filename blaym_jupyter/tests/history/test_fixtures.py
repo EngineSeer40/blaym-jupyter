@@ -13,7 +13,8 @@ from pathlib import Path
 
 from blaym_jupyter_types import BlaymEvent, RebuildResult
 
-from blaym_jupyter.history import Rebuilder, reference_rebuild
+from blaym_jupyter.history import Rebuilder
+from blaym_jupyter.tests.history.reference import reference_rebuild
 
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "fixtures" / "rebuild"
 NAMES = sorted(p.stem for p in FIXTURE_DIR.glob("*.json"))

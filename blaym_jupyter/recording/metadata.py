@@ -1,4 +1,4 @@
-"""The metadata policy (S5, decision Q): what of a notebook's or cell's own metadata is not recorded.
+"""The metadata policy: what of a notebook's or cell's own metadata is not recorded.
 
 One data file decides (`fixtures/recorder/metadata-policy.json`, shared with the TypeScript
 applier); this module only applies it. Pure: the input is never changed, the result is

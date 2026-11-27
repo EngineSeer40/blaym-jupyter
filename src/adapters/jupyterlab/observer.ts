@@ -139,11 +139,11 @@ export interface ObserverDeps {
   policy: MetadataPolicy;
   sha256Hex(text: string): Promise<string>;
   settings?: ObserverSettings;
-  /** Task 19: the author signals (default: none). */
+  /** The author signals (default: none). */
   signals?: AuthorSignals;
-  /** The switching flag (S5-P): never set in S5; read at event time. */
+  /** The switching flag: not yet set; read at event time. */
   switching?: () => boolean;
-  /** Task 16 seams. */
+  /** Seams for the status and the toggle. */
   onState?: (state: ObserverState) => void;
   onReport?: (report: OutboxReport) => void;
   onStatus?: (status: NotebookStatus) => void;
@@ -240,7 +240,7 @@ export class NotebookObserver {
     await this.heartbeat?.start();
   }
 
-  /** A tab that lost the election takes over when the holder goes away (S5-J). */
+  /** A tab that lost the election takes over when the holder goes away. */
   private async waitForTakeover(notebookId: string): Promise<void> {
     const won = (await this.deps.election.takeover?.(notebookId)) ?? false;
     if (this.disposed) {
@@ -512,7 +512,7 @@ export class NotebookObserver {
     }
   };
 
-  /** An outgoing `execute_request` (S5-K): the code about to run is flushed first. */
+  /** An outgoing `execute_request`: the code about to run is flushed first. */
   private beforeRun(modelCellId: unknown): void {
     if (!this.recordingOn || !this.grouper) {
       return;
@@ -716,7 +716,7 @@ export class NotebookObserver {
     }
   }
 
-  /** Page-open alignment with the recorded tip (S5-U), then the aliases go to the server. */
+  /** Page-open alignment with the recorded tip, then the aliases go to the server. */
   private async align(): Promise<void> {
     const status = this.lastStatus as NotebookStatus;
     const tip = (await this.deps.transport.tip?.(status.notebookId)) ?? [];
@@ -738,7 +738,7 @@ export class NotebookObserver {
    * rejections are handled by the outbox itself (retry or a fresh snapshot).
    */
   private onReport(r: OutboxReport): void {
-    if (r.kind === 'held' || r.kind === 'dropped') {
+    if (r.kind === 'dropped') {
       this.gaps?.open('unknown');
     } else if (r.kind === 'snapshot_accepted') {
       this.gaps?.closeAll(!this.goingOff);

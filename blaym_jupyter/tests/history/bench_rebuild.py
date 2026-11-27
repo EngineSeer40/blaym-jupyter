@@ -15,7 +15,8 @@ import random
 import statistics
 import time
 
-from blaym_jupyter.history import Rebuilder, reference_rebuild
+from blaym_jupyter.history import Rebuilder
+from blaym_jupyter.tests.history.reference import reference_rebuild
 from blaym_jupyter.tests.history.scenario import Scenario
 
 TARGET_EVENTS = 8000

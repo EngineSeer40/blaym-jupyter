@@ -11,7 +11,8 @@ from __future__ import annotations
 import pytest
 from hypothesis import given, settings, strategies as st
 
-from blaym_jupyter.history import Rebuilder, reference_rebuild, reference_replay_all
+from blaym_jupyter.history import Rebuilder
+from blaym_jupyter.tests.history.reference import reference_rebuild, reference_replay_all
 from blaym_jupyter.tests.history.conftest import DEEP, DELIVERY_SETTINGS, MAX_EVENTS
 from blaym_jupyter.tests.history.generate import deliveries, histories
 from blaym_jupyter.tests.history.scenario import Scenario

@@ -119,9 +119,8 @@ class Rig:
     def __init__(self, **settings):
         self.t = FakeTime()
         self.ing, self.sink, self.reg = FakeIngestor(), ListSink(), FakeRegistry()
-        self.idle: list[str] = []
         self.rec = RunRecorder(self.ing, self.sink, self.t, self.t, UuidIds(), registry=self.reg,
-                               settings=RunRecorderSettings(**settings), on_idle=self.idle.append)
+                               settings=RunRecorderSettings(**settings))
 
     def code(self, cell, revision, code):
         self.ing.set(cell, revision, code)

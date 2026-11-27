@@ -1,4 +1,4 @@
-"""The search index port (S4, Task 8; decision J).
+"""The search index port.
 
 The index only stores and queries documents `(exploration_id, branch_id, tick, kind, text)`.
 It knows nothing about events: which text is worth indexing is the policy in

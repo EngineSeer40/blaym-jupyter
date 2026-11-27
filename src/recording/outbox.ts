@@ -22,7 +22,6 @@ export type OutboxReport =
     }
   | { kind: 'retrying'; delayMs: number; error: string }
   | { kind: 'dropped'; count: number }
-  | { kind: 'held' }
   | { kind: 'snapshot_accepted' }
   | { kind: 'resync'; reason: string }
   | { kind: 'rejected'; status?: number };
@@ -37,13 +36,12 @@ export interface OutboxOptions {
   /** Builds a fresh snapshot of the notebook as it is now (and resets the reconciler to it). */
   snapshotter: () => Promise<RecorderEvent>;
   onReport?: (report: OutboxReport) => void;
-  /** The branch of the last accepted outcome (S5-P). */
+  /** The branch of the last accepted outcome. */
   onBranch?: (branchId: string) => void;
   maxBatchEvents?: number;
   maxBatchBytes?: number;
   maxQueued?: number;
   resyncMinIntervalMs?: number;
-  snapshotRetryMs?: number;
 }
 
 /** Events a snapshot supersedes. Everything else (gaps, kernel and rename events) is kept. */
@@ -68,9 +66,7 @@ function size(e: RecorderEvent): number {
 /**
  * The ordered queue to the server (memory only, never persistent storage).
  * Batches of at most 50 events or 200 KB; network errors retry at 0.5 s doubling
- * to 8 s; refusals are never retried except `run_in_progress` (the same
- * snapshot every 2 s, with everything behind it held back, because the queue
- * is sent strictly in order). A resync builds one snapshot, never more than one
+ * to 8 s; refusals are never retried. A resync builds one snapshot, never more than one
  * every 5 s, and the snapshot replaces the queued content events ahead of it.
  */
 export class Outbox {
@@ -352,7 +348,6 @@ export class Outbox {
     this.backoff = BACKOFF_FIRST;
     const remove = new Set<string>();
     let pausedFor: 'not_active_recorder' | 'unauthorized' | undefined;
-    let holdSnapshot = false;
     let resync: string | undefined;
     outcomes.forEach((out, i) => {
       const event = batch[i];
@@ -376,10 +371,6 @@ export class Outbox {
         case 'not_active_recorder':
         case 'unauthorized':
           pausedFor = out.reason;
-          break;
-        case 'run_in_progress':
-          holdSnapshot = true;
-          this.o.onReport?.({ kind: 'held' });
           break;
         case 'unknown_branch':
           this.targetBranchId = undefined;
@@ -412,10 +403,6 @@ export class Outbox {
     }
     if (resync !== undefined) {
       this.startResync(resync);
-    }
-    if (holdSnapshot) {
-      this.scheduleRetry('run_in_progress', this.o.snapshotRetryMs ?? 2000);
-      return;
     }
     this.pump();
   }

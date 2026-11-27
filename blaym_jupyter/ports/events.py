@@ -1,4 +1,4 @@
-"""The event store port (S4, Task 2).
+"""The event store port.
 
 Add-only. The store allocates ticks (`MAX(tick) + 1` per exploration, inside the write
 transaction), keeps exactly what was written, and returns it in tick order with no

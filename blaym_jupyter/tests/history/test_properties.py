@@ -21,7 +21,9 @@ from pathlib import Path
 
 from hypothesis import given, settings, strategies as st
 
-from blaym_jupyter.history import Rebuilder, apply, reference_rebuild, reference_replay_all
+from blaym_jupyter.history import Rebuilder
+from blaym_jupyter.history.apply import apply
+from blaym_jupyter.tests.history.reference import reference_rebuild, reference_replay_all
 from blaym_jupyter.tests.history import test_adversarial, test_rebuild, test_staleness
 from blaym_jupyter.tests.history.conftest import DEEP, MAX_EVENTS
 from blaym_jupyter.tests.history.generate import deliveries, histories

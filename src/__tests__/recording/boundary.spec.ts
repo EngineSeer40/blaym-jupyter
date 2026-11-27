@@ -44,6 +44,25 @@ describe('src/recording boundary', () => {
     }
   });
 
+  test('src/navigation and src/recording import no @jupyterlab, and nothing in them imports adapters', () => {
+    const nav = readdirSync(join(ROOT, 'src', 'navigation')).filter((f: string) => f.endsWith('.ts'));
+    expect(nav.length).toBeGreaterThan(0);
+    const bad: string[] = [];
+    for (const [dir, list] of [
+      ['recording', files],
+      ['navigation', nav]
+    ] as [string, string[]][]) {
+      for (const f of list) {
+        for (const spec of importsOf(readFileSync(join(ROOT, 'src', dir, f), 'utf8'))) {
+          if (spec.startsWith('@jupyterlab') || spec.includes('adapters')) {
+            bad.push(`${dir}/${f}: ${spec}`);
+          }
+        }
+      }
+    }
+    expect(bad).toEqual([]);
+  });
+
   test('a planted @jupyterlab import is caught', () => {
     expect(violations(`import { x } from '@jupyterlab/application';`)).toEqual([
       '@jupyterlab/application'

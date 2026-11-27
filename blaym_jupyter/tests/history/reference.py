@@ -39,11 +39,10 @@ from blaym_jupyter_types import (
     RebuildUnknownBranch,
 )
 
-from .apply import ApplyResult, apply, unwrap
+from blaym_jupyter.history.apply import ApplyResult, apply, unwrap
+from blaym_jupyter.history.rebuild import StateResult
 
-ReferenceResult = (
-    ApplyResult | RebuildMissingEvents | RebuildConflict | RebuildUnknownBranch | RebuildLineageLoop
-)
+ReferenceResult = StateResult
 
 
 def _dedupe(events):

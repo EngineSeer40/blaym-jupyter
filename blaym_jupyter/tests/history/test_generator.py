@@ -11,7 +11,7 @@ from collections import Counter
 
 from hypothesis import given, settings, strategies as st
 
-from blaym_jupyter.history import reference_rebuild, reference_replay_all
+from blaym_jupyter.tests.history.reference import reference_rebuild, reference_replay_all
 from blaym_jupyter.tests.history.conftest import DEEP, MAX_EVENTS, POSITION_LIMIT
 from blaym_jupyter.tests.history.test_adversarial import cross_check
 from blaym_jupyter.tests.history.generate import (

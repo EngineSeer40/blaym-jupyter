@@ -11,7 +11,7 @@ import { Widget } from '@lumino/widgets';
 import type { MetadataPolicy } from '../../recording/metadata';
 import type { Clock, Ids, Scheduler } from '../../recording/types';
 import { WebLocksElection } from './election';
-import policy from './metadata-policy.json';
+import policy from '../../../fixtures/recorder/metadata-policy.json';
 import { NotebookObserver } from './observer';
 import type { ObserverDeps, PanelLike } from './observer';
 import { LiveSettings } from './settings';
@@ -65,7 +65,7 @@ const scheduler: Scheduler = {
 };
 const ids: Ids = { uuid: () => crypto.randomUUID() };
 
-/** The observers of the open notebooks (Task 16 reads them for the status and the toggle). */
+/** The observers of the open notebooks (read for the status and the toggle). */
 export const observers = new Map<PanelLike, NotebookObserver>();
 
 export const plugin: JupyterFrontEndPlugin<void> = {

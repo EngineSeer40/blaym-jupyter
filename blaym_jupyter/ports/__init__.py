@@ -1,4 +1,4 @@
-"""Interfaces between the layers (S4, decision L). Interfaces and plain result types only."""
+"""Interfaces between the layers. Interfaces and plain result types only."""
 
 from .blobs import BlobCorrupt, BlobError, BlobLimits, BlobNotFound, BlobStore
 from .events import (

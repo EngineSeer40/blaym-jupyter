@@ -27,6 +27,6 @@
     "src/navigation/*",
     "src/recording/*",
     "src/adapters/**/*",
-    "src/adapters/jupyterlab/metadata-policy.json"
+    "fixtures/recorder/metadata-policy.json"
   ]
 }

@@ -20,7 +20,7 @@ interface Open {
 }
 
 /**
- * Groups per-keystroke edits into steps (S5-O): a step ends after `pauseMs`
+ * Groups per-keystroke edits into steps: a step ends after `pauseMs`
  * (800) of quiet, after `maxMs` (5 s) of continuous typing, and at once at
  * `beforeRun`, `flushCell` (structure change, save of that cell), `flushAll`
  * (save, hide, takeover, shutdown) and `boundary` (an author signal). A step is

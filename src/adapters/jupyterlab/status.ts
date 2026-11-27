@@ -76,7 +76,7 @@ export function describeState(state: ObserverState): Described {
 const RESTARTS = new Set(['restarting', 'autorestarting']);
 
 /**
- * One notebook's status and its few notifications (S5-R, quiet edges): a
+ * One notebook's status and its few notifications (quiet edges): a
  * message is shown when a state is entered, never for normal events.
  */
 export class NotebookPresenter {

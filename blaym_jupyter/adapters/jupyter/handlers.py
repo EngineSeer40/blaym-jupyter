@@ -1,4 +1,4 @@
-"""One Tornado handler for every Blaym API route (S5, decision G).
+"""One Tornado handler for every Blaym API route.
 
 All logic lives in `api.handle`; this turns a Tornado request into an `ApiRequest`, runs the
 dispatcher in the thread pool and writes the answer. `@authenticated` guards every verb, and

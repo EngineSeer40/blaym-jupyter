@@ -1,4 +1,4 @@
-"""Apply one event to one state (S3a, Task 3).
+"""Apply one event to one state.
 
 `apply` is pure: the input state is never changed and the returned state shares
 nothing with the input state or with the event. `step` is the same effect applied in

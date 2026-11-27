@@ -70,7 +70,7 @@ describe('settings', () => {
     changed.emit();
     expect(s.observer.maxMs).toBe(9000);
     expect(s.observer.pauseMs).toBe(800);
-    expect(new LiveSettings().current.aiWindowMs).toBe(250);
+    expect(new LiveSettings().current.typingMaxMs).toBe(5000);
   });
 });
 

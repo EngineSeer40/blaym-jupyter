@@ -21,6 +21,8 @@ from typing import Any
 
 from blaym_jupyter_types import BlaymEvent
 
+from .kinds import WHOLE_NOTEBOOK_KINDS
+
 MARKER_RE = re.compile(r"\[hidden: [a-z ]{3,40}\]")
 
 _API = "api key"
@@ -274,7 +276,7 @@ def _cell(cell: Any) -> None:
 
 
 def _redact_payload(kind: str, p: Any) -> None:
-    if kind in ("notebook_snapshot", "changed_outside_editor"):
+    if kind in WHOLE_NOTEBOOK_KINDS:
         p.notebookMetadata = _walk(p.notebookMetadata)
         for c in p.cells:
             _cell(c)

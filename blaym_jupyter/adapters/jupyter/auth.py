@@ -1,4 +1,4 @@
-"""Sign-in for the Jupyter host (S5, decision H).
+"""Sign-in for the Jupyter host.
 
 The service checks a credential through the `Authorizer` port and never sees Jupyter. Here the
 credential is an object that only `JupyterAuthorizer.mint()` makes, and `mint()` is called in two

@@ -1,4 +1,4 @@
-"""The blob store port (S4, Task 4; decisions F and K).
+"""The blob store port.
 
 Large content (outputs, charts, big messages) lives beside the history, named by the hash
 of what is stored. Content enters only through `put`. The store applies a redaction
@@ -51,7 +51,7 @@ class BlobCorrupt(BlobError):
 
 @dataclass(frozen=True)
 class BlobLimits:
-    """Mirrors `StoreLimits` defaults (decision K)."""
+    """Mirrors `StoreLimits` defaults."""
 
     inline_bytes: int = 16384
     max_stored_bytes: int = 10485760

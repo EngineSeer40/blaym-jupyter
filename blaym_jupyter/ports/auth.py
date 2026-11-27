@@ -1,4 +1,4 @@
-"""The sign-in check port (S4, decision I). Every service call goes through it."""
+"""The sign-in check port. Every service call goes through it."""
 
 from __future__ import annotations
 

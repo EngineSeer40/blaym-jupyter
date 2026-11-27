@@ -10,7 +10,7 @@ export interface LockManagerLike {
 }
 
 /**
- * Which tab of this browser records a notebook (S5-J): the first to take the
+ * Which tab of this browser records a notebook: the first to take the
  * Web Lock named for the notebook keeps it until the page closes (or
  * `release`). Others get `inactive` at once (`ifAvailable`). The server's own
  * registry decides across browsers and editors. Without Web Locks the tab

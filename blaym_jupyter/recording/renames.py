@@ -1,4 +1,4 @@
-"""A rename reported by the editor's host (S5-I): the record follows, and each recorded
+"""A rename reported by the editor's host: the record follows, and each recorded
 notebook gets `notebook_renamed` in its own history."""
 
 from __future__ import annotations

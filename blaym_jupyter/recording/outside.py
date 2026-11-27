@@ -1,11 +1,11 @@
-"""Changes made to a notebook file from outside the editor (S5, Task 18).
+"""Changes made to a notebook file from outside the editor.
 
 Neutral and pure apart from the injected clock and ids: given the file's parsed content and the
 hash of what the editor last wrote, `OutsideChangeDetector.inspect` decides `ignore` or
 `outside`. An outside change is a `changed_outside_editor` event holding the notebook as found in
-the file (the rebuilder keeps recorded outputs of cells that already exist, Task 18 output rule).
+the file (the rebuilder keeps recorded outputs of cells that already exist).
 
-The hash is of the *normalised* content (metadata after the S5-Q policy, cell ids where the file
+The hash is of the *normalised* content (metadata after the metadata policy, cell ids where the file
 has them, types, sources, cell metadata and outputs), so a rewrite that only changes formatting
 (indentation, key order, `source` as a list or a string) is the same hash and records nothing.
 """
@@ -13,8 +13,10 @@ has them, types, sources, cell metadata and outputs), so a rewrite that only cha
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence
 
 from .metadata import apply_policy
@@ -83,7 +85,7 @@ class TipCell:
 
 
 def _align(cells: Sequence[tuple[str, str]], tip: Sequence[TipCell]) -> list[Optional[str]]:
-    """Blaym ids for cells without stable ids (S5-U): same type and exact source in order, then
+    """Blaym ids for cells without stable ids: same type and exact source in order, then
     same type at the same position; the rest are None (new)."""
     result: list[Optional[str]] = [None] * len(cells)
     used: set[int] = set()
@@ -184,4 +186,15 @@ class OutsideChangeDetector:
         return Decision("outside", digest, event, blobs, f"{skipped} outputs skipped" if skipped else None)
 
 
-__all__ = ["Decision", "NotebookParseError", "OutsideChangeDetector", "TipCell", "content_hash", "parse_notebook"]
+__all__ = ["Decision", "NotebookParseError", "OutsideChangeDetector", "TipCell", "choose_mode", "content_hash", "parse_notebook"]
+
+
+def choose_mode(base_dir: Path, *, force: Optional[str] = None) -> tuple[str, str]:
+    """(`watchdog` or `polling`, why)."""
+    if force == "polling":
+        return "polling", "polling was asked for"
+    if str(base_dir.resolve()).startswith("/mnt/"):
+        return "polling", "files under /mnt have no change events; checking every 2 seconds"
+    if importlib.util.find_spec("watchdog") is None:
+        return "polling", "watchdog is not installed; checking every 2 seconds"
+    return "watchdog", "watching for changes"

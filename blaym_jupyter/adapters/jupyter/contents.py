@@ -1,16 +1,17 @@
-"""Jupyter contents events (S5, Task 17). Only renames matter here: the server's path is the
+"""Jupyter contents events. Only renames matter here: the server's path is the
 truth (the browser's lags). A copy needs nothing now; the registry recognises it when it is
-next registered (S5-I). Blaym writes nothing into notebook files."""
+next registered. Blaym writes nothing into notebook files."""
 
 from __future__ import annotations
 
 import logging
 from typing import Any
 
-from blaym_jupyter.local import SystemClock
+from blaym_jupyter.ports.clock import SystemClock
+from blaym_jupyter.recording.ids import RandomIds
 from blaym_jupyter.recording.renames import record_rename
 
-from .host import SERVER_EDITOR, RandomIds
+from .host import SERVER_EDITOR
 
 log = logging.getLogger("blaym_jupyter.contents")
 

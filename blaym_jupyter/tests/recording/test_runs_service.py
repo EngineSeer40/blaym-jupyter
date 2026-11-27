@@ -65,7 +65,7 @@ class Harness:
         self.reg = registry or FakeRegistry()
         self.rec = RunRecorder(self.ing, self.sink, self.t, self.t, UuidIds("run"), registry=self.reg,
                                settings=RunRecorderSettings(**(settings_kw or {})),
-                               limits=limits or OutputLimits(), on_idle=self.sink.on_idle)
+                               limits=limits or OutputLimits())
         self.revs: dict[tuple[str, str], int] = {}
         self._n = 0
 

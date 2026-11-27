@@ -1,4 +1,4 @@
-"""Server-side gap rules (S5-R, Task 20). Neutral: dicts in, dicts out; no Jupyter and no service.
+"""Server-side gap rules. Neutral: dicts in, dicts out; no Jupyter and no service.
 
 A gap says "the recorder could not see here". Who opens and closes each kind is in
 `docs/s5-edges.md`. This module builds the events the server writes for others:

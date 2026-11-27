@@ -1,4 +1,4 @@
-"""The committed revision index (S5, Task 3, decision S5-D). Pure: no locks, no I/O.
+"""The committed revision index. Pure: no locks, no I/O.
 
 For each branch and each cell it keeps the last `DEPTH` pairs `(revision, hash of the stored,
 secret-hidden code)`, so a recorder can ask which revision of a cell held the code a run was
@@ -14,6 +14,8 @@ from __future__ import annotations
 import hashlib
 from collections import deque
 from typing import Iterable
+
+from blaym_jupyter.privacy.kinds import WHOLE_NOTEBOOK_KINDS
 
 DEPTH = 32
 
@@ -42,7 +44,7 @@ class RevisionIndex:
         """Take one committed event of `branch_id` (a concrete event model) into the index."""
         cells = self._cells(branch_id)
         kind, p = event.type, event.payload
-        if kind in ("notebook_snapshot", "changed_outside_editor"):
+        if kind in WHOLE_NOTEBOOK_KINDS:
             kept: dict[str, deque] = {}
             for cell in p.cells:
                 entries = cells.get(cell.cellId) or deque(maxlen=self._depth)

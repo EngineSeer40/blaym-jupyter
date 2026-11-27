@@ -1,4 +1,4 @@
-"""The file blob store (S4, Task 4). Implements `ports.BlobStore`.
+"""The file blob store. Implements `ports.BlobStore`.
 
 Files: `<root>/explorations/<explorationId>/blobs/<sha256 hex>` (gzip), written first into
 `<root>/explorations/<explorationId>/staging/<operationId>/`. The `blobs` table row in
@@ -9,7 +9,7 @@ Write order (a crash at any point leaves no row without a file):
   2. `os.replace` into `blobs/`, fsync the folder
   3. only then insert the row (`INSERT OR IGNORE`)
 A crash after 1 leaves staging debris; after 2, an orphan file without a row. Both are
-harmless: a later `put` of the same content adopts or rewrites the file; Task 9 housekeeping
+harmless: a later `put` of the same content adopts or rewrites the file; housekeeping
 removes debris that is never adopted. No redaction logic lives here: `redact` is a parameter.
 """
 

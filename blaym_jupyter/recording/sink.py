@@ -1,4 +1,4 @@
-"""The ordered sink (S5, decision F): the one place server-side recorders write from.
+"""The ordered sink: the one place server-side recorders write from.
 
 A recorder hands a `PendingWrite` (events plus the blobs their output items point to) to
 `OrderedSink.submit`, which returns at once. One worker thread (the only thread of this layer)
@@ -11,9 +11,6 @@ writes per exploration in first-in first-out order:
   retried blindly. `missing_blob` puts the blob again once. `bad_first_event` (the browser has
   not sent the first snapshot yet) parks that exploration's events, in order, and retries every
   second until one is accepted, up to 500 events or 10 minutes (then they are dropped, counted).
-  `run_in_progress` defers that one event until `on_idle(exploration_id)` (the run recorder calls
-  it when a kernel has no runs left); it does not hold up the events behind it, because those
-  include the `run_finished` the refusal is waiting for;
 * bounds per process: 1,000 queued events and 64 MB of pending blob bytes. Beyond them only
   output content is reduced: a blob becomes a preview-only blob, and past the event bound the
   output events of a run are dropped (counted) and the run's later output events with them, but
@@ -86,18 +83,16 @@ class OrderedSink:
         park_max_ms: int = 600_000,
         error_retries: int = 5,
         batch_size: int = 20,
-        max_deferred: int = 100,
         poll_s: float = 0.02,
     ) -> None:
         self._ing, self._clock = ingestor, clock
         self._editor, self._instance = editor, instance_id
         self._max_events, self._max_bytes = max_queued_events, max_pending_blob_bytes
         self._retry_ms, self._park_events, self._park_ms = park_retry_ms, park_max_events, park_max_ms
-        self._error_retries, self._batch, self._max_deferred = error_retries, batch_size, max_deferred
+        self._error_retries, self._batch = error_retries, batch_size
         self._poll = poll_s
         self._cv = threading.Condition()
         self._queues: dict[str, deque[_Item]] = {}
-        self._deferred: dict[str, list[_Item]] = {}
         self._blocked_until: dict[str, int] = {}
         self._park_since: dict[str, int] = {}
         self._degraded: set[str] = set()  # run ids whose output events are being dropped
@@ -132,7 +127,7 @@ class OrderedSink:
         if etype in OUTPUT_TYPES and self._queued >= self._max_events:
             self._degraded.add(run_id)
             self.stats["dropped_overflow"] += 1
-            # S5-R: say so once per run, as a closed point gap (source `kernel`), outside the bound
+            # Say so once per run, as a closed point gap (source `kernel`), outside the bound
             for gap in point_gap(exploration_id, source="kernel", reason="unknown", at_ms=self._clock.now_ms(),
                                  editor=self._editor, origin_id=self._instance):
                 self._queues.setdefault(exploration_id, deque()).append(_Item(gap, {}, 0))
@@ -173,19 +168,6 @@ class OrderedSink:
         self._queued -= 1
         self._pending_bytes -= item.size
 
-    def on_idle(self, exploration_id: str) -> None:
-        """The run recorder reports that no run of a kernel of this exploration is left: events
-        deferred for `run_in_progress` go to the back of the queue, behind the `run_finished` the
-        recorder has just submitted."""
-        with self._cv:
-            items = self._deferred.pop(exploration_id, [])
-            if items:
-                queue = self._queues.setdefault(exploration_id, deque())
-                if exploration_id not in self._order:
-                    self._order.append(exploration_id)
-                queue.extend(items)  # behind what is already queued: the run's `run_finished` goes first
-                self._cv.notify_all()
-
     # -- lifecycle ------------------------------------------------------------------------------
 
     def _start_thread(self) -> None:
@@ -194,8 +176,7 @@ class OrderedSink:
             self._thread.start()
 
     def drain(self, timeout_s: float = 5.0) -> bool:
-        """Wait until nothing is queued or in flight. Parked events count as queued; events
-        deferred for `run_in_progress` do not (they wait for `on_idle`)."""
+        """Wait until nothing is queued or in flight. Parked events count as queued."""
         end = time.monotonic() + timeout_s
         with self._cv:
             while self._busy() and time.monotonic() < end:
@@ -203,8 +184,7 @@ class OrderedSink:
             return not self._busy()
 
     def _busy(self) -> bool:
-        deferred = sum(len(d) for d in self._deferred.values())
-        return bool(self._queued - deferred or self._inflight)
+        return bool(self._queued or self._inflight)
 
     def close(self, timeout_s: float = 5.0) -> CloseReport:
         self.drain(timeout_s)
@@ -221,10 +201,6 @@ class OrderedSink:
                     report.by_exploration[exploration_id] = len(queue)
                     report.unwritten += len(queue)
                     report.run_finished_unwritten += sum(1 for i in queue if i.event.get("type") == "run_finished")
-            for exploration_id, items in self._deferred.items():
-                if items:
-                    report.by_exploration[exploration_id] = report.by_exploration.get(exploration_id, 0) + len(items)
-                    report.unwritten += len(items)
             self.stats["unwritten"] += report.unwritten
             if report.unwritten:
                 log.warning("sink closed with %d events not written", report.unwritten)
@@ -339,9 +315,6 @@ class OrderedSink:
                 self._blocked_until.pop(exploration_id, None)
                 self._requeue(exploration_id, batch, i)
                 return
-            if reason == "run_in_progress":
-                self._defer(exploration_id, item)
-                continue
             self._release(item)
             self.refused[str(reason)] += 1
             log.warning("event refused: id=%s type=%s reason=%s", item.event.get("eventId"),
@@ -355,15 +328,6 @@ class OrderedSink:
         queue = self._queues[exploration_id]
         if len(queue) >= self._park_events or now - since >= self._park_ms:
             self._drop_parked(exploration_id)
-
-    def _defer(self, exploration_id: str, item: _Item) -> None:
-        items = self._deferred.setdefault(exploration_id, [])
-        if len(items) >= self._max_deferred:
-            self._release(item)
-            self.stats["deferred_dropped"] += 1
-            return
-        items.append(item)
-        self.stats["deferred"] += 1
 
 
 def _hashes_in(value: Any) -> list[str]:

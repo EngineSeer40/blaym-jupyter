@@ -1,4 +1,4 @@
-"""The notebook registry (S5-I, S5-J, S5-S).
+"""The notebook registry.
 
 One small record per notebook, kept behind `RegistryStore`; which recorder instance is the
 active one is held in memory only (a server restart forgets it, and the heartbeat's
@@ -81,7 +81,7 @@ class Registry:
             prior = self._live.get(nb)
             if not (prior and any(now - ts <= self._window for ts in prior.seen.values())):
                 # nobody else is here: whether the last session ended cleanly is known only now,
-                # before this register marks the record open (O7)
+                # before this register marks the record open
                 self._startup_unclean[nb] = not rec.get("cleanClose", True)
             if reg.collaboration:
                 return self._status(rec, reg.instanceId, active=False,
@@ -231,7 +231,7 @@ class Registry:
             return bool(live) and any(now - ts <= self._window for ts in live.seen.values())
 
     def startup_unclean(self, notebook_id: str) -> bool:
-        """True once per session start when the previous session did not close cleanly (O7)."""
+        """True once per session start when the previous session did not close cleanly."""
         with self._lock:
             return self._startup_unclean.get(notebook_id, False)
 

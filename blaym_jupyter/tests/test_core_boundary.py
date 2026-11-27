@@ -186,7 +186,7 @@ def test_import_matrix():
 
 RECORDING_FORBIDDEN_PARTS = {"service", "store", "history", "privacy", "api", "adapters", "local", "ports"}
 RECORDING_FORBIDDEN_MODULES = {
-    "jupyter_server", "jupyter_client", "tornado", "traitlets", "watchdog", "ipykernel", "sqlite3",
+    "jupyter_server", "jupyter_core", "jupyter_client", "tornado", "traitlets", "watchdog", "ipykernel", "sqlite3",
     "jupyterlab", "notebook", "nbformat",
 }
 
@@ -216,7 +216,7 @@ def _recording_violations(source: str, package: str = "blaym_jupyter.recording")
 
 API_MAY_IMPORT_PARTS = {"api", "service", "recording", "ports"}  # `ports`: the blob errors only
 API_FORBIDDEN_MODULES = {
-    "tornado", "jupyter_server", "jupyter_client", "traitlets", "jupyterlab", "notebook", "flask",
+    "tornado", "jupyter_server", "jupyter_core", "jupyter_client", "traitlets", "jupyterlab", "notebook", "flask",
     "fastapi", "starlette", "aiohttp", "django", "sanic", "bottle", "falcon", "werkzeug", "sqlite3",
     "watchdog", "ipykernel",
 }
@@ -271,4 +271,16 @@ def test_the_editor_neutral_layers_and_who_may_import_what():
     bad += _importers_outside("service", {"service", "api", "adapters", "testing", "tests"})
     bad += _importers_outside("privacy", {"privacy", "service", "testing", "tests"})
     bad += _importers_outside("adapters", {"adapters", "tests"}, {("__init__.py",), ("routes.py",)})
+    assert not bad, bad
+
+
+def test_the_core_imports_no_jupyter_and_never_the_adapters():
+    """Every core folder: no `jupyter_server`, `jupyter_core`, `tornado` or `traitlets`, and no
+    `adapters` (adapters import the core, never the reverse)."""
+    banned = {"jupyter_server", "jupyter_core", "tornado", "traitlets"}
+    bad = []
+    for folder in ["recording", "api", "service", "store", "history", "ports", "privacy"]:
+        for path in _core_files(folder):
+            bad += [f"{path.relative_to(ROOT)}: {n}" for n in _top_level_imports(path) if n in banned]
+            bad += [f"{path.relative_to(ROOT)}: adapters" for p in _package_imports(path) if p == "adapters"]
     assert not bad, bad

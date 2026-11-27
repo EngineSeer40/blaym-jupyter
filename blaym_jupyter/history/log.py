@@ -1,4 +1,4 @@
-"""Append-only event log (S3a, Task 5).
+"""Append-only event log.
 
 Accepts events in any order and any number of times; keeps its own copy of each. Indexes them by tick and by
 event id as they arrive and records, incrementally, what the answers depend on:
@@ -6,7 +6,7 @@ event id as they arrive and records, incrementally, what the answers depend on:
 * the first conflict (same event id, different content), in arrival order;
 * the first tick clash (a different event id at a tick already taken), in arrival
   order of the event that clashed;
-* the first missing tick (rule 5).
+* the first missing tick.
 
 Readers get read-only views; nothing here is ever removed or changed once added.
 """

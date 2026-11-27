@@ -9,7 +9,7 @@ import time
 
 from blaym_jupyter_types import RebuildOk
 
-from blaym_jupyter.history import reference_rebuild
+from blaym_jupyter.tests.history.reference import reference_rebuild
 from blaym_jupyter.service.core import ServiceBusy
 from blaym_jupyter.tests.history.scenario import Scenario
 from blaym_jupyter.tests.service.helpers import Rig, create, recorder

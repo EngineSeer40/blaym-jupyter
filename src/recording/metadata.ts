@@ -1,7 +1,7 @@
 import type { Json } from './types';
 
 /**
- * The metadata policy (S5-Q, owner O5), the TypeScript applier. The policy
+ * The metadata policy, the TypeScript applier. The policy
  * itself is the data file `fixtures/recorder/metadata-policy.json`, shared with
  * the Python applier; the adapter passes its content in, and the shared cases
  * file (`metadata-cases.json`) is run against both appliers.

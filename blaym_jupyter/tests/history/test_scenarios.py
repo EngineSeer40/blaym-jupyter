@@ -27,7 +27,8 @@ from pathlib import Path
 
 import pytest
 
-from blaym_jupyter.history import Rebuilder, outline, reference_rebuild
+from blaym_jupyter.history import Rebuilder, outline
+from blaym_jupyter.tests.history.reference import reference_rebuild
 from blaym_jupyter.tests.history.scenario import Scenario
 
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "fixtures" / "rebuild"

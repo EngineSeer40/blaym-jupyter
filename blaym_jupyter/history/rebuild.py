@@ -1,4 +1,4 @@
-"""The real rebuilder (S3a, Task 5).
+"""The real rebuilder.
 
 Gives exactly the reference's answers (`reference_rebuild`), faster: events go into an
 append-only log in any order; a jump starts from the nearest cached snapshot on the
@@ -12,13 +12,21 @@ independent copies (rule 11).
 
 from __future__ import annotations
 
-from blaym_jupyter_types import RebuildMissingEvents, RebuildOk
+from blaym_jupyter_types import (
+    RebuildConflict,
+    RebuildLineageLoop,
+    RebuildMissingEvents,
+    RebuildOk,
+    RebuildUnknownBranch,
+)
 
-from .apply import Failure, step
+from .apply import ApplyResult, Failure, step
 from .lineage import Lineage
 from .log import EventLog
-from .reference import ReferenceResult
 from .snapshots import SnapshotCache
+
+# Every answer `state_at` can give.
+StateResult = ApplyResult | RebuildMissingEvents | RebuildConflict | RebuildUnknownBranch | RebuildLineageLoop
 
 
 class Rebuilder:
@@ -72,7 +80,7 @@ class Rebuilder:
                 if not isinstance(self._walk(lin, name, tick, record_base=False), RebuildOk):
                     break
 
-    def state_at(self, branch_id: str, tick: int) -> ReferenceResult:
+    def state_at(self, branch_id: str, tick: int) -> StateResult:
         self.last_base = None
         log = self._log
         if log.conflict is not None:
@@ -83,7 +91,7 @@ class Rebuilder:
             return RebuildMissingEvents(status="missing_events", firstMissingTick=log.first_missing)
         return self._walk(self._index(), branch_id, tick, record_base=True)
 
-    def _walk(self, lin: Lineage, branch_id: str, tick: int, record_base: bool) -> ReferenceResult:
+    def _walk(self, lin: Lineage, branch_id: str, tick: int, record_base: bool) -> StateResult:
         line = lin.resolve(branch_id, tick)
         if not hasattr(line, "chain"):
             return line

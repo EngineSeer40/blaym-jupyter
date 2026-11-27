@@ -1,4 +1,4 @@
-"""Kernel to notebook binding (S5, Task 10): which recorded notebook a kernel belongs to.
+"""Kernel to notebook binding: which recorded notebook a kernel belongs to.
 
 The chain is kernel id, then the session manager (its notebook path), then the registry (path to
 notebook record). It is made **lazily**, on the first run request of a kernel: when Jupyter

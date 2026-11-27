@@ -7,6 +7,8 @@ must reference a blob that exists.
 
 from __future__ import annotations
 
+from blaym_jupyter.privacy.kinds import WHOLE_NOTEBOOK_KINDS
+
 
 def items_of(ev) -> list:
     p = ev.payload
@@ -14,7 +16,7 @@ def items_of(ev) -> list:
         return [p.item]
     if ev.type == "cell_inserted":
         return list(p.outputs or [])
-    if ev.type in ("notebook_snapshot", "changed_outside_editor"):
+    if ev.type in WHOLE_NOTEBOOK_KINDS:
         return [it for c in p.cells for g in c.outputs for it in g.items]
     return []
 

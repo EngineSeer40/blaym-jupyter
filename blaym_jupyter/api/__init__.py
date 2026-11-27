@@ -1,4 +1,4 @@
-"""The framework-free service API (S5, decision G).
+"""The framework-free service API.
 
 `handle(request, credential, recording)` maps one HTTP-shaped request to `Service` and
 `Registry` calls and answers an `ApiResponse`. It imports the standard library, the contracts,

@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import threading
 
-from blaym_jupyter.adapters.jupyter.scheduler import ThreadScheduler
+from blaym_jupyter.recording.scheduler import ThreadScheduler
 
-from ...recording.helpers import wait_for
+from .helpers import wait_for
 
 
 def test_calls_fire_in_due_order_on_one_thread():

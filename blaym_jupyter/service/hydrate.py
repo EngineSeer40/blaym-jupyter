@@ -1,4 +1,4 @@
-"""Hydrate a `Rebuilder` and an outline from any `EventStore` (S4, Task 3, decision E).
+"""Hydrate a `Rebuilder` and an outline from any `EventStore`.
 
 No snapshots are persisted: the service reads a history's events once, in tick order,
 exactly as stored, and keeps one `Rebuilder` per open history, appending to it as events
@@ -19,23 +19,20 @@ class HydratedRebuilder(Rebuilder):
     made from them. `add` is the incremental path: pass newly committed events (in any
     order, duplicates allowed, as for `Rebuilder`); there is no reload.
 
-    The outline is recomputed with `history.build_outline` over all events, and cached
-    until the next `add` that brings something new. It is not incremental: `build_outline`
-    walks every branch tip to find the first invalid event, and making that incremental
-    safely would mean changing `history/`, which Task 3 does not do. Task 11 measures it.
+    The outline is recomputed with `history.build_outline` over all events on each call
+    (the service caches it, under its lock). It is not incremental: `build_outline` walks
+    every branch tip to find the first invalid event.
     """
 
     def __init__(self, interval: int | None = 200):
         super().__init__(interval)
         self._events: list = []
-        self._outline: OutlineResult | None = None
 
     def add(self, events) -> None:
         events = list(events)
         if not events:
             return
         self._events.extend(events)
-        self._outline = None
         super().add(events)
 
     def has_tick(self, tick: int) -> bool:
@@ -58,9 +55,7 @@ class HydratedRebuilder(Rebuilder):
 
     def outline_result(self) -> OutlineResult:
         """The outline and the first problem found (see `history.OutlineResult`)."""
-        if self._outline is None:
-            self._outline = build_outline(self._events)
-        return self._outline
+        return build_outline(self._events)
 
     def outline(self):
         """The `HistoryOutline`, or None when not even tick 1 is usable."""

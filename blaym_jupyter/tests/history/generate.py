@@ -1,4 +1,4 @@
-"""Sequence generator and delivery problems for S3a (Task 4).
+"""Sequence generator and delivery problems for the history tests.
 
 Three hypothesis strategies:
 
@@ -195,7 +195,7 @@ def _applicable(b: _Builder, step: int) -> list[str]:
         names += ["chat_update", "chat_update"]
     if any(g.endedTick is None for g in st_.gaps):
         names += ["gap_end", "gap_end", "recover"]
-    if b.service_safe and running:  # the service refuses an outside change during a run (S5-T)
+    if b.service_safe and running:  # the service refuses an outside change during a run
         names = [n for n in names if n != "outside"]
     if len(b.order) > 1:
         names += ["switch", "switch"]
@@ -391,7 +391,7 @@ def _finish(b: _Builder) -> History:
 def histories(draw, shapes=SHAPES, max_events: int = 80, service_safe: bool = False) -> History:
     """A valid history: the reference answers `ok` at every tick on every branch.
     `service_safe` (opt-in) never emits an outside change while a run is
-    running on the current branch: the service refuses those (S5-T); the rebuilder accepts them."""
+    running on the current branch: the service refuses those; the rebuilder accepts them."""
     shape = draw(st.sampled_from(shapes))
     bands = [st.integers(0, min(8, max_events))]
     if max_events > 9:

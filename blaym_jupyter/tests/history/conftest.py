@@ -1,4 +1,4 @@
-"""Hypothesis profiles for the history tests (S3a, Task 4).
+"""Hypothesis profiles for the history tests.
 
 `default`: 100 examples for the slowest properties (more for the cheap ones); the whole
 history suite stays at about a minute. `deep`: 1,000 examples, for gates and on demand. Choose with the

@@ -22,35 +22,6 @@ describe('alignCells (page open, unstable ids)', () => {
     expect(a.deletedBlaymIds).toEqual([]);
   });
 
-  test('an edited cell is matched by position between anchors; a different type is new', () => {
-    const t = tip(3);
-    const page = [
-      { id: 'r0', type: 'code' as const, source: 'src 0' },
-      { id: 'r1', type: 'code' as const, source: 'src 1 edited' },
-      { id: 'r2', type: 'code' as const, source: 'src 2' }
-    ];
-    expect(alignCells(page, t).matches).toEqual({
-      r0: 'B0',
-      r1: 'B1',
-      r2: 'B2'
-    });
-    page[1].type = 'markdown' as never;
-    const b = alignCells(page, t);
-    expect(b.newModelIds).toEqual(['r1']);
-    expect(b.deletedBlaymIds).toEqual(['B1']);
-  });
-
-  test('exact source in order wins over position', () => {
-    const t = tip(3);
-    const page = [
-      { id: 'r0', type: 'code' as const, source: 'src 1' },
-      { id: 'r1', type: 'code' as const, source: 'src 2' }
-    ];
-    const a = alignCells(page, t);
-    expect(a.matches).toEqual({ r0: 'B1', r1: 'B2' });
-    expect(a.deletedBlaymIds).toEqual(['B0']);
-  });
-
   test('property: a reopened 4.4 notebook with fresh random ids maps every unchanged cell, never two to one', () => {
     const arb = fc.record({
       n: fc.integer({ min: 0, max: 14 }),

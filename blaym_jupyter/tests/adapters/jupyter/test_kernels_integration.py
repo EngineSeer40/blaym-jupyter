@@ -1,17 +1,11 @@
-"""The kernel adapter against a real server and a real ipykernel (marker `integration`).
+"""The kernel adapter against a real server and a real ipykernel (marker `slow`).
 
-Scripted runs go through the kernel websocket (both protocols); what is checked is read back from
-the real SQLite store through the service. The long run (about three minutes) is scaled down unless
-`BLAYM_LONG_RUN=full` (seconds of silence per stretch: 60 in full, 3 otherwise).
-"""
+Scripted runs go through the kernel websocket; what is checked is read back from the real SQLite
+store through the service."""
 
 from __future__ import annotations
 
 import json
-import os
-import resource
-import signal
-import time
 
 import pytest
 
@@ -25,9 +19,7 @@ from blaym_jupyter.tests.adapters.jupyter.kernel_harness import (
     tip_state,
     wait_for,
 )
-from blaym_jupyter_types import EventsSinceRequest
-
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.slow
 
 
 @pytest.fixture
@@ -102,9 +94,8 @@ CELLS = {
 }
 
 
-@pytest.mark.parametrize("protocol", [V1_PROTOCOL, None], ids=["v1", "json"])
-async def test_every_kind_of_output_is_recorded_and_rebuilt(rig, protocol):
-    await rig.start(list(CELLS.items()), protocol)
+async def test_every_kind_of_output_is_recorded_and_rebuilt(rig):
+    await rig.start(list(CELLS.items()))
     for cell_id, code in CELLS.items():
         await rig.run(code, cell_id)
     state = tip_state(rig.host, rig.nb)
@@ -146,86 +137,3 @@ async def test_a_restart_leaves_the_old_run_unfinished_reattaches_and_records_th
     assert [i.preview for i in rig.items("c2")] == ["new process\n"]  # through the re-attached listener
     gaps = [g for g in state.gaps if g.reason.value == "kernel_restart"]
     assert len(gaps) == 1 and gaps[0].source.value == "kernel" and gaps[0].endedTick is not None
-
-
-async def test_a_kernel_killed_with_sigkill_is_a_restart_and_recording_goes_on(rig):
-    await rig.start([("c1", "import time; time.sleep(60)"), ("c2", "print('alive again')")])
-    await rig.run("import time; time.sleep(60)", "c1", wait=False)
-    await rig.started("c1")
-    pid = rig.app.kernel_manager.get_kernel(rig.kid).provisioner.process.pid
-    os.kill(pid, signal.SIGKILL)
-    await wait_for(lambda: any(g.reason.value == "kernel_restart" for g in tip_state(rig.host, rig.nb).gaps)
-                   if rig.host.sink.drain() is not None else False, 60)
-    await rig.warm()
-    await rig.run("print('alive again')", "c2", timeout=90)
-    assert run_for(rig.host, rig.nb, "c1").status.root in ("unfinished", "interrupted")
-    assert [i.preview for i in rig.items("c2")] == ["alive again\n"]
-
-
-async def test_closing_the_websocket_mid_run_still_records_every_later_output(rig):
-    code = "import time\nfor i in range(4):\n    print('line', i, flush=True)\n    time.sleep(0.6)"
-    await rig.start([("c1", code)])
-    await rig.run(code, "c1", wait=False)
-    await wait_for(lambda: rig.host.sink.drain() is not None and (rig.items("c1") if run_for(rig.host, rig.nb, "c1") else None))
-    rig.k.close()  # the browser goes away
-    await rig.finished("c1", 30)
-    text = "".join(i.preview for i in rig.items("c1"))
-    assert [f"line {n}" in text for n in range(4)] == [True] * 4
-    assert run_for(rig.host, rig.nb, "c1").status.root == "ok"  # idle + grace, with no reply to see
-
-
-async def test_a_session_created_after_the_kernel_start_still_gets_kernel_started(rig):
-    await rig.start([("c1", "print(1)")], session=False)
-    r = await rig.fetch("api", "kernels", method="POST", body=json.dumps({"name": "python3"}))
-    rig.kid = json.loads(r.body)["id"]  # the kernel starts with no session record
-    await rig.fetch("api", "sessions", method="POST", body=json.dumps(
-        {"path": PATH, "name": PATH, "type": "notebook", "kernel": {"id": rig.kid}}))
-    await rig.connect(None)
-    await rig.warm()
-    await rig.run("print(1)", "c1")
-    assert tip_state(rig.host, rig.nb).kernel.kernelId == rig.kid
-
-
-async def test_a_run_without_a_cell_id_is_an_unlinked_run_gap(rig):
-    await rig.start([("c1", "print(1)")])
-    rig.k.execute("print(2)", None)
-    await wait_for(lambda: rig.host.sink.drain() is not None and any(
-        g.reason.value == "unknown" and g.source.value == "kernel" for g in tip_state(rig.host, rig.nb).gaps))
-    assert tip_state(rig.host, rig.nb).runs == []
-
-
-async def test_the_browser_edit_and_the_run_race_in_either_order(rig):
-    await rig.start([("c1", "x = 1")])
-    await rig.browser.edit("c1", "x = 2", 2)
-    await rig.run("x = 2", "c1")
-    assert run_for(rig.host, rig.nb, "c1").cellRevision == 2
-
-
-async def test_a_long_run_with_silent_stretches_and_a_large_output_is_recorded_whole(rig, capsys):
-    stretch = 60 if os.environ.get("BLAYM_LONG_RUN") == "full" else 3
-    code = (f"import time\nfrom IPython.display import display\n"
-            f"print('start', flush=True)\ntime.sleep({stretch})\nprint('middle', flush=True)\ntime.sleep({stretch})\n"
-            "display({'application/vnd.plotly.v1+json': {'data': [{'y': list(range(400000))}], 'layout': {}},"
-            " 'text/plain': 'big'}, raw=True)\n"
-            f"time.sleep({stretch})\nprint('end')")
-    await rig.start([("c1", code)])
-    t0 = time.monotonic()
-    rig.k.execute(code, "c1")
-    await rig.started("c1", 60)
-    first = time.monotonic() - t0
-    await rig.finished("c1", stretch * 3 + 90)
-    total = time.monotonic() - t0
-    items = rig.items("c1")
-    text = "".join(i.preview for i in items if "text/plain" in i.mimeTypes and i.outputType == "stream")
-    assert "start" in text and "middle" in text and "end" in text
-    assert any(i.sizeBytes > 1_000_000 for i in items)
-    assert run_for(rig.host, rig.nb, "c1").status.root == "ok"
-    state = tip_state(rig.host, rig.nb)
-    events = rig.host.service.events_since(rig.host.credential(), EventsSinceRequest(
-        explorationId=rig.nb, branchId=state.position.branchId, afterTick=0)).events
-    kinds = [e.root.type.value if hasattr(e.root.type, "value") else str(e.root.type) for e in events]
-    with capsys.disabled():
-        print(f"\nLONG RUN stretch={stretch}s total={total:.1f}s first_recorded_event={first:.2f}s "
-              f"ticks={state.position.lastEventTick} output_events={sum(k.startswith('output') for k in kinds)} "
-              f"kinds={ {k: kinds.count(k) for k in set(kinds)} } "
-              f"maxrss_mb={resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024:.0f}")

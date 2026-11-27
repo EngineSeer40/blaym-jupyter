@@ -40,16 +40,12 @@ function allowed(spec: string): boolean {
 }
 
 describe('src/navigation stays free of UI and outside code', () => {
-  it('finds the navigation files', () => {
+  it('every navigation file imports only what it may', () => {
     expect(files).toContain('line.ts');
-  });
-
-  it.each(files.map(f => [f]))(
-    '%s imports only what it may',
-    (file: string) => {
+    for (const file of files) {
       const source = readFileSync(join(DIR, file), 'utf8');
       const bad = importsOf(source).filter(s => !allowed(s));
-      expect(bad).toEqual([]);
+      expect({ file, bad }).toEqual({ file, bad: [] });
     }
-  );
+  });
 });

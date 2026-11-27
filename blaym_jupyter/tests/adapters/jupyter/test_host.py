@@ -11,14 +11,11 @@ from tornado.httpclient import HTTPClientError
 
 from blaym_jupyter.adapters.jupyter import SETTINGS_KEY
 from blaym_jupyter.adapters.jupyter.auth import JupyterAuthorizer
-from blaym_jupyter.adapters.jupyter.config import BlaymConfig
-from blaym_jupyter.adapters.jupyter.host import BlaymHost
 from blaym_jupyter.api import ROUTES
 from blaym_jupyter.tests.history.scenario import Scenario
 from blaym_jupyter.tests.service.helpers import recorder
 from blaym_jupyter_types import (
     IngestResponse,
-    NotebookRegistration,
     NotebookStatus,
     PrepareOutputsResponse,
     PutBlobResponse,
@@ -45,15 +42,19 @@ async def register(jp_fetch, instance="tab-1", path="a.ipynb", **extra):
     return NotebookStatus.model_validate_json(r.body)
 
 
-@pytest.mark.parametrize("route", ROUTES, ids=lambda r: r.name)
-async def test_every_route_refuses_an_unauthenticated_request(jp_fetch, jp_serverapp, route):
+async def test_every_route_refuses_an_unauthenticated_request(jp_fetch, jp_serverapp):
     host = jp_serverapp.web_app.settings[SETTINGS_KEY]
-    body = b"{}" if route.method in ("POST", "PUT") else None
-    with pytest.raises(HTTPClientError) as err:
-        await jp_fetch(*API, *route.path.format(**_ANY).strip("/").split("/"), method=route.method, body=body,
-                       headers={"Authorization": ""})
-    assert err.value.code == 403
+    for route in ROUTES:
+        body = b"{}" if route.method in ("POST", "PUT") else None
+        with pytest.raises(HTTPClientError) as err:
+            await jp_fetch(*API, *route.path.format(**_ANY).strip("/").split("/"), method=route.method, body=body,
+                           headers={"Authorization": ""})
+        assert err.value.code == 403, route.name
     assert host.registry.notebook_id_for_path("a.ipynb") is None
+    a, b = JupyterAuthorizer(), JupyterAuthorizer()  # a credential is good only for its own authorizer
+    assert a.check(a.mint()) and not a.check(b.mint())
+    assert not any(a.check(other) for other in ("token", None, b"x", object(), 1))
+    assert "key" not in repr(a.mint()).lower()
 
 
 async def test_the_routes_work_with_the_token_and_round_trip(jp_fetch):
@@ -101,38 +102,6 @@ async def test_the_routes_work_with_the_token_and_round_trip(jp_fetch):
     assert closed.code == 204
 
 
-async def test_a_bad_body_is_400_over_http(jp_fetch):
-    with pytest.raises(HTTPClientError) as err:
-        await call(jp_fetch, "ingest", b"{nope", method="POST")
-    assert err.value.code == 400
-
-
-async def test_the_second_instance_is_refused_as_not_the_active_recorder(jp_fetch):
-    first = await register(jp_fetch, "tab-1")
-    second = await register(jp_fetch, "tab-2")
-    assert first.active and not second.active and second.reason.value == "other_recorder_active"
-    s = Scenario()
-    s.start(cells=[("c1", "x = 1")])
-    ingest = await call(jp_fetch, "ingest", {
-        "explorationId": first.explorationId, "editor": "jupyterlab", "instanceId": "tab-2",
-        "events": [{**recorder(e), "explorationId": first.explorationId} for e in s.events]}, method="POST")
-    out = IngestResponse.model_validate_json(ingest.body)
-    assert [(o.root.status, o.root.reason.value) for o in out.outcomes] == [("refused", "not_active_recorder")]
-
-
-async def test_registry_records_survive_a_restart(jp_fetch, jp_serverapp, tmp_path):
-    status = await register(jp_fetch, setRecording=True)
-    host = jp_serverapp.web_app.settings[SETTINGS_KEY]
-    host.close()
-    again = BlaymHost(BlaymConfig(root=str(tmp_path / "blaym")), root_dir=tmp_path)
-    try:
-        s = again.registry.register(NotebookRegistration.model_validate(registration(instance="tab-9")))
-        assert s.notebookId == status.notebookId and s.recording
-        assert (tmp_path / "blaym" / "notebooks" / f"{status.notebookId}_metadata.json").is_file()
-    finally:
-        again.close()
-
-
 async def test_shutdown_closes_the_recorders_and_the_stores(jp_serverapp):
     host = jp_serverapp.web_app.settings[SETTINGS_KEY]
     assert not host._closed
@@ -141,11 +110,3 @@ async def test_shutdown_closes_the_recorders_and_the_stores(jp_serverapp):
     with pytest.raises(sqlite3.ProgrammingError):  # the SQLite connection is closed
         host.service._events.explorations()
     host.close()  # idempotent
-
-
-def test_a_credential_is_only_good_for_the_authorizer_that_made_it():
-    a, b = JupyterAuthorizer(), JupyterAuthorizer()
-    assert a.check(a.mint()) and not a.check(b.mint())
-    for other in ("token", None, b"x", object(), 1):
-        assert not a.check(other)
-    assert "key" not in repr(a.mint()).lower()

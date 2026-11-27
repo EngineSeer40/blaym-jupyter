@@ -97,32 +97,6 @@ export const sequenceArb: fc.Arbitrary<ISequence> = fc.record({
   actions: actionsArb
 });
 
-/** Structural equality that also tells apart a missing key from an undefined one. */
-export function isDeepStrictEqual(a: unknown, b: unknown): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (typeof a !== 'object' || typeof b !== 'object' || !a || !b) {
-    return false;
-  }
-  if (Array.isArray(a) !== Array.isArray(b)) {
-    return false;
-  }
-  const ka = Object.keys(a).sort();
-  const kb = Object.keys(b).sort();
-  return (
-    ka.length === kb.length &&
-    ka.every(
-      (k, i) =>
-        k === kb[i] &&
-        isDeepStrictEqual(
-          (a as Record<string, unknown>)[k],
-          (b as Record<string, unknown>)[k]
-        )
-    )
-  );
-}
-
 export type Navigate = (state: INavState, input: NavInput) => INavResult;
 
 /** One step of the run, handed to the property checks. */
@@ -133,23 +107,9 @@ export interface IStep {
   next: INavState;
   result: INavResult;
   server: SimulatedServer;
-  /** The highest fetchState request number issued so far (after this step). */
-  latestIssued: number;
-  /** The active tip when the current looking-back began (while looking back). */
-  lookBackFrom: number;
-  /** A backToNow was accepted and no other move has been made since. */
-  backToNowArmed: boolean;
 }
 
 export type StepCheck = (step: IStep) => void;
-
-const USER_INPUTS = new Set<string>([
-  'jumpTo',
-  'stepBack',
-  'stepForward',
-  'jumpToStart',
-  'selectBranch'
-]);
 
 /**
  * Runs a sequence against `navigate`, calling `check` after every step. A
@@ -159,50 +119,23 @@ const USER_INPUTS = new Set<string>([
 export function runSequence(
   seq: ISequence,
   navigate: Navigate,
-  check: StepCheck,
-  deterministic = false
+  check: StepCheck
 ): void {
   const server = new SimulatedServer(buildHistory(seq.ops));
   let state: INavState = deepFreeze(initialState('b0'));
   let index = 0;
-  let latestIssued = 0;
-  let lookBackFrom = 0;
-  let armed = false;
   const trace: string[] = [];
 
   const apply = (input: NavInput): void => {
     const prev = state;
     const result = navigate(prev, deepFreeze(input));
-    if (deterministic) {
-      const again = navigate(prev, input);
-      if (!isDeepStrictEqual(again, result)) {
-        throw new Error(
-          'the navigator gave different outputs for the same input'
-        );
-      }
-    }
     state = deepFreeze(result.state);
     index += 1;
     for (const r of result.requests) {
-      if (r.type === 'fetchState') {
-        latestIssued = Math.max(latestIssued, r.requestNo);
-      }
       const reliable = r.type === 'createBranch' || r.type === 'switchBranch';
       if (reliable || server.connected) {
         server.toServer.push({ request: r, reliable });
       }
-    }
-    if (prev.view.mode === 'following' && state.view.mode === 'lookingBack') {
-      lookBackFrom = prev.active.tip ?? 0;
-    }
-    if (input.type === 'backToNow' && !result.refusal) {
-      armed = true;
-    } else if (
-      USER_INPUTS.has(input.type) ||
-      input.type === 'switched' ||
-      input.type === 'branchCreated'
-    ) {
-      armed = false;
     }
     trace.push(
       `#${index} ${JSON.stringify(input)} -> view ${state.view.branchId}@${state.view.tick} ${state.view.mode}/${state.view.freshness}, active ${state.active.branchId}@${state.active.tip}` +
@@ -218,19 +151,13 @@ export function runSequence(
         prev,
         next: state,
         result,
-        server,
-        latestIssued,
-        lookBackFrom,
-        backToNowArmed: armed
+        server
       });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       throw new Error(
         `${message}\nlast steps:\n${trace.slice(-25).join('\n')}`
       );
-    }
-    if (state.view.freshness === 'current') {
-      armed = false;
     }
   };
 

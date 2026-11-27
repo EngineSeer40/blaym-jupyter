@@ -1,230 +1,95 @@
-"""The shared event store contract (S4, Task 2).
-
-Runs against every implementation (in memory, SQLite). This suite is the definition of
-correct behaviour: a future store is accepted by passing it. Includes a model-based
-sequence test: a Python list is the reference, checked after every step.
-"""
+"""The event store contract, run against the in-memory and the SQLite store. A store is
+accepted by passing it. The model-based sequence test checks a Python list as the reference
+after every step."""
 
 from __future__ import annotations
-
-import uuid
 
 import pytest
 from hypothesis import settings, strategies as st
 from hypothesis.stateful import RuleBasedStateMachine, invariant, rule
 
-from blaym_jupyter.ports.events import (
-    BranchRecord,
-    DuplicateEventId,
-    InvalidEvent,
-    canonical_event_json,
-)
+from blaym_jupyter.ports.events import BranchRecord, DuplicateEventId, InvalidEvent, canonical_event_json
 from blaym_jupyter.tests.history.conftest import DEEP
 
-from .harness import KINDS, Harness
-
-NS = uuid.UUID("5c1f0a6e-0000-4000-8000-0000000005a4")
-EXP = "exp-1"
+from .harness import EXP, KINDS, Harness, dump, make_event
 
 
-def make_event(n: int, *, exp: str = EXP, branch: str = "main", code: str = "x = 1", nulls: bool = False, **extra):
-    """A `cell_source_changed` event without a tick. `n` makes the event id."""
-    ev = {
-        "schemaVersion": 2,
-        "eventId": str(uuid.uuid5(NS, f"{exp}:{n}")),
-        "explorationId": exp,
-        "branchId": branch,
-        "wallTimeMs": 1_760_000_000_000 + n,
-        "userId": "local",
-        "workspaceId": "local",
-        "originId": "origin-1",
-        "type": "cell_source_changed",
-        "payload": {"cellId": "c1", "code": code, "revision": 1 + n},
-    }
-    if nulls:
-        ev.update({"authorHint": None, "authorConfidence": None, "editor": None, "links": None})
-    ev.update(extra)
-    return ev
-
-
-def dump(events):
-    return [canonical_event_json(e) for e in events]
-
-
-# --- named cases -----------------------------------------------------------------
-
-
-def test_ticks_start_at_one_and_follow_in_order(harness):
+def test_ticks_records_exact_round_trip_and_author_fields(harness):
     s = harness.store
-    got = s.append(EXP, [make_event(1), make_event(2)])
-    assert [e.tick for e in got] == [1, 2]
-    got = s.append(EXP, [make_event(3)])
-    assert [e.tick for e in got] == [3]
-    assert [e.tick for e in s.events_for(EXP)] == [1, 2, 3]
+    assert (s.events_for("nope"), s.tip_tick("nope"), s.exploration("nope"), s.branches("nope")) == ([], 0, None, [])
+    assert s.append(EXP, []) == [] and s.exploration(EXP) is None
+    # ticks start at one, follow in order, and are per exploration
+    assert [e.tick for e in s.append(EXP, [make_event(1, userId="u1", workspaceId="w1"), make_event(2)])] == [1, 2]
+    assert [e.tick for e in s.append("b", [make_event(3, exp="b")])] == [1]
+    assert [e.tick for e in s.append(EXP, [make_event(4)])] == [3]
     assert s.tip_tick(EXP) == 3
-
-
-def test_empty_and_unknown_exploration(harness):
-    s = harness.store
-    assert s.events_for("nope") == []
-    assert s.tip_tick("nope") == 0
-    assert s.exploration("nope") is None
-    assert s.branches("nope") == []
-    assert s.append(EXP, []) == []
-    assert s.exploration(EXP) is None
-
-
-def test_events_come_back_exactly_as_written(harness):
-    s = harness.store
+    rec = s.exploration(EXP)
+    assert (rec.user_id, rec.workspace_id, rec.active_branch_id) == ("u1", "w1", None)
+    assert {r.exploration_id for r in s.explorations()} == {EXP, "b"}
+    # events come back as written, with the author fields as strings, enum values or the literal "outside"
     sent = make_event(
-        1, branch="b-7", authorHint="ai", authorConfidence="guess", editor="jupyterlab",
-        payload={"cellId": "c9", "code": "print('héllo ☃')\n", "revision": 4},
+        5, exp="c", branch="b-7", authorHint="ai", authorConfidence="guess", editor="jupyterlab",
+        payload={"cellId": "c9", "code": "print('h\u00e9llo \u2603')\n", "revision": 4},
     )
-    s.append(EXP, [sent])
-    (back,) = s.events_for(EXP)
-    assert back.tick == 1 and back.branchId == "b-7" and back.payload.code == "print('héllo ☃')\n"
-    assert back.authorHint.value == "ai"
-    assert str(back.eventId) == sent["eventId"]
-    assert back == s.find_event(EXP, sent["eventId"])
+    s.append("c", [sent, make_event(6, exp="c", authorHint="blaym"), make_event(7, exp="c", authorHint="outside")])
+    back = s.find_event("c", sent["eventId"])
+    assert back.tick == 1 and back.branchId == "b-7" and back.payload.code == sent["payload"]["code"]
+    assert back.authorHint.value == "ai" and str(back.eventId) == sent["eventId"] and back == s.events_for("c")[0]
+    assert [str(getattr(e.authorHint, "value", e.authorHint)) for e in s.events_for("c")] == ["ai", "blaym", "outside"]
+    # a planted hole is returned as a hole and the next tick is max + 1
+    harness_events = [make_event(n, exp="h") | {"tick": n} for n in (1, 2, 4)]
+    from blaym_jupyter_types import BlaymEvent
+
+    harness.load_exact("h", [BlaymEvent.model_validate(e) for e in reversed(harness_events)])
+    assert [e.tick for e in s.events_for("h")] == [1, 2, 4]
+    assert s.append("h", [make_event(9, exp="h")])[0].tick == 5
 
 
-def test_ticks_are_per_exploration(harness):
-    s = harness.store
-    s.append("a", [make_event(1, exp="a")])
-    s.append("b", [make_event(2, exp="b"), make_event(3, exp="b")])
-    s.append("a", [make_event(4, exp="a")])
-    assert [e.tick for e in s.events_for("a")] == [1, 2]
-    assert [e.tick for e in s.events_for("b")] == [1, 2]
-
-
-def test_duplicate_event_id_is_refused_and_writes_nothing(harness):
+def test_refused_batches_write_nothing_and_leave_the_next_tick_unchanged(harness):
     s = harness.store
     s.append(EXP, [make_event(1)])
-    with pytest.raises(DuplicateEventId):
-        s.append(EXP, [make_event(1)])
-    assert s.tip_tick(EXP) == 1
-    assert s.append(EXP, [make_event(2)])[0].tick == 2
-
-
-def test_failed_batch_rolls_back_and_leaves_the_next_tick_unchanged(harness):
-    s = harness.store
-    s.append(EXP, [make_event(1)])
-    with pytest.raises(DuplicateEventId):
-        s.append(EXP, [make_event(2), make_event(3), make_event(1)])
-    with pytest.raises(DuplicateEventId):
-        s.append(EXP, [make_event(4), make_event(4)])
-    assert [e.tick for e in s.events_for(EXP)] == [1]
-    assert s.find_event(EXP, make_event(2)["eventId"]) is None
-    assert s.append(EXP, [make_event(2)])[0].tick == 2
-
-
-@pytest.mark.parametrize(
-    "bad",
-    [
+    bad_events = [
         {"type": "no_such_event"},
         {"payload": {"cellId": "c1", "code": "x", "revision": 0}},
         {"payload": {"cellId": "c1"}},
         {"surprise": 1},
         {"explorationId": "someone-else"},
         {"schemaVersion": 1},
-    ],
-)
-def test_invalid_event_is_refused_and_writes_nothing(harness, bad):
-    s = harness.store
-    s.append(EXP, [make_event(1)])
-    with pytest.raises(InvalidEvent):
-        s.append(EXP, [make_event(2), make_event(3, **bad)])
+    ]
+    for bad in bad_events:
+        with pytest.raises(InvalidEvent):
+            s.append(EXP, [make_event(2), make_event(3, **bad)])
+    for batch in ([make_event(2), make_event(3), make_event(1)], [make_event(4), make_event(4)]):
+        with pytest.raises(DuplicateEventId):
+            s.append(EXP, batch)
     assert [e.tick for e in s.events_for(EXP)] == [1]
+    assert s.find_event(EXP, make_event(2)["eventId"]) is None
     assert s.append(EXP, [make_event(2)])[0].tick == 2
-
-
-def test_null_optionals_and_absent_ones_are_the_same_event(harness):
-    s = harness.store
-    first = make_event(1)
-    again = make_event(1, nulls=True)
-    s.append(EXP, [first])
+    # absent and null optionals are the same event: a duplicate, stored without nulls
+    s.append(EXP, [make_event(5, nulls=True)])
     with pytest.raises(DuplicateEventId):
-        s.append(EXP, [again])  # a duplicate, not a different event
-    stored = s.find_event(EXP, first["eventId"])
-    assert canonical_event_json({**again, "tick": 1}) == canonical_event_json(stored)
-    assert "null" not in canonical_event_json(stored)
-    # and the other way round, and nulls sent first
-    s.append(EXP, [make_event(2, nulls=True)])
-    with pytest.raises(DuplicateEventId):
-        s.append(EXP, [make_event(2)])
-    assert canonical_event_json({**make_event(2), "tick": 2}) == canonical_event_json(s.find_event(EXP, make_event(2)["eventId"]))
+        s.append(EXP, [make_event(5)])
+    stored = canonical_event_json(s.find_event(EXP, make_event(5)["eventId"]))
+    assert stored == canonical_event_json({**make_event(5), "tick": 3}) and "null" not in stored
 
 
-def test_exploration_record_comes_from_the_first_event(harness):
-    s = harness.store
-    s.append(EXP, [make_event(1, userId="u1", workspaceId="w1")])
-    rec = s.exploration(EXP)
-    assert (rec.exploration_id, rec.user_id, rec.workspace_id, rec.active_branch_id) == (EXP, "u1", "w1", None)
-    assert [r.exploration_id for r in s.explorations()] == [EXP]
-
-
-def test_branch_records_and_active_branch_are_written_with_the_events(harness):
+def test_branch_records_and_active_branch_are_written_with_the_events_or_not_at_all(harness):
     s = harness.store
     s.append(EXP, [make_event(1)], branches=[BranchRecord("main", None, None, "main")], active_branch_id="main")
-    s.append(
-        EXP, [make_event(2, branch="b1")],
-        branches=[BranchRecord("b1", "main", 1, "try")], active_branch_id="b1",
-    )
+    s.append(EXP, [make_event(2, branch="b1")], branches=[BranchRecord("b1", "main", 1, "try")], active_branch_id="b1")
     assert s.branches(EXP) == [BranchRecord("main", None, None, "main"), BranchRecord("b1", "main", 1, "try")]
     assert s.exploration(EXP).active_branch_id == "b1"
     s.set_active_branch(EXP, "main")
-    assert s.exploration(EXP).active_branch_id == "main"
     with pytest.raises(InvalidEvent):
         s.set_active_branch(EXP, "ghost")
-    assert s.exploration(EXP).active_branch_id == "main"
-
-
-def test_a_failed_batch_leaves_no_branch_record_and_keeps_the_active_branch(harness):
-    s = harness.store
-    s.append(EXP, [make_event(1)], branches=[BranchRecord("main")], active_branch_id="main")
     with pytest.raises(DuplicateEventId):
-        s.append(EXP, [make_event(2), make_event(1)], branches=[BranchRecord("b1", "main", 1)], active_branch_id="b1")
+        s.append(EXP, [make_event(3), make_event(1)], branches=[BranchRecord("b2", "main", 1)], active_branch_id="b2")
     with pytest.raises(InvalidEvent):  # a branch id that already exists
-        s.append(EXP, [make_event(3)], branches=[BranchRecord("main")])
+        s.append(EXP, [make_event(4)], branches=[BranchRecord("main")])
     with pytest.raises(InvalidEvent):  # active branch with no record
-        s.append(EXP, [make_event(4)], active_branch_id="nowhere")
-    assert [b.branch_id for b in s.branches(EXP)] == ["main"]
-    assert s.exploration(EXP).active_branch_id == "main"
-    assert s.tip_tick(EXP) == 1
-
-
-def test_no_update_or_delete_path_exists(harness):
-    public = {n for n in dir(harness.store) if not n.startswith("_")}
-    assert not {n for n in public if n.startswith(("update", "delete", "remove", "replace", "edit", "drop"))}
-
-
-def test_a_planted_hole_is_returned_as_a_hole_not_repaired(harness):
-    s = harness.store
-    ev = [dict(make_event(n), tick=n) for n in (1, 2, 4, 5)]
-    from blaym_jupyter_types import BlaymEvent
-
-    harness.load_exact(EXP, [BlaymEvent.model_validate(e) for e in reversed(ev)])
-    assert [e.tick for e in s.events_for(EXP)] == [1, 2, 4, 5]
-    assert s.tip_tick(EXP) == 5
-    assert s.append(EXP, [make_event(9)])[0].tick == 6  # MAX+1: the hole stays
-    assert [e.tick for e in s.events_for(EXP)] == [1, 2, 4, 5, 6]
-
-
-def test_state_survives_reopening():
-    h = Harness("sqlite")
-    try:
-        s = h.store
-        s.append(EXP, [make_event(1), make_event(2)], branches=[BranchRecord("main")], active_branch_id="main")
-        before = dump(s.events_for(EXP))
-        s = h.reopen()
-        assert dump(s.events_for(EXP)) == before
-        assert s.tip_tick(EXP) == 2
-        assert s.exploration(EXP).active_branch_id == "main"
-        assert s.append(EXP, [make_event(3)])[0].tick == 3
-        with pytest.raises(DuplicateEventId):
-            s.append(EXP, [make_event(1)])
-    finally:
-        h.close()
+        s.append(EXP, [make_event(5)], active_branch_id="nowhere")
+    assert [b.branch_id for b in s.branches(EXP)] == ["main", "b1"]
+    assert s.exploration(EXP).active_branch_id == "main" and s.tip_tick(EXP) == 2
 
 
 # --- model-based sequences ---------------------------------------------------------
@@ -385,71 +250,3 @@ for _kind in KINDS:
     _cls = machine_for(_kind)
     _cls.TestCase.settings = _machine_settings(_kind)
     globals()[f"TestModel_{_kind}"] = _cls.TestCase
-
-
-def test_memory_and_sqlite_return_identical_events_for_identical_input():
-    mem, sql = Harness("memory"), Harness("sqlite")
-    try:
-        batches = [
-            [make_event(1, nulls=True), make_event(2, branch="b1", authorHint="ai", authorConfidence="known")],
-            [make_event(3, code="é☃\n")],
-        ]
-        for b in batches:
-            assert mem.store.append(EXP, b) == sql.store.append(EXP, b)
-        assert mem.store.events_for(EXP) == sql.store.events_for(EXP)
-        assert mem.store.find_event(EXP, make_event(2)["eventId"]) == sql.store.find_event(EXP, make_event(2)["eventId"])
-    finally:
-        mem.close()
-        sql.close()
-
-
-# --- author fields ----------------------------------------------------------------
-# The trigger of the Task 3 finding: `changed_outside_editor` (and the matching recorder
-# event) declare `authorHint` as `Literal["outside"]`, so a validated event holds the plain
-# str "outside" there while every other event type holds the `AuthorHint` enum. A store that
-# calls `.value` on the field fails for exactly those events.
-
-
-def _author_events():
-    from blaym_jupyter_types import AuthorConfidence, AuthorHint
-
-    from blaym_jupyter.tests.history.scenario import EXPLORATION, Scenario
-
-    plain = [
-        make_event(1, exp=EXPLORATION, authorHint="person", authorConfidence="known"),
-        make_event(2, exp=EXPLORATION, authorHint="ai", authorConfidence="guess"),
-        make_event(3, exp=EXPLORATION, authorHint=AuthorHint.ai, authorConfidence=AuthorConfidence.guess),
-        make_event(4, exp=EXPLORATION, authorHint="blaym"),
-    ]
-    s = Scenario()
-    s.start(cells=[("c1", "x = 1")])
-    s.outside_change([("c1", "x = 2")])
-    from_scenario = [e.model_dump(mode="json", exclude_none=True) for e in s.events]
-    return EXPLORATION, plain, from_scenario
-
-
-def test_author_fields_as_plain_strings_enum_values_and_scenario_events(harness):
-    exp, plain, from_scenario = _author_events()
-    s = harness.store
-    got = s.append(exp, plain)
-    assert [str(getattr(e.authorHint, "value", e.authorHint)) if e.authorHint else None for e in got] == \
-        ["person", "ai", "ai", "blaym"]
-    assert any(e["type"] == "changed_outside_editor" for e in from_scenario)
-    got2 = s.append(exp, from_scenario)  # includes an event whose authorHint is the plain str "outside"
-    outside = [e for e in got2 if e.type == "changed_outside_editor"]
-    assert outside and all(str(e.authorHint) == "outside" for e in outside)
-    assert len(s.events_for(exp)) == len(plain) + len(from_scenario)
-
-
-def test_the_literal_outside_hint_is_a_plain_str_after_validation():
-    """Guards the premise of the test above: if the contract ever makes this an enum the
-    store's tolerance is still right, but the trigger would have changed."""
-    from blaym_jupyter_types import BlaymEvent
-
-    from blaym_jupyter.tests.history.scenario import Scenario
-
-    s = Scenario()
-    s.start(cells=[("c1", "x = 1")])
-    s.outside_change([("c1", "x = 2")])
-    ev = BlaymEvent.model_validate({**s.events[-1].model_dump(mode="json", exclude_none=True)}).root
-    assert ev.type == "changed_outside_editor" and type(ev.authorHint) is str

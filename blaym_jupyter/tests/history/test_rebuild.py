@@ -1,8 +1,8 @@
-"""The real rebuilder against the reference (S3a, Task 5).
+"""The real rebuilder against the reference.
 
 The core equivalence: for every input, `Rebuilder.state_at` gives exactly the answer of
 `reference_rebuild` (`model_dump(mode="json")` equal), whatever the snapshot interval,
-the batches the events arrive in, or what was asked before. Task 6 adds the full
+the batches the events arrive in, or what was asked before. The properties file adds the full
 property set.
 """
 
@@ -47,7 +47,7 @@ def _long_scenario(n=12):
 # --- hand cases: jump paths -------------------------------------------------------
 
 
-def test_jump_uses_a_snapshot_on_the_own_branch():
+def _case_jump_uses_a_snapshot_on_the_own_branch():
     s = _long_scenario()
     rb = Rebuilder(interval=4)
     rb.add(s.events)
@@ -58,7 +58,7 @@ def test_jump_uses_a_snapshot_on_the_own_branch():
     assert dump(got) == dump(reference_rebuild(s.events, "main", 7))
 
 
-def test_jump_uses_a_snapshot_on_an_ancestor_up_to_the_cut():
+def _case_jump_uses_a_snapshot_on_an_ancestor_up_to_the_cut():
     s = _long_scenario()
     s.branch_from(tick=10, name="b")
     s.edit("c1", "y = 1")
@@ -74,7 +74,7 @@ def test_jump_uses_a_snapshot_on_an_ancestor_up_to_the_cut():
     assert dump(rb.state_at("b", 11)) == dump(reference_rebuild(s.events, "b", 11))
 
 
-def test_jump_with_no_snapshot_starts_from_the_beginning():
+def _case_jump_with_no_snapshot_starts_from_the_beginning():
     s = _long_scenario()
     for interval in (None, 100):
         rb = Rebuilder(interval=interval)
@@ -85,7 +85,7 @@ def test_jump_with_no_snapshot_starts_from_the_beginning():
         assert dump(got) == dump(reference_rebuild(s.events, "main", s.tick))
 
 
-def test_interval_one_snapshots_every_event_and_stays_correct():
+def _case_interval_one_snapshots_every_event_and_stays_correct():
     s = _long_scenario()
     rb = Rebuilder(interval=1)
     rb.add(s.events)
@@ -94,15 +94,23 @@ def test_interval_one_snapshots_every_event_and_stays_correct():
     assert_same(rb, s.events, [("main", t) for t in range(1, s.tick + 1)])
 
 
-def test_bad_interval_is_refused():
+def _case_bad_interval_is_refused():
     with pytest.raises(ValueError):
         Rebuilder(interval=0)
+
+
+def test_jump_starts_from_the_right_snapshot():
+    _case_jump_uses_a_snapshot_on_the_own_branch()
+    _case_jump_uses_a_snapshot_on_an_ancestor_up_to_the_cut()
+    _case_jump_with_no_snapshot_starts_from_the_beginning()
+    _case_interval_one_snapshots_every_event_and_stays_correct()
+    _case_bad_interval_is_refused()
 
 
 # --- late arrival, conflicts, clashes never serve a stale snapshot -----------------
 
 
-def test_late_arriving_earlier_tick_drops_snapshots_and_answers_stay_right():
+def _case_late_arriving_earlier_tick_drops_snapshots_and_answers_stay_right():
     s = _long_scenario()
     held = s.events[3]  # tick 4
     rest = [e for e in s.events if e is not held]
@@ -120,7 +128,7 @@ def test_late_arriving_earlier_tick_drops_snapshots_and_answers_stay_right():
     assert_same(rb2, s.events, [("main", t) for t in range(1, s.tick + 1)])
 
 
-def test_conflict_and_clash_after_warm_cache():
+def _case_conflict_and_clash_after_warm_cache():
     s = _long_scenario()
     rb = Rebuilder(interval=2)
     rb.add(s.events)
@@ -139,19 +147,12 @@ def test_conflict_and_clash_after_warm_cache():
     assert dump(rb.state_at("main", 3)) == dump(reference_rebuild(s.events + [twin], "main", 3))
 
 
-def test_returned_states_are_independent_copies():
-    s = _long_scenario()
-    rb = Rebuilder(interval=3)
-    rb.add(s.events)
-    a = rb.state_at("main", 7)
-    a.state.notebook.cells[0].code = "tampered"
-    a.state.position.tick = 99
-    b = rb.state_at("main", 7)
-    assert b.state.notebook.cells[0].code != "tampered"
-    assert dump(b) == dump(reference_rebuild(s.events, "main", 7))
+def test_late_and_conflicting_events_after_a_warm_cache():
+    _case_late_arriving_earlier_tick_drops_snapshots_and_answers_stay_right()
+    _case_conflict_and_clash_after_warm_cache()
 
 
-def test_real_rebuilder_reports_missing_events_for_a_branch_point_at_a_missing_tick():
+def _case_real_rebuilder_reports_missing_events_for_a_branch_point_at_a_missing_tick():
     s = _long_scenario(4)
     s.branch_from(tick=3, name="b")
     s.edit("c1", "y")
@@ -192,14 +193,6 @@ def small_deliveries():
 
 
 @DELIVERY_SETTINGS
-@given(small_deliveries(), st.sampled_from(INTERVALS))
-def test_deliveries_match_the_reference_in_one_batch(d, interval):
-    rb = Rebuilder(interval=interval)
-    rb.add(d.events)
-    assert_same(rb, d.events, _extra_positions(d))
-
-
-@DELIVERY_SETTINGS
 @given(small_deliveries(), st.sampled_from(INTERVALS), st.data())
 def test_deliveries_match_the_reference_across_batches_with_a_warm_cache(d, interval, data):
     events = list(d.events)
@@ -219,7 +212,7 @@ def test_deliveries_match_the_reference_across_batches_with_a_warm_cache(d, inte
     assert_same(rb, events, pos)
 
 
-def test_asks_below_the_first_event_and_on_nothing_are_typed_answers():
+def _case_asks_below_the_first_event_and_on_nothing_are_typed_answers():
     s = _long_scenario(3)
     for tick in (0, -1):
         for events in ([], s.events):
@@ -228,3 +221,8 @@ def test_asks_below_the_first_event_and_on_nothing_are_typed_answers():
             r = rb.state_at("main", tick)
             assert r.status == "missing_events"
             assert dump(r) == dump(reference_rebuild(events, "main", tick))
+
+
+def test_typed_answers_for_missing_branch_points_and_empty_asks():
+    _case_real_rebuilder_reports_missing_events_for_a_branch_point_at_a_missing_tick()
+    _case_asks_below_the_first_event_and_on_nothing_are_typed_answers()

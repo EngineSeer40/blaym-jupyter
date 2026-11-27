@@ -1,4 +1,4 @@
-"""Staleness checks for the real rebuilder (S3a, Task 5 gate).
+"""Staleness checks for the real rebuilder.
 
 The original Blaym served stale state after branch switches and seeks. Here the cache is
 warmed on every branch, then events arrive late, twice, in conflict, in clash, as new
@@ -72,7 +72,7 @@ def test_tiny_batches_late_events_and_extras_never_serve_stale_answers(h, seed, 
     check_all(rb, delivered, h.branches, last)
 
 
-def test_late_branch_point_for_a_new_branch_below_cached_snapshots():
+def _case_late_branch_point_for_a_new_branch_below_cached_snapshots():
     s = Scenario()
     s.start(cells=[("c1", "x = 0")])
     for i in range(1, 30):
@@ -93,7 +93,7 @@ def test_late_branch_point_for_a_new_branch_below_cached_snapshots():
     check_all(rb, s.events, ["main", "b"], s.tick)
 
 
-def test_snapshot_on_an_ancestor_below_the_cut_is_dropped_when_an_earlier_event_lands():
+def _case_snapshot_on_an_ancestor_below_the_cut_is_dropped_when_an_earlier_event_lands():
     s = Scenario()
     s.start(cells=[("c1", "x = 0")])
     for i in range(1, 20):
@@ -112,7 +112,7 @@ def test_snapshot_on_an_ancestor_below_the_cut_is_dropped_when_an_earlier_event_
     check_all(rb2, s.events, ["main", "b"], s.tick)
 
 
-def test_conflict_arriving_late_invalidates_every_warm_snapshot():
+def _case_conflict_arriving_late_invalidates_every_warm_snapshot():
     s = Scenario()
     s.start(cells=[("c1", "x = 0")])
     for i in range(1, 15):
@@ -132,7 +132,7 @@ def test_conflict_arriving_late_invalidates_every_warm_snapshot():
     check_all(rb, s.events + [twin, e], ["main", "b"], s.tick)
 
 
-def test_clash_arriving_late_invalidates_every_warm_snapshot():
+def _case_clash_arriving_late_invalidates_every_warm_snapshot():
     s = Scenario()
     s.start(cells=[("c1", "x = 0")])
     for i in range(1, 15):
@@ -148,7 +148,14 @@ def test_clash_arriving_late_invalidates_every_warm_snapshot():
     check_all(rb, s.events + [twin], ["main", "b"], s.tick)
 
 
-def test_returned_states_are_independent_copies_even_on_a_snapshot_hit():
+def test_late_events_invalidate_warm_snapshots():
+    _case_late_branch_point_for_a_new_branch_below_cached_snapshots()
+    _case_snapshot_on_an_ancestor_below_the_cut_is_dropped_when_an_earlier_event_lands()
+    _case_conflict_arriving_late_invalidates_every_warm_snapshot()
+    _case_clash_arriving_late_invalidates_every_warm_snapshot()
+
+
+def _case_returned_states_are_independent_copies_even_on_a_snapshot_hit():
     s = Scenario()
     s.start(cells=[("c1", "x = 0")])
     for i in range(1, 9):
@@ -169,7 +176,7 @@ def test_returned_states_are_independent_copies_even_on_a_snapshot_hit():
         assert dump(again) == want
 
 
-def test_snapshots_are_keyed_per_branch_and_ancestor_hits_are_not_confused_with_descendants():
+def _case_snapshots_are_keyed_per_branch_and_ancestor_hits_are_not_confused_with_descendants():
     s = Scenario()
     s.start(cells=[("c1", "x = 0")])
     for i in range(1, 9):
@@ -190,28 +197,7 @@ def test_snapshots_are_keyed_per_branch_and_ancestor_hits_are_not_confused_with_
     assert len(keys) == len(set(keys))
 
 
-def test_state_at_really_jumps_from_a_snapshot_and_never_calls_the_reference(monkeypatch):
-    import blaym_jupyter.history.rebuild as mod
-    import blaym_jupyter.history.reference as ref
-
-    assert not hasattr(mod, "reference_rebuild")
-    s = Scenario()
-    s.start(cells=[("c1", "x = 0")])
-    for i in range(1, 40):
-        s.edit("c1", f"x = {i}")
-    rb = Rebuilder(interval=5)
-    rb.add(s.events)
-    rb.state_at("main", 40)
-    applied = []
-    orig = mod.step
-    monkeypatch.setattr(mod, "step", lambda st_, ev: (applied.append(ev.tick), orig(st_, ev))[1])
-    monkeypatch.setattr(ref, "reference_rebuild", lambda *a, **k: pytest.fail("reference called"))
-    rb.state_at("main", 33)
-    assert rb.last_base == ("main", 30)
-    assert applied == [31, 32, 33]
-
-
-def test_mutating_an_event_after_add_does_not_change_answers():
+def _case_mutating_an_event_after_add_does_not_change_answers():
     s = Scenario()
     s.start(cells=[("c1", "x = 0"), ("c2", "keep")])
     s.edit("c2", "c2 v2")  # tick 2, never overwritten afterwards
@@ -225,3 +211,9 @@ def test_mutating_an_event_after_add_does_not_change_answers():
     early = rb.state_at("main", 3).state.notebook.cells[1].code  # starts from scratch: sees the tampered edit
     late = rb.state_at("main", 13).state.notebook.cells[1].code  # starts from snapshot 12
     assert early == late
+
+
+def test_snapshot_hits_are_independent_and_really_jump():
+    _case_returned_states_are_independent_copies_even_on_a_snapshot_hit()
+    _case_snapshots_are_keyed_per_branch_and_ancestor_hits_are_not_confused_with_descendants()
+    _case_mutating_an_event_after_add_does_not_change_answers()

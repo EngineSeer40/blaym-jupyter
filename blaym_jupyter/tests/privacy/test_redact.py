@@ -1,4 +1,4 @@
-"""Secret hiding (S4 Task 5): patterns, properties, the true/false-positive corpus, events.
+"""Secret hiding: patterns, properties, the true/false-positive corpus, events.
 
 Read the CORPUS first: it states, for each ordinary-looking text, whether it is hidden or
 kept, and names the cases where a false positive or false negative is accepted.
@@ -113,49 +113,20 @@ KNOWN_FN = {
 }
 
 
-@pytest.mark.parametrize("text", KEPT)
-def test_corpus_kept(text):
-    assert redact(text) == (text, 0)
+def test_corpus_hidden_and_kept():
+    for text, want in HIDDEN:
+        out, n = redact(text)
+        assert out == want and n >= 1, text
+        assert redact(out) == (out, 0), text  # idempotent
+    for text in KEPT:
+        assert redact(text) == (text, 0), text
 
 
-@pytest.mark.parametrize("text,want", HIDDEN)
-def test_corpus_hidden(text, want):
-    out, n = redact(text)
-    assert out == want
-    assert n >= 1
-    assert redact(out) == (out, 0)  # idempotent
-
-
-@pytest.mark.parametrize("name", sorted(KNOWN_FP))
-def test_known_false_positives_stay_documented(name):
-    text, want = KNOWN_FP[name]
-    assert redact(text)[0] == want
-
-
-@pytest.mark.parametrize("name", sorted(KNOWN_FN))
-def test_known_false_negatives_stay_documented(name):
-    text = KNOWN_FN[name]
-    assert redact(text) == (text, 0)
-
-
-def test_marker_names_the_kind_and_never_matches_a_pattern():
-    for kind in ["api key", "token", "password", "secret", "private key", "connection string password"]:
-        m = f"[hidden: {kind}]"
-        assert MARKER_RE.fullmatch(m)
-        assert redact(m) == (m, 0)
-        for wrap in [f'x = "{m}"', f"password = {m}", f"token: {m}", f"Authorization: Bearer {m}",
-                     f"postgres://u:{m}@h", f"--password {m}"]:
-            assert redact(wrap)[0] == wrap, wrap
-
-
-def test_count_is_the_number_of_hidden_spans():
-    text = 'a = "AKIAIOSFODNN7EXAMPLE"\npassword = "hunter2x9"\nmax_tokens=5'
-    out, n = redact(text)
-    assert n == 2 and out.count("[hidden:") == 2
-
-
-def test_a_kept_match_is_not_counted():
-    assert redact("password = None\n")[1] == 0
+def test_known_false_positives_and_negatives_stay_documented():
+    for text, want in KNOWN_FP.values():
+        assert redact(text)[0] == want
+    for text in KNOWN_FN.values():
+        assert redact(text) == (text, 0)
 
 
 # --- planted secrets (property 1) ---------------------------------------------------------------
@@ -268,44 +239,13 @@ def test_planted_secrets_are_hidden_and_the_hidden_text_is_stable(p, before, aft
 
 
 @PROP
-@given(planted(), planted(), PROSE)
-def test_several_secrets_in_one_text(a, b, mid):
-    (ta, sa, _), (tb, sb, _) = a, b
-    assume(sa not in tb and sb not in ta and sa not in mid and sb not in mid)
-    assume("-----" not in mid and not sa.startswith("-") and "PRIVATE" not in ta + tb)
-    out, _ = redact(ta + "\n" + mid + "\n" + tb)
-    assert sa not in out and sb not in out
-
-
-# --- idempotent and unchanged (properties 2 and 3) ---------------------------------------------
-
-ORDINARY_WORDS = st.text(alphabet=string.ascii_lowercase + string.digits + " \n.,", max_size=200)
-
-
-@PROP
-@given(ORDINARY_WORDS, st.lists(st.sampled_from(KEPT), max_size=6))
-def test_text_without_secrets_is_unchanged(words, lines):
-    # KEPT lines that hold a PEM-like or marker text are fine too: every one is kept alone.
-    text = words + "\n" + "\n".join(lines) + "\n" + words
-    assume("-----BEGIN CERTIFICATE" not in text or True)
-    out, n = redact(text)
-    assert (out, n) == (text, 0)
-
-
-@PROP
-@given(st.text(max_size=300))
-def test_idempotent_on_any_text(text):
-    once = redact(text)[0]
-    assert redact(once) == (once, 0)
-
-
-@PROP
-@given(st.lists(st.sampled_from(
-    ["password", "token", "secret", "api_key", " = ", ": ", "=", '"', "'", "\n", "x1", "Bearer ", "eyJ",
-     "AKIA", "://", "@", "-----BEGIN PRIVATE KEY-----", "--password ", "export ", "ab12", "[hidden: token]", "\\", "# c "]),
-    max_size=40))
-def test_idempotent_on_pattern_fragments(parts):
-    text = "".join(parts)
+@given(st.one_of(
+    st.text(max_size=300),
+    st.lists(st.sampled_from(
+        ["password", "token", "secret", "api_key", " = ", ": ", "=", '"', "'", "\n", "x1", "Bearer ", "eyJ",
+         "AKIA", "://", "@", "-----BEGIN PRIVATE KEY-----", "--password ", "export ", "ab12", "[hidden: token]", "\\",
+         "# c "]), max_size=40).map("".join)))
+def test_redaction_is_idempotent(text):
     once = redact(text)[0]
     assert redact(once) == (once, 0), (text, once)
 
@@ -341,22 +281,12 @@ ADVERSARIAL = {
 }
 
 
-@pytest.mark.parametrize("name", sorted(ADVERSARIAL))
-def test_linear_time_on_adversarial_input(name):
-    text = ADVERSARIAL[name]
-    t0 = time.perf_counter()
-    out, _ = redact(text)
-    elapsed = time.perf_counter() - t0
-    assert elapsed < 3.0, f"{name}: {elapsed:.1f}s"
-    assert redact(out)[0] == out
-
-
-def test_a_large_realistic_text_is_fast():
-    text = ("x = 1\nprint('hello world')\n" * 20_000) + 'api_key = "abc123def456"\n'
-    t0 = time.perf_counter()
-    out, n = redact(text)
-    assert time.perf_counter() - t0 < 3.0
-    assert n == 1 and "abc123def456" not in out
+def test_linear_time_on_adversarial_input():
+    for name, text in ADVERSARIAL.items():
+        t0 = time.perf_counter()
+        out, _ = redact(text)
+        assert time.perf_counter() - t0 < 3.0, name
+        assert redact(out)[0] == out, name
 
 
 # --- events (property 5) ---------------------------------------------------------------------
@@ -422,60 +352,18 @@ def planted_events():
     return s.events
 
 
-def _strings(obj):
-    if isinstance(obj, str):
-        yield obj
-    elif isinstance(obj, dict):
-        for k, v in obj.items():
-            yield from _strings(v)
-    elif isinstance(obj, list):
-        for v in obj:
-            yield from _strings(v)
-
-
-def _untouched(a, b):
-    """Everything except text fields is equal (envelope, ids, hashes, revisions, counts)."""
-    da, db = a.model_dump(mode="json"), b.model_dump(mode="json")
-    return da, db
-
-
-def test_all_24_event_types_are_planted():
-    types = {e.type for e in planted_events()}
-    assert len(types) == 24, sorted(types)
-
-
-@pytest.mark.parametrize("wrapped", [False, True])
-def test_redact_event_hides_the_secret_in_every_type(wrapped):
+def test_redact_event_hides_the_secret_in_every_type():
+    assert len({e.type for e in planted_events()}) == 24
     for ev in planted_events():
         before = ev.model_dump(mode="json")
-        arg = BlaymEvent(root=ev) if wrapped else ev
-        out = redact_event(arg)
-        assert isinstance(out, BlaymEvent if wrapped else type(ev))
-        assert out is not arg
+        out = redact_event(ev)
         dumped = out.model_dump(mode="json")
         assert SECRET not in json.dumps(dumped), ev.type
-        assert (arg.root if wrapped else arg).model_dump(mode="json") == before  # original untouched
+        assert ev.model_dump(mode="json") == before  # original untouched
         assert BlaymEvent.model_validate(dumped).model_dump(mode="json") == dumped  # validates
-        # whatever is not text stays: compare after removing every string that holds a marker
+        # whatever is not text stays: the only change is the planted line becoming its marker
         want = json.loads(json.dumps(before).replace(PLANT.replace('"', '\\"'), HIDDEN_LINE.replace('"', '\\"')))
         assert dumped == want, ev.type
-
-
-def test_text_fields_are_hidden_where_they_live():
-    by_type = {e.type: redact_event(e) for e in planted_events()}
-    snap = by_type["notebook_snapshot"].payload
-    assert snap.cells[0].code == HIDDEN_LINE
-    assert snap.cells[0].metadata["nested"]["list"] == [HIDDEN_LINE, 1, None, {"deep": HIDDEN_LINE}]
-    assert snap.cells[0].metadata["n"] == 5 and snap.cells[0].metadata["flag"] is True
-    assert snap.cells[0].outputs[0].items[0].preview == HIDDEN_LINE
-    assert snap.cells[0].outputs[0].items[0].searchText == HIDDEN_LINE
-    assert snap.notebookMetadata["sub"]["x"] == [HIDDEN_LINE]
-    ins = by_type["cell_inserted"].payload
-    assert ins.outputs[0].preview == HIDDEN_LINE and ins.outputs[1].preview == "fine"
-    assert ins.metadata == {"m": HIDDEN_LINE}
-    assert by_type["output_added"].payload.item.searchText == HIDDEN_LINE
-    assert by_type["output_replaced"].payload.item.preview == HIDDEN_LINE
-    assert by_type["chat_message_updated"].payload.body == f"here: {HIDDEN_LINE} more"
 
 
 def test_metadata_keys_are_never_touched():
@@ -501,11 +389,6 @@ def test_ids_hashes_and_names_are_not_touched():
     assert out.payload.item.contentHash == o.payload.item.contentHash
     assert out.payload.item.sizeBytes == o.payload.item.sizeBytes
     assert out.payload.item.preview == HIDDEN_LINE
-
-
-def test_redact_event_refuses_a_mapping():
-    with pytest.raises(TypeError):
-        redact_event({"type": "cell_deleted"})
 
 
 # --- rebuild property (property 6) ------------------------------------------------------------

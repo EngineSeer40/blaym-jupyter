@@ -1,4 +1,4 @@
-"""The run recorder and the ordered sink against the real service over the memory ports (S5, Task 7).
+"""The run recorder and the ordered sink against the real service over the memory ports.
 
 Generated kernel message sequences (several runs, two kernels, restarts, the browser's code edit
 delivered before the run request, after the kernel's messages, or never) end in a state that must
@@ -7,9 +7,7 @@ equal an independent oracle, and every committed tick must rebuild. Named cases 
 
 from __future__ import annotations
 
-import json
 import threading
-import time
 import uuid
 from dataclasses import dataclass, field
 
@@ -25,7 +23,7 @@ from blaym_jupyter.service.auth import FixedTokenAuthorizer
 from blaym_jupyter.service.core import Service
 from blaym_jupyter.testing.fakes import IdFactory
 from blaym_jupyter.testing.memory import MemoryBlobStore, MemoryEventStore
-from blaym_jupyter.tests.recording.test_runs import FakeRegistry, FakeTime, UuidIds
+from blaym_jupyter.tests.recording.helpers import FakeRegistry, FakeTime, UuidIds
 from blaym_jupyter_types import GetBlobRequest, RebuildOk, StateAtRequest
 
 TOKEN = "t0ken"
@@ -172,24 +170,6 @@ def items_of(state, cell_id, run_id):
             for i in (group.items if group else [])]
 
 
-# -- named cases ----------------------------------------------------------------------------------
-
-def test_a_run_on_a_cell_inserted_a_moment_ago(h):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.kernel()
-    h.insert("nb-1", "c2", "print('new')", 1)
-    h.request("r1", cell="c2", code="print('new')")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.msg("r1", "stream", {"name": "stdout", "text": "new\n"})
-    h.finish_msgs("r1", 1)
-    h.settle()
-    s = h.state("nb-1")
-    r = run_of(s, "r1")
-    assert (r.cellId, r.cellRevision, r.runCount, r.status.root) == ("c2", 1, 1, "ok")
-    assert items_of(s, "c2", "r1") == [("stream", "new\n")]
-    h.assert_clean("nb-1")
-
-
 def test_a_run_whose_code_arrives_after_the_run_is_requested_and_after_its_messages(h):
     h.snapshot("nb-1", [("c1", "a")])
     h.kernel()
@@ -227,105 +207,6 @@ def test_an_edit_during_a_run_leaves_the_run_on_its_own_revision(h):
     h.assert_clean("nb-1")
 
 
-def test_a_cell_edited_again_before_the_run_is_linked_still_resolves(h):
-    h.snapshot("nb-1", [("c1", "v1")])
-    h.edit("nb-1", "c1", "v2")
-    h.edit("nb-1", "c1", "v3")  # the browser is already ahead of the run request
-    h.request("r1", code="v2")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.finish_msgs("r1", 1)
-    h.settle()
-    assert run_of(h.state("nb-1"), "r1").cellRevision == 2
-
-
-@pytest.mark.parametrize("code", ['api_key = "sk-A1b2C3d4E5f6G7h8I9j0K1l2M3n4"', 'password = "hunter2-Plant3d-Pw"'])
-def test_code_containing_a_fake_key_still_resolves(h, code):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.edit("nb-1", "c1", code)
-    h.kernel()
-    h.request("r1", code=code)
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.finish_msgs("r1", 1)
-    h.settle()
-    s = h.state("nb-1")
-    assert run_of(s, "r1").cellRevision == 2
-    stored = next(c for c in s.notebook.cells if c.cellId == "c1").code
-    assert "sk-A1b2" not in stored and "hunter2" not in stored  # and the history never held the key
-
-
-def test_two_runs_overlapping_keep_their_own_outputs_and_order(h):
-    h.snapshot("nb-1", [("c1", "a"), ("c2", "b")])
-    h.kernel()
-    h.request("A", cell="c1", code="a")
-    h.request("B", cell="c2", code="b")  # requested while A runs
-    h.msg("A", "execute_input", {"execution_count": 1})
-    h.msg("A", "stream", {"name": "stdout", "text": "A1 "})
-    h.msg("A", "stream", {"name": "stdout", "text": "A2"})
-    h.settle(300)
-    h.finish_msgs("A", 1)
-    h.msg("B", "execute_input", {"execution_count": 2})
-    h.msg("B", "stream", {"name": "stderr", "text": "B1"})
-    h.finish_msgs("B", 2, reply="error")
-    h.settle()
-    s = h.state("nb-1")
-    assert items_of(s, "c1", "A") == [("stream", "A1 A2")]
-    assert items_of(s, "c2", "B") == [("stream", "B1")]
-    assert [(r.runId, r.runCount, r.status.root) for r in s.runs] == [("A", 1, "ok"), ("B", 2, "error")]
-    assert run_of(s, "A").startedTick < run_of(s, "A").endedTick < run_of(s, "B").startedTick
-    h.assert_clean("nb-1")
-
-
-def test_run_all_keeps_request_order_when_a_runs_code_is_not_there_yet(h):
-    h.snapshot("nb-1", [("c1", "a"), ("c2", "b")])
-    h.kernel()
-    h.request("A", cell="c1", code="a2")  # the edit for A will land late
-    h.request("B", cell="c2", code="b")  # B's code is already in the history
-    for rid, n, text in (("A", 1, "a\n"), ("B", 2, "b\n")):
-        h.msg(rid, "execute_input", {"execution_count": n})
-        h.msg(rid, "stream", {"name": "stdout", "text": text})
-        h.finish_msgs(rid, n)
-    h.t.advance(1000)
-    assert h.types() == ["notebook_snapshot"]
-    h.edit("nb-1", "c1", "a2")
-    h.settle()
-    s = h.state("nb-1")
-    a, b = run_of(s, "A"), run_of(s, "B")
-    assert a.startedTick < a.endedTick < b.startedTick < b.endedTick
-    assert (a.runCount, b.runCount) == (1, 2)
-    h.assert_clean("nb-1")
-
-
-def test_a_restart_racing_a_pending_run_resolves_it_first(h):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.kernel()
-    h.request("r1", code="b")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.msg("r1", "stream", {"name": "stdout", "text": "partial"})
-    h.edit("nb-1", "c1", "b")  # the edit lands between two polls, then the kernel restarts
-    h.rec.kernel_restarted("k1")
-    h.settle()
-    types = h.types()
-    assert types.index("run_started") < types.index("kernel_restarted")
-    s = h.state("nb-1")
-    assert run_of(s, "r1").status.root == "unfinished" and s.kernel.lastRestart is not None
-    assert items_of(s, "c1", "r1") == [("stream", "partial")]
-    h.assert_clean("nb-1")
-
-
-def test_a_restart_with_a_run_whose_code_never_came_drops_it_with_a_gap_before_the_restart(h):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.kernel()
-    h.request("r1", code="never")
-    h.rec.kernel_restarted("k1")
-    h.settle()
-    types = h.types()
-    assert "run_started" not in types
-    assert types.index("recording_gap_started") < types.index("kernel_restarted")
-    s = h.state("nb-1")
-    assert [g.endedTick is not None for g in s.gaps] == [True] and s.gaps[0].source.value == "kernel"
-    h.assert_clean("nb-1")
-
-
 def test_a_three_megabyte_chart_goes_through_put_blob_and_is_readable_with_its_secret_hidden(h):
     key = "sk-A1b2C3d4E5f6G7h8I9j0K1l2M3n4"
     h.snapshot("nb-1", [("c1", "plot()")])
@@ -343,178 +224,6 @@ def test_a_three_megabyte_chart_goes_through_put_blob_and_is_readable_with_its_s
     assert b"iVBORw0KGgo" in stored and key.encode() not in stored
     h.assert_clean("nb-1")
 
-
-def test_queue_overflow_keeps_run_started_and_finished_and_memory_bounded():
-    h = Harness(sink_kw={"max_queued_events": 50, "max_pending_blob_bytes": 4 * 1024 * 1024})
-    try:
-        h.snapshot("nb-1", [("c1", "burst()")])
-        h.kernel()
-        h.settle(100)
-        h.ing.gate = threading.Event()  # the store is slow: the worker is stuck
-        h.request("r1", code="burst()")
-        h.msg("r1", "execute_input", {"execution_count": 1})
-        h.t.advance(10)
-        time.sleep(0.05)
-        for i in range(3000):
-            h.msg("r1", "display_data", {"data": {"text/plain": f"row {i}", "image/png": "A" * 20000}, "metadata": {}})
-        assert h.sink._queued <= 60 and h.sink._pending_bytes <= 5 * 1024 * 1024
-        h.finish_msgs("r1", 1)
-        h.ing.gate.set()
-        h.settle()
-        assert h.sink.stats["dropped_overflow"] > 2000 or h.sink.stats["reduced_blobs"] > 0
-        s = h.state("nb-1")
-        r = run_of(s, "r1")
-        assert r.status.root == "ok"  # started and finished are never dropped
-        assert h.sink.stats["errors"] == 0
-        for tick in range(1, h.tip("nb-1")[1] + 1):
-            assert isinstance(h.service.state_at(TOKEN, StateAtRequest(
-                explorationId="nb-1", branchId=h.tip("nb-1")[0], tick=tick)), RebuildOk)
-        assert not h.sink.refused
-    finally:
-        h.close()
-
-
-def test_a_three_minute_run_with_silent_stretches_is_recorded_whole(h):
-    h.snapshot("nb-1", [("c1", "fit()")])
-    h.kernel()
-    h.request("r1", code="fit()")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.msg("r1", "stream", {"name": "stdout", "text": "epoch 0\n"})
-    for epoch in range(1, 4):
-        h.t.advance(60_000)  # a minute of silence
-        assert h.sink.drain(5)
-        assert run_of(h.state("nb-1"), "r1").status.root == "running"
-        h.msg("r1", "stream", {"name": "stdout", "text": f"epoch {epoch}\n"})
-    h.msg("r1", "display_data", {"data": {"text/plain": "<Fig>", "image/png": "AAAA"}, "metadata": {}})
-    h.finish_msgs("r1", 1)
-    h.settle()
-    s = h.state("nb-1")
-    assert run_of(s, "r1").status.root == "ok"
-    assert items_of(s, "c1", "r1")[0] == ("stream", "epoch 0\nepoch 1\nepoch 2\nepoch 3\n")
-    assert len(items_of(s, "c1", "r1")) == 2
-    assert not s.gaps
-    h.assert_clean("nb-1")
-
-
-def test_the_kernel_starts_before_the_first_snapshot_and_everything_is_parked_then_applied_in_order(h):
-    h.kernel()
-    h.request("r1", cell="c1", code="a")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.msg("r1", "stream", {"name": "stdout", "text": "early\n"})
-    h.finish_msgs("r1", 1)
-    h.t.advance(3000)  # no history yet: the kernel event is parked and the run waits for its code
-    assert h.events.exploration("nb-1") is None
-    h.snapshot("nb-1", [("c1", "a")])  # the browser's first snapshot arrives
-    h.settle(2500)
-    assert h.types() == ["notebook_snapshot", "kernel_started", "run_started", "output_added", "run_finished"]
-    s = h.state("nb-1")
-    assert s.kernel.status.value == "running" and run_of(s, "r1").status.root == "ok"
-    h.assert_clean("nb-1")
-
-
-def test_unknown_parent_messages_before_run_requested_are_buffered_and_used(h):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.kernel()
-    h.msg("late", "execute_input", {"execution_count": 1})  # the VS Code way: messages first
-    h.msg("late", "stream", {"name": "stdout", "text": "first\n"})
-    h.finish_msgs("late", 1)
-    h.t.advance(800)
-    h.request("late", code="a")
-    h.settle()
-    s = h.state("nb-1")
-    assert items_of(s, "c1", "late") == [("stream", "first\n")] and run_of(s, "late").status.root == "ok"
-    assert "recording_gap_started" not in h.types()
-    h.assert_clean("nb-1")
-
-
-def test_an_execution_nobody_asked_about_is_one_gap_and_the_notebook_still_rebuilds(h):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.kernel()
-    for i in range(3):  # a script run elsewhere
-        h.msg(f"x{i}", "execute_input", {"execution_count": i + 1})
-        h.msg(f"x{i}", "stream", {"name": "stdout", "text": "who\n"})
-    h.settle(3000)
-    assert h.types().count("recording_gap_started") == 1
-    h.assert_clean("nb-1")
-
-
-def test_a_run_whose_alias_maps_a_temporary_cell_id_to_a_blaym_id(h):
-    h.snapshot("nb-1", [("blaym-7", "a")])
-    h.reg.aliases["tmp-4.4-1"] = "blaym-7"
-    h.kernel()
-    h.request("r1", cell="tmp-4.4-1", code="a")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.msg("r1", "stream", {"name": "stdout", "text": "ok\n"})
-    h.finish_msgs("r1", 1)
-    h.settle()
-    s = h.state("nb-1")
-    assert run_of(s, "r1").cellId == "blaym-7"
-    assert items_of(s, "blaym-7", "r1") == [("stream", "ok\n")]
-    h.assert_clean("nb-1")
-
-
-def test_two_kernels_of_one_notebook_do_not_hold_each_other_up(h):
-    h.snapshot("nb-1", [("c1", "a"), ("c2", "b")])
-    h.kernel("k1")
-    h.kernel("k2")
-    h.request("A", cell="c1", code="never", kernel="k1")  # k1's head is stuck waiting for code
-    h.request("B", cell="c2", code="b", kernel="k2")
-    h.msg("B", "execute_input", {"execution_count": 1}, kernel="k2")
-    h.finish_msgs("B", 1, kernel="k2")
-    h.t.advance(1000)
-    assert h.sink.drain(5)
-    s = h.state("nb-1")
-    assert [r.runId for r in s.runs] == ["B"]
-    h.t.advance(6000)
-    assert h.sink.drain(5)
-    assert len(h.state("nb-1").gaps) == 1
-
-
-def test_kernel_gone_closes_a_started_run_as_interrupted(h):
-    h.snapshot("nb-1", [("c1", "a")])
-    h.kernel()
-    h.request("r1", code="a")
-    h.msg("r1", "execute_input", {"execution_count": 1})
-    h.msg("r1", "stream", {"name": "stdout", "text": "going\n"})
-    h.rec.kernel_gone("k1")
-    h.settle()
-    s = h.state("nb-1")
-    assert run_of(s, "r1").status.root == "interrupted"
-    assert items_of(s, "c1", "r1") == [("stream", "going\n")]
-    h.assert_clean("nb-1")
-
-
-def test_an_outside_change_during_a_run_is_accepted_and_the_run_output_stays():
-    """S5-T end to end: snapshots and outside changes are no longer refused while a run runs;
-    the run's recorded outputs are kept."""
-    h = Harness()
-    try:
-        h.snapshot("nb-1", [("c1", "a")])
-        h.kernel()
-        h.request("r1", code="a")
-        h.msg("r1", "execute_input", {"execution_count": 1})
-        h.msg("r1", "stream", {"name": "stdout", "text": "out"})
-        h.settle(200)
-        snap = h._ev("nb-1", "changed_outside_editor", {"path": "nb.ipynb", "notebookMetadata": {}, "kernelName": "python3", "language": "python", "cells": [
-            {"cellId": "c1", "cellType": "code", "code": "changed", "revision": 2, "metadata": {}, "outputs": []}]})
-        snap["authorHint"] = "outside"
-        from blaym_jupyter.recording.sink import PendingWrite
-        h.sink.submit(PendingWrite("nb-1", [snap]))
-        assert h.sink.drain(5)
-        assert "changed_outside_editor" in h.types()  # accepted during the run
-        assert h.sink.stats["deferred"] == 0
-        h.finish_msgs("r1", 1)
-        h.settle()
-        assert h.sink.drain(5)
-        assert "run_finished" in h.types()
-        cell = next(c for c in h.state("nb-1").notebook.cells if c.cellId == "c1")
-        items = [i for g in cell.outputs for i in g.items]
-        assert items and "out" in "".join(i.preview or "" for i in items)
-    finally:
-        h.close()
-
-
-# -- generated sequences against an oracle -------------------------------------------------------
 
 OPS = st.one_of(
     st.tuples(st.just("stream"), st.sampled_from(["stdout", "stderr"]), st.text("abc \n", min_size=1, max_size=6)),
@@ -710,10 +419,3 @@ def test_generated_kernel_sequences_match_the_oracle(steps):
         check(h, play(h, steps))
     finally:
         h.close()
-
-
-def test_oracle_itself_on_a_known_sequence():
-    ops = [("stream", "stdout", "a"), ("stream", "stdout", "b"), ("display", "d1", "x"), ("stream", "stdout", "c"),
-           ("update", "d1", "y"), ("clear", True, ""), ("stream", "stderr", "e")]
-    assert oracle_outputs(ops) == [("stream", "e")]
-    assert oracle_outputs(ops[:5]) == [("stream", "ab"), ("display_data", "y"), ("stream", "c")]

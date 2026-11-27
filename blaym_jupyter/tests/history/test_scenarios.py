@@ -1,4 +1,4 @@
-"""Named scenarios from the original Blaym's failures (S3a, Task 7).
+"""Named scenarios from the original Blaym's failures.
 
 Each scenario is a hand-written, readable history built with `Scenario`. A comment on
 each names the original cases it comes from (the catalogues are in
@@ -10,7 +10,7 @@ must agree exactly; the expectation is also recorded.
 Fixtures: every scenario writes `fixtures/rebuild/<name>.json` with
 `{name, source, events, expectations: [{branchId, tick, result}], outline}`, where `events`
 are the events as delivered (duplicates included, dropped ones left out) and `result`
-is the answer at that moment. `outline` is the history outline of everything delivered. Task 8 validates the files in both languages. The files
+is the answer at that moment. `outline` is the history outline of everything delivered. Another test validates the files in both languages. The files
 are generated, never edited by hand. Regenerate them after changing a scenario with
 
     python -m blaym_jupyter.tests.history.test_scenarios --write
@@ -456,12 +456,12 @@ def restore_like_sequence(s):
 # --- tests ------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("name", sorted(SCENARIOS))
-def test_scenario(name):
+def test_every_scenario_passes_against_both_rebuilders():
     """Building a scenario runs its expectations against both rebuilders."""
-    s = build(name)
-    assert s.expectations, "a scenario must assert something"
-    assert SCENARIOS[name][0], "a scenario must name its source cases"
+    for name in sorted(SCENARIOS):
+        s = build(name)
+        assert s.expectations, f"{name}: a scenario must assert something"
+        assert SCENARIOS[name][0], f"{name}: a scenario must name its source cases"
 
 
 def _render(s: Recorded) -> str:
@@ -474,19 +474,16 @@ def write_fixtures() -> None:
         (FIXTURE_DIR / f"{name}.json").write_text(_render(build(name)))
 
 
-@pytest.mark.parametrize("name", sorted(SCENARIOS))
-def test_fixture_files_are_current(name):
-    path = FIXTURE_DIR / f"{name}.json"
-    assert path.exists(), f"missing {path}; run: python -m blaym_jupyter.tests.history.test_scenarios --write"
-    assert path.read_text() == _render(build(name)), (
-        f"{path.name} is stale; run: python -m blaym_jupyter.tests.history.test_scenarios --write")
-
-
-def test_every_fixture_file_belongs_to_a_scenario():
+def test_fixture_files_are_current_and_belong_to_a_scenario():
     assert {p.stem for p in FIXTURE_DIR.glob("*.json")} == set(SCENARIOS)
+    for name in sorted(SCENARIOS):
+        path = FIXTURE_DIR / f"{name}.json"
+        assert path.exists(), f"missing {path}; run: python -m blaym_jupyter.tests.history.test_scenarios --write"
+        assert path.read_text() == _render(build(name)), (
+            f"{path.name} is stale; run: python -m blaym_jupyter.tests.history.test_scenarios --write")
 
 
-# Replaying every fixture file and checking its recorded answers is `test_fixtures.py` (Task 8),
+# Replaying every fixture file and checking its recorded answers is `test_fixtures.py`,
 # which also validates every event and result against the contracts.
 
 

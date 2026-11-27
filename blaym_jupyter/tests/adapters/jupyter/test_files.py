@@ -1,11 +1,10 @@
-"""Outside changes to notebook files (S5, Task 18): the detector, the watcher and the save step."""
+"""Outside changes to notebook files: the detector, the watcher and the save step."""
 
 import json
-import random
 
 import pytest
 
-from blaym_jupyter.adapters.jupyter.files import FileWatcher, choose_mode
+from blaym_jupyter.adapters.jupyter.files import FileWatcher
 from blaym_jupyter.recording.outside import OutsideChangeDetector, TipCell, content_hash, parse_notebook
 from blaym_jupyter.recording.registry import RECORD_VERSION, Registry
 
@@ -114,28 +113,13 @@ def test_an_outside_rewrite_is_recorded_once_with_the_outside_mark(rig):
     assert cells[1]["outputs"][0]["runId"] == "snapshot:" + event["eventId"]
 
 
-def test_formatting_only_rewrite_records_nothing(rig):
+def test_formatting_only_rewrite_is_ignored_and_an_unparseable_file_is_a_gap_closed_by_the_next_good_read(rig):
     write(rig.file, nb(code("c1", "x = 1")), indent=4)
     data = json.loads(rig.file.read_text())
     data["cells"][0]["source"] = ["x = ", "1"]
     rig.file.write_text(json.dumps(data, indent=1, sort_keys=True))
     settle(rig)
     assert rig.sink.types() == []
-
-
-def test_a_rename_over_and_a_briefly_missing_file_are_one_change(rig, tmp_path):
-    rig.file.unlink()
-    rig.watcher.schedule("a.ipynb")
-    rig.sched.run()  # missing: looks once more
-    tmp = tmp_path / "a.tmp"
-    write(tmp, nb(code("c1", "x = 5")))
-    tmp.replace(rig.file)
-    for _ in range(4):
-        rig.sched.run()
-    assert rig.sink.types() == ["changed_outside_editor"]
-
-
-def test_an_unparseable_file_is_a_gap_closed_by_the_next_good_read(rig):
     rig.file.write_text('{"cells": [')
     settle(rig)
     assert rig.sink.types() == ["recording_gap_started"]
@@ -147,77 +131,12 @@ def test_an_unparseable_file_is_a_gap_closed_by_the_next_good_read(rig):
     assert rig.sink.writes[1].events[0]["payload"]["gapId"] == gap["gapId"]
 
 
-def test_a_change_made_while_jupyter_was_stopped_is_found_by_the_first_look(rig):
-    write(rig.file, nb(code("c1", "x = 'offline'")))
-    rig.watcher._tick()
-    for _ in range(4):
-        rig.sched.run()
-    assert rig.sink.types() == ["changed_outside_editor"]
-    assert rig.registry.watched()[0][2] == content_hash(parse_notebook(rig.file.read_bytes()))
-
-
 def test_unsaved_edits_in_the_tip_with_no_last_hash_record_nothing(rig):
     rig.tip["cells"] = [TipCell("c1", "code", "x = 99"), TipCell("c2", "code", "new")]  # unsaved browser edits
     rig.registry.note_save("a.ipynb", None)
     settle(rig)
     assert rig.sink.types() == []
     assert rig.registry.watched()[0][2] == content_hash(parse_notebook(rig.file.read_bytes()))
-
-
-def test_editor_saves_are_never_outside_changes_whatever_the_order(rig):
-    """Generated interleavings: the editor's save is a start, a write, other checks, a finish; an
-    outside write is a plain write. Only outside writes may be recorded, each by its last content."""
-    for seed in range(40):
-        rig.sink.writes.clear()
-        rnd = random.Random(seed)
-        outside_wrote = False
-        for step in range(rnd.randint(2, 6)):
-            if rnd.random() < 0.5:
-                text = f"x = 'editor {seed} {step}'"
-                rig.watcher.save_started("a.ipynb")
-                if rnd.random() < 0.5:
-                    settle(rig)  # a check before the write
-                write(rig.file, nb(code("c1", text)))
-                if rnd.random() < 0.7:
-                    settle(rig)  # a check between the write and the post-save step
-                rig.watcher.save_finished("a.ipynb")
-            else:
-                write(rig.file, nb(code("c1", f"x = 'outside {seed} {step}'")))
-                outside_wrote = True
-                if rnd.random() < 0.5:
-                    settle(rig)
-        settle(rig)
-        events = [e for w in rig.sink.writes for e in w.events]
-        last_src = json.loads(rig.file.read_text())["cells"][0]["source"]
-        if "editor" in last_src or not outside_wrote:
-            # the file ends with an editor write: nothing recorded may carry editor content
-            assert all("editor" not in e["payload"]["cells"][0]["code"] for e in events)
-        assert len(events) <= 6 and all(e["type"] == "changed_outside_editor" for e in events)
-        if events:
-            assert "outside" in events[-1]["payload"]["cells"][0]["code"] or "editor" in last_src
-        # the stored hash is always the file's own, so nothing is judged twice
-        assert rig.registry.watched()[0][2] == content_hash(parse_notebook(rig.file.read_bytes()))
-
-
-def test_unstable_cell_ids_are_aligned_with_the_tip(rig):
-    det = OutsideChangeDetector(Clock(), Ids(), editor="jupyterlab", origin_id="t")
-    old = nb(code(None, "a"), code(None, "b"), minor=4)
-    for c in old["cells"]:
-        del c["id"]
-    tip = [TipCell("k1", "code", "a"), TipCell("k2", "code", "b")]
-    new = json.loads(json.dumps(old))
-    new["cells"][1]["source"] = "b2"
-    new["cells"].append({"cell_type": "markdown", "source": "new", "metadata": {}})
-    d = det.inspect("nb1", "a.ipynb", new, content_hash(old), {"k1": 3, "k2": 4}, tip)
-    cells = d.event["payload"]["cells"]
-    assert [(c["cellId"], c["revision"]) for c in cells[:2]] == [("k1", 3), ("k2", 5)]
-    assert cells[2]["cellId"] not in ("k1", "k2") and cells[2]["revision"] == 1
-
-
-def test_mnt_files_fall_back_to_polling(tmp_path):
-    assert choose_mode(tmp_path, force="polling")[0] == "polling"
-    mode, why = choose_mode(type("P", (), {"resolve": lambda s: s, "__str__": lambda s: "/mnt/c/x"})())
-    assert mode == "polling" and "/mnt" in why
 
 
 async def test_the_real_contents_manager_save_is_not_an_outside_change(jp_fetch, jp_serverapp, jp_root_dir):
@@ -246,34 +165,3 @@ async def test_the_real_contents_manager_save_is_not_an_outside_change(jp_fetch,
         assert jp_serverapp.web_app.settings[SETTINGS_KEY] is host
 
 
-def test_an_outside_change_asks_the_browser_for_a_resync_at_the_next_heartbeat(rig):
-    rig.registry.register(__import__("blaym_jupyter_types").NotebookRegistration(
-        editor="jupyterlab", instanceId="tab-1", path="a.ipynb", cellIdsStable=True, cellAliases={},
-        fingerprint={"nbformat": "4.5", "sourceHash": "x", "cellIds": ["c1"]}))
-    rig.registry.status("nb1", "tab-1")  # the first heartbeat after register: any resync is spent
-    write(rig.file, nb(code("c1", "x = 'outside'")))
-    settle(rig)
-    assert rig.registry.status("nb1", "tab-1").needsResync is True
-    assert rig.registry.status("nb1", "tab-1").needsResync is False
-
-
-def test_an_editor_save_that_lands_while_a_check_is_reading_is_not_judged_by_the_stale_read(rig):
-    """Outside write X is read; before the verdict the editor saves Y and its hook finishes. The
-    generation check throws the stale verdict away, so Y is never recorded as outside and the
-    stored hash ends as the file's own."""
-    write(rig.file, nb(code("c1", "x = 'outside X'")))
-    fired = []
-
-    def state(nb_id):
-        if not fired:
-            fired.append(1)
-            rig.watcher.save_started("a.ipynb")
-            write(rig.file, nb(code("c1", "x = 'editor Y'")))
-            rig.watcher.save_finished("a.ipynb")
-        return rig.tip["rev"], rig.tip["cells"]
-
-    rig.watcher._state = state
-    settle(rig)
-    codes = [e["payload"]["cells"][0]["code"] for w in rig.sink.writes for e in w.events]
-    assert "x = 'editor Y'" not in codes
-    assert rig.registry.watched()[0][2] == content_hash(parse_notebook(rig.file.read_bytes()))

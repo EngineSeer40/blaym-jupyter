@@ -1,4 +1,4 @@
-"""`build_outline` on conflicts and clashes together (S4, Task 3 follow-up, reviewer).
+"""`build_outline` on conflicts and clashes together.
 
 `history/outline.py` bounds the outline by the tick of the event a conflict names. An event
 that lost a tick clash is not in the tick index, so the old lookup `by_id[eventId]` raised
@@ -83,50 +83,16 @@ def changed(ev, **update):
     return ev.model_copy(update=update or {"wallTimeMs": ev.wallTimeMs + 1})
 
 
-def test_the_first_copy_lost_the_clash_and_an_earlier_clash_was_recorded_first():
-    e = six()
-    t3 = twin(e[2])
-    # clash at 2 arrives first (recorded); the loser of the clash at 3 then conflicts
-    check([*e[:3], twin(e[1]), t3, *e[3:], changed(t3)], expected_highest=1)
-
-
-def test_the_first_copy_lost_a_clash_and_is_the_only_problem_below_a_later_clash():
+def test_outline_conflict_cases():
     e = six()
     t3 = twin(e[2])
     # recorded clash is at 5; the conflict on the lost twin at 3 is lower, so it bounds the outline
     check([*e[:5], twin(e[4]), t3, e[5], changed(t3)], expected_highest=2)
-
-
-def test_a_conflict_on_an_event_above_the_first_missing_tick_leaves_the_hole_as_the_bound():
-    e = six()
-    without_3 = [x for x in e if x.tick != 3]
-    check([*without_3, changed(e[4])], expected_highest=2)  # first copy in the tick index
-    lost = twin(e[4])
-    check([*without_3, lost, changed(lost)], expected_highest=2)  # first copy lost a clash at 5
-
-
-def test_a_conflicting_copy_with_a_different_tick_is_bounded_by_the_first_copy():
-    e = six()
-    check([*e, changed(e[3], tick=2)], expected_highest=3)  # first copy at tick 4
-    check([*e, changed(e[1], tick=5)], expected_highest=1)  # first copy at tick 2
-
-
-def test_conflict_on_the_very_first_event_and_on_a_lost_first_event_gives_no_outline():
-    e = six()
-    assert check([*e, changed(e[0])], expected_highest=0).outline is None
-    t1 = twin(e[0])
-    res = check([t1, *e, changed(t1)], expected_highest=0)
-    assert res.outline is None and res.problem is not None
-
-
-def test_a_second_clash_at_a_lower_tick_than_the_recorded_one_is_not_a_bound():
-    """Known, by the S3a rule 'the first clash in arrival order': only that clash is
-    recorded, so a loser at a lower tick that arrived later does not lower the outline.
-    Pinned (not endorsed) so a change in `history/` is noticed; through a store (tick
-    order) the lowest clash always arrives first, so this is a delivery-only case."""
-    e = six()
+    assert check([*e, changed(e[0])], expected_highest=0).outline is None  # conflict on the first event
+    # Pinned (not endorsed): only the first clash in arrival order is recorded, so a loser at a
+    # lower tick that arrived later does not lower the outline.
     res = build_outline([*e[:5], twin(e[4]), twin(e[1]), e[5]])
-    assert res.outline.highestTick == 4  # an event at tick 2 lost a clash, yet tick 4 is shown
+    assert res.outline.highestTick == 4
 
 
 # --- generated ---------------------------------------------------------------

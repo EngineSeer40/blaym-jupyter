@@ -1,9 +1,6 @@
 import { AuthorMarker } from '../../recording';
 import type { AuthorSignal } from '../../recording';
-import {
-  createSignalsFor,
-  defaultIsAiProvider
-} from '../../adapters/jupyterlab/signals';
+import { createSignalsFor } from '../../adapters/jupyterlab/signals';
 
 function setup(provider?: string) {
   let handler: ((s: unknown, a: { id: string }) => void) | undefined;
@@ -30,7 +27,7 @@ function setup(provider?: string) {
   };
 }
 
-describe('JupyterLab author signals (S5-L)', () => {
+describe('JupyterLab author signals', () => {
   test('AI tool commands signal ai/known with the active cell; other commands do not', () => {
     const s = setup();
     s.run('jupyterlab-ai-commands:add-cell');
@@ -40,19 +37,6 @@ describe('JupyterLab author signals (S5-L)', () => {
     ]);
     s.off();
     expect(s.has()).toBe(false);
-  });
-
-  test('an accepted inline completion is marked only for an AI provider', () => {
-    const ai = setup('jupyter-ai:inline');
-    ai.run('inline-completer:accept');
-    expect(ai.got).toHaveLength(1);
-    const other = setup('history-completer');
-    other.run('inline-completer:accept');
-    const none = setup(undefined);
-    none.run('inline-completer:accept');
-    expect(other.got).toHaveLength(0);
-    expect(none.got).toHaveLength(0);
-    expect(defaultIsAiProvider('history-completer')).toBe(false);
   });
 
   test('window boundaries: 0 and 249 ms match on either side, 251 does not', () => {

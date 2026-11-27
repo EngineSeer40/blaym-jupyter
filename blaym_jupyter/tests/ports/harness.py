@@ -1,8 +1,8 @@
 """Test harness giving the shared suites one way to open, reopen and plant events in any
-event store implementation (S4, Task 2).
+event store implementation.
 
 `load_exact` is test-only: it writes events with the ticks and branches they carry,
-bypassing every check, so the S3a fixtures and delivery mutations (hole, clash,
+bypassing every check, so the shared fixtures and delivery mutations (hole, clash,
 conflict) can be reproduced in either store. It is not part of the port.
 """
 
@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import shutil
 import tempfile
+import uuid
 from pathlib import Path
 
 from blaym_jupyter_types import BlaymEvent
@@ -20,6 +21,33 @@ from blaym_jupyter.store.events import SqliteEventStore
 from blaym_jupyter.testing.memory import MemoryEventStore
 
 KINDS = ("memory", "sqlite")
+
+NS = uuid.UUID("5c1f0a6e-0000-4000-8000-0000000005a4")
+EXP = "exp-1"
+
+
+def make_event(n: int, *, exp: str = EXP, branch: str = "main", code: str = "x = 1", nulls: bool = False, **extra):
+    """A `cell_source_changed` event without a tick. `n` makes the event id."""
+    ev = {
+        "schemaVersion": 2,
+        "eventId": str(uuid.uuid5(NS, f"{exp}:{n}")),
+        "explorationId": exp,
+        "branchId": branch,
+        "wallTimeMs": 1_760_000_000_000 + n,
+        "userId": "local",
+        "workspaceId": "local",
+        "originId": "origin-1",
+        "type": "cell_source_changed",
+        "payload": {"cellId": "c1", "code": code, "revision": 1 + n},
+    }
+    if nulls:
+        ev.update({"authorHint": None, "authorConfidence": None, "editor": None, "links": None})
+    ev.update(extra)
+    return ev
+
+
+def dump(events):
+    return [canonical_event_json(e) for e in events]
 
 
 class Harness:

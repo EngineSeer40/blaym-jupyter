@@ -1,4 +1,4 @@
-"""Readable scenario builder for S3a history tests.
+"""Readable scenario builder for history tests.
 
 A scenario reads like the sequence it describes::
 

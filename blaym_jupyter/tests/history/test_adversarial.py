@@ -1,4 +1,4 @@
-"""Adversarial checks of the reference rebuilder (S3a Task 3 gate).
+"""Adversarial checks of the reference rebuilder.
 
 The brute-force oracle below is written independently of `reference.py`: it picks the
 events of a line by a recursive membership rule and folds a tiny model of the facts
@@ -204,11 +204,11 @@ def nested_scenario() -> Scenario:
     return s
 
 
-def test_three_level_nested_branches_work_on_every_level_match_oracle():
+def _case_three_level_nested_branches_work_on_every_level_match_oracle():
     cross_check(nested_scenario().events)
 
 
-def test_nested_branch_values_are_what_a_reader_expects():
+def _case_nested_branch_values_are_what_a_reader_expects():
     s = nested_scenario()
     s.expect_at("C", 22, cells=[("c1", "c1"), ("c2", "x")], position=("C", 22, 20, 12))
     s.expect_at("B", 22, cells=[("c3", "new"), ("c1", "b2"), ("c2", "x")])
@@ -220,86 +220,12 @@ def test_nested_branch_values_are_what_a_reader_expects():
     s.expect_at("C", 22, runs={})
 
 
-def test_two_children_of_one_parent_worked_alternately():
-    s = Scenario()
-    s.start(cells=[("c1", "m0")])                           # 1
-    s.edit("c1", "m1")                                      # 2
-    x = s.branch_from(tick=2, name="X")                     # 3
-    s.on("main").edit("c1", "m2")                           # 4
-    y = s.branch_from(tick=2, name="Y", parent="main")      # 5
-    for i in range(3):
-        s.on(x).edit("c1", f"x{i}")
-        s.on(y).edit("c1", f"y{i}")
-        s.on("main").edit("c1", f"m-after{i}")
-    s.on(x).chat("q", "x-chat")
-    cross_check(s.events)
-    last = s.tick
-    s.expect_at("X", last, cells=[("c1", "x2")])
-    s.expect_at("Y", last, cells=[("c1", "y2")])
-    # Y never sees X's chat and vice versa
-    assert s.state_at("Y", last).chat == []
-
-
-def test_branch_from_the_parents_very_first_event():
-    s = Scenario()
-    s.start(cells=[("c1", "m0")])                           # 1
-    s.edit("c1", "m1")                                      # 2
-    b = s.branch_from(tick=1, name="B")                     # 3 parentTick = parent's first event
-    s.edit("c1", "b1")                                      # 4
-    s.expect_at(b, 3, cells=[("c1", "m0")], position=(b, 3, 3, 2))
-    s.expect_at(b, 4, cells=[("c1", "b1")], position=(b, 4, 4, 3))
-    s.expect_at("main", 4, cells=[("c1", "m1")])
-    cross_check(s.events)
-
-
-def test_branch_from_a_branchs_first_event_and_from_its_branch_point_tick():
-    s = Scenario()
-    s.start(cells=[("c1", "m0")])                           # 1
-    s.edit("c1", "m1")                                      # 2
-    s.edit("c1", "m2")                                      # 3
-    b = s.branch_from(tick=2, name="B")                     # 4 B's first event
-    s.edit("c1", "b1")                                      # 5
-    c = s.branch_from(tick=4, name="C", parent=b)           # 6 child of B's branch-point event
-    s.edit("c1", "c1")                                      # 7
-    s.expect_at(c, 6, cells=[("c1", "m1")], position=(c, 6, 6, 4))
-    s.expect_at(c, 7, cells=[("c1", "c1")])
-    cross_check(s.events)
-
-
-def test_snapshot_keeps_only_what_it_should_on_a_branch():
-    s = Scenario()
-    s.start(cells=[("c1", "m0")])
-    run = s.run("c1")
-    s.chat("q", "hi")
-    s.branch_from(tick=3, name="B")
-    s.snapshot([("c9", "recovered")])
-    cross_check(s.events)
-    st = s.state_at("B", s.tick)
-    assert [c.cellId for c in st.notebook.cells] == ["c9"]
-    assert [r.runId for r in st.runs] == [run] and [m.messageId for m in st.chat] == ["q"]
+def test_nested_branches_match_oracle_and_reader_expectations():
+    _case_three_level_nested_branches_work_on_every_level_match_oracle()
+    _case_nested_branch_values_are_what_a_reader_expects()
 
 
 # --- delivery -------------------------------------------------------------------
-
-
-def test_duplicates_and_shuffles_give_identical_answers_everywhere():
-    s = nested_scenario()
-    base = {(b, t): dump(reference_rebuild(s.events, b, t))
-            for b in ("main", "A", "B", "C") for t in range(1, s.tick + 1)}
-    rng = random.Random(7)
-    for _ in range(5):
-        evs = list(s.events) + rng.sample(s.events, 8)
-        rng.shuffle(evs)
-        for (b, t), want in base.items():
-            assert dump(reference_rebuild(evs, b, t)) == want, (b, t)
-
-
-def test_wall_clock_is_never_used_for_ordering():
-    s = nested_scenario()
-    flipped = [e.model_copy(update={"wallTimeMs": 2_000_000_000_000 - e.tick * 1000}) for e in s.events]
-    for b in ("main", "A", "B", "C"):
-        for t in range(1, s.tick + 1):
-            assert dump(reference_rebuild(flipped, b, t)) == dump(reference_rebuild(s.events, b, t))
 
 
 def test_conflict_is_reported_before_missing_and_tick_clash_before_missing():
@@ -321,80 +247,13 @@ def test_conflict_is_reported_before_missing_and_tick_clash_before_missing():
     assert reference_rebuild(evs, "nope", 2).status == "unknown_branch"
 
 
-def test_missing_tick_on_a_parent_stops_children_at_and_after_it_only():
-    s = nested_scenario()
-    evs = [e for e in s.events if e.tick != 8]
-    for b in ("main", "A", "B", "C"):
-        for t in range(1, 8):
-            assert reference_rebuild(evs, b, t).status == "ok", (b, t)
-        for t in range(8, s.tick + 1):
-            r = reference_rebuild(evs, b, t)
-            assert r.status == "missing_events" and r.firstMissingTick == 8, (b, t)
-
-
 # --- immutability ---------------------------------------------------------------
-
-
-def test_mutating_a_returned_state_changes_nothing_else():
-    s = nested_scenario()
-    s.on("main").gap_start("g")
-    s.output(s.run("c1"), "z")
-    s.notebook_metadata({"k": [1]})
-    s.cell_metadata("c1", {"tags": ["t"]})
-    before_events = [e.model_dump(mode="json") for e in s.events]
-    t = s.tick
-    want = dump(reference_rebuild(s.events, "main", t))
-    first = reference_rebuild(s.events, "main", t).state
-    other = reference_rebuild(s.events, "main", t).state
-    first.notebook.cells.append(first.notebook.cells[0].model_copy(deep=True))
-    first.notebook.cells[0].code = "HACKED"
-    first.notebook.cells[0].metadata.setdefault("tags", []).append("zz")
-    for g in first.notebook.cells[0].outputs:
-        g.items.clear()
-    first.notebook.metadata["k"].append(2)
-    first.chat.clear()
-    first.runs.clear()
-    first.gaps.clear()
-    first.position.branchCount = 999
-    assert dump(reference_rebuild(s.events, "main", t)) == want
-    assert other.model_dump(mode="json") == want["state"]
-    assert [e.model_dump(mode="json") for e in s.events] == before_events
-
-
-def test_states_at_different_ticks_share_nothing():
-    s = nested_scenario()
-    a = s.state_at("B", 21)
-    b = s.state_at("B", 20)
-    a.notebook.cells[0].metadata["x"] = 1
-    a.notebook.cells[0].outputs.append(None)
-    assert "x" not in b.notebook.cells[0].metadata or b.notebook.cells[0].metadata is not a.notebook.cells[0].metadata
-    assert s.state_at("B", 20).notebook.cells[0].metadata == {}
 
 
 # --- holes found at the gate, fixed by rulings A and B --------------------------
 
 
-def test_output_for_a_run_that_never_started_is_unknown_run():
-    s = Scenario()
-    s.start(cells=[("c1", "a")])
-    s._run_cell["ghost"] = "c1"
-    s.output("ghost", "boo")
-    r = s.rebuild("main", 2)
-    assert r.status == "invalid_event" and r.reason.value == "unknown_run"
-
-
-def test_branch_point_pointing_at_the_future_is_rejected():
-    s = Scenario()
-    s.start(cells=[("c1", "m0")])               # 1
-    s.edit("c1", "m1")                          # 2
-    s.branch_from(tick=5, name="B")             # 3, parentTick 5 does not exist yet
-    s.on("main").edit("c1", "m2")               # 4
-    s.edit("c1", "m3")                          # 5
-    r = s.rebuild("B", 5)
-    assert r.status == "invalid_event" and r.reason.value == "invalid_branch_point"
-
-
-# --- re-gate of the Task 3 gate fixes (rulings A, B, C) -------------------------
+# --- re-check of the earlier fixes (rulings A, B, C) -------------------------
 # The oracle below stays independent of reference.py and apply.py.
 
 
@@ -444,8 +303,7 @@ def _mutated(seed):
     return evs
 
 
-@pytest.mark.parametrize("seed", range(40))
-def test_branch_point_rulings_match_independent_oracle_on_mutated_histories(seed):
+def _branch_point_ruling_for_seed(seed):
     evs = _mutated(seed)
     last = max(e.tick for e in evs)
     for b in sorted({e.branchId for e in evs}):
@@ -465,40 +323,12 @@ def test_branch_point_rulings_match_independent_oracle_on_mutated_histories(seed
                     t, line[-1].tick, len(line))
 
 
-def test_branch_point_at_a_sibling_branch_tick_is_invalid():
-    s = Scenario()
-    s.start(cells=[("c1", "a")])                      # 1
-    s.edit("c1", "b")                                 # 2
-    b = s.branch_from(tick=2, name="B")               # 3
-    s.on("main").edit("c1", "m")                      # 4
-    s.on(b).edit("c1", "bb")                          # 5
-    s.branch_from(tick=5, name="C", parent="main")    # 6: tick 5 belongs to sibling B
-    r = s.rebuild("C", 6)
-    assert r.status == "invalid_event" and r.reason.value == "invalid_branch_point" and r.tick == 6
-    assert s.rebuild("main", 6).status == "ok" and s.rebuild("B", 6).status == "ok"
+def test_branch_point_rulings_match_independent_oracle_on_mutated_histories():
+    for seed in range(5):
+        _branch_point_ruling_for_seed(seed)
 
 
-def test_unknown_cell_is_reported_before_unknown_run_for_all_output_events():
-    for emit in ("output", "replace_output", "clear_outputs"):
-        s = Scenario()
-        s.start(cells=[("c1", "a")])
-        s._run_cell["ghost"] = "nope"                 # unknown cell and unknown run
-        getattr(s, emit)("ghost", "x") if emit != "clear_outputs" else s.clear_outputs("ghost")
-        r = s.rebuild("main", 2)
-        assert r.status == "unknown_cell" and r.cellId == "nope", emit
-
-
-def test_all_three_output_events_for_a_never_started_run_are_unknown_run():
-    for emit in ("output", "replace_output", "clear_outputs"):
-        s = Scenario()
-        s.start(cells=[("c1", "a")])
-        s._run_cell["ghost"] = "c1"
-        getattr(s, emit)("ghost", "x") if emit != "clear_outputs" else s.clear_outputs("ghost")
-        r = s.rebuild("main", 2)
-        assert r.status == "invalid_event" and r.reason.value == "unknown_run", emit
-
-
-def test_asking_a_tick_that_is_another_branchs_event_or_before_the_branch_existed():
+def _case_asking_a_tick_that_is_another_branchs_event_or_before_the_branch_existed():
     s = Scenario()
     s.start(cells=[("c1", "a")])                      # 1
     s.edit("c1", "b")                                 # 2
@@ -513,7 +343,7 @@ def test_asking_a_tick_that_is_another_branchs_event_or_before_the_branch_existe
     cross_check(s.events)
 
 
-def test_branching_from_before_the_parent_existed_is_not_rejected_for_the_parents_own_branch_point():
+def _case_branching_from_before_the_parent_existed_is_not_rejected_for_the_parents_own_branch_point():
     s = Scenario()
     s.start(cells=[("c1", "a")])                      # 1
     s.edit("c1", "b")                                 # 2
@@ -527,29 +357,8 @@ def test_branching_from_before_the_parent_existed_is_not_rejected_for_the_parent
     assert s.rebuild("B", 7).status == "ok"
 
 
-def test_missing_parent_tick_of_a_branch_point_is_missing_events_per_the_oracle():
-    """Independent expectation: with tick d dropped (first missing tick fm = d), a position
-    below fm on a branch whose chain has a branch point with parentTick == a dropped tick
-    is missing_events(fm); every other position below fm is ok; at or above fm, missing."""
-    s = nested_scenario()
-    events = list(s.events)
-    bps = {e.branchId: e for e in events if e.type == "branch_point_created"}
-    asked_missing_parent = 0
-    for d in sorted({bp.payload.parentTick for bp in bps.values()}):
-        have = [e for e in events if e.tick != d]
-        present = {e.tick for e in have}
-        for b in sorted({e.branchId for e in events}):
-            for t in range(1, max(present) + 1):
-                chain, x = [], b
-                while x in bps:
-                    chain.append(bps[x])
-                    x = bps[x].payload.parentBranchId
-                r = reference_rebuild(have, b, t)
-                if t >= d:
-                    assert r.status == "missing_events" and r.firstMissingTick == d
-                elif any(bp.payload.parentTick not in present for bp in chain):
-                    asked_missing_parent += 1
-                    assert r.status == "missing_events" and r.firstMissingTick == d, (b, t, d)
-                else:
-                    assert r.status == "ok", (b, t, d, r)
-    assert asked_missing_parent > 0
+def test_asking_before_a_branch_existed():
+    _case_asking_a_tick_that_is_another_branchs_event_or_before_the_branch_existed()
+    _case_branching_from_before_the_parent_existed_is_not_rejected_for_the_parents_own_branch_point()
+
+

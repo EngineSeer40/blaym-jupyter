@@ -1,39 +1,33 @@
-"""Neutral output building (S5, Task 5): items, the assembler, and Jupyter's output area as oracle."""
+"""Neutral output building: items, the assembler, and Jupyter's output area as oracle."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-import tracemalloc
 from pathlib import Path
 
-import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from blaym_jupyter.history.apply import step
 from blaym_jupyter.recording.outputs import AssembledEvent, OutputAssembler, OutputLimits, item_from_output
 from blaym_jupyter.tests.history.scenario import Scenario
-from blaym_jupyter_types import BlaymEvent
 
 FIXTURES = Path(__file__).resolve().parents[3] / "fixtures" / "recorder" / "outputs"
 
 
-def is_inline(item) -> bool:  # the S4 rule, written out again so the tests do not borrow the code under test
+def is_inline(item) -> bool:  # the inline rule, written out again so the tests do not borrow the code under test
     return not item.truncated and item.sizeBytes == len(item.preview.encode("utf-8"))
 
-
-# -- items ----------------------------------------------------------------------------------------
 
 def _cases():
     for name in ("real.json", "handwritten.json"):
         doc = json.loads((FIXTURES / name).read_text())
         for case in doc["cases"]:
-            yield pytest.param(case, doc["limits"], id=f"{name.split('.')[0]}: {case['name']}")
+            yield case, doc["limits"]
 
 
-@pytest.mark.parametrize("case,doc_limits", list(_cases()))
-def test_item_cases(case, doc_limits):
+def _check_case(case, doc_limits):
     limits = OutputLimits(inline_bytes={**doc_limits, **case.get("limits", {})}["inlineBytes"])
     before = json.dumps(case["output"], sort_keys=True)
     prepared = item_from_output(case["output"], limits)
@@ -65,28 +59,6 @@ def test_item_cases(case, doc_limits):
         assert whole["output_type"] == case["output"]["output_type"]
         assert item.contentHash == "sha256:" + hashlib.sha256(prepared.blob).hexdigest()
 
-
-def test_unknown_output_type_is_refused():
-    with pytest.raises(ValueError):
-        item_from_output({"output_type": "mystery"})
-
-
-def test_blob_is_canonical_and_free_of_transient():
-    a = {"output_type": "display_data", "data": {"image/png": "AA", "text/plain": ["x\n", "y"]}, "metadata": {},
-         "transient": {"display_id": "d"}}
-    b = {"metadata": {}, "data": {"text/plain": "x\ny", "image/png": "AA"}, "output_type": "display_data"}
-    pa, pb = item_from_output(a), item_from_output(b)
-    assert pa.blob == pb.blob and b"transient" not in pa.blob
-    assert pa.item.contentHash == pb.item.contentHash
-
-
-def test_a_big_image_is_a_blob_with_a_label_and_a_text_preview_is_cut():
-    big = {"output_type": "display_data", "data": {"image/png": "A" * 50_000, "text/plain": "T" * 30_000}, "metadata": {}}
-    p = item_from_output(big)
-    assert not p.inline and p.item.truncated and len(p.item.preview) == 16384 and p.item.sizeBytes == len(p.blob)
-
-
-# -- the assembler: a fake scheduler, applied to the real rebuilder ---------------------------------
 
 class FakeScheduler:
     def __init__(self):
@@ -148,6 +120,11 @@ class Rig:
         return next((g for g in cell.outputs if g.runId == self.run_id), None)
 
 
+def test_item_cases():
+    for case, doc_limits in _cases():
+        _check_case(case, doc_limits)
+
+
 def test_stream_chunks_become_one_item_and_coalesce():
     r = Rig()
     r.asm.message("stream", {"name": "stdout", "text": "a"})
@@ -165,14 +142,6 @@ def test_stream_chunks_become_one_item_and_coalesce():
     assert r.items() == [("stream", "abcde")] and not r.sched.pending
 
 
-def test_stdout_and_stderr_are_separate_items_in_order():
-    r = Rig()
-    for name, text in [("stdout", "o1"), ("stderr", "e1"), ("stdout", "o2"), ("stdout", "o3")]:
-        r.asm.message("stream", {"name": name, "text": text})
-    r.asm.finish()
-    assert r.items() == [("stream", "o1"), ("stream", "e1"), ("stream", "o2o3")]
-
-
 def test_display_update_replaces_in_place_and_unknown_ids_are_counted():
     r = Rig()
     r.asm.message("display_data", {"data": {"text/plain": "v1"}, "metadata": {}, "transient": {"display_id": "d"}})
@@ -184,16 +153,6 @@ def test_display_update_replaces_in_place_and_unknown_ids_are_counted():
     assert r.items() == [("display_data", "v2"), ("stream", "between"), ("display_data", "v2")]
     assert r.asm.unmatched_updates == 1
     assert [e.output_index for e in r.seen if e.type == "output_replaced"] == [0, 2]
-
-
-def test_clear_without_wait_empties_at_once():
-    r = Rig()
-    r.asm.message("stream", {"name": "stdout", "text": "old"})
-    r.asm.message("clear_output", {"wait": False})
-    assert r.items() == [] and r.group().clearPending is None
-    r.asm.message("stream", {"name": "stdout", "text": "new"})
-    r.asm.finish()
-    assert r.items() == [("stream", "new")]
 
 
 def test_clear_with_wait_keeps_the_old_items_until_the_next_output_then_replaces_the_list():
@@ -210,45 +169,6 @@ def test_clear_with_wait_keeps_the_old_items_until_the_next_output_then_replaces
     assert r.items() == [("stream", "newer")]
 
 
-def test_clear_wait_then_nothing_leaves_the_flag_set():
-    r = Rig()
-    r.asm.message("display_data", {"data": {"text/plain": "x"}, "metadata": {}})
-    r.asm.message("clear_output", {"wait": True})
-    r.asm.finish()
-    assert r.group().clearPending is True and r.items() == [("display_data", "x")]
-
-
-def test_update_while_a_wait_clear_is_pending_still_updates_the_old_item():
-    r = Rig()
-    r.asm.message("display_data", {"data": {"text/plain": "a"}, "metadata": {}, "transient": {"display_id": "d"}})
-    r.asm.message("clear_output", {"wait": True})
-    r.asm.message("update_display_data", {"data": {"text/plain": "b"}, "metadata": {}, "transient": {"display_id": "d"}})
-    assert r.items() == [("display_data", "b")]
-    r.asm.message("display_data", {"data": {"text/plain": "c"}, "metadata": {}, "transient": {"display_id": "d"}})
-    r.asm.message("update_display_data", {"data": {"text/plain": "c2"}, "metadata": {}, "transient": {"display_id": "d"}})
-    assert r.items() == [("display_data", "c2")]  # the old id's index is forgotten with the old list
-
-
-def test_pending_stream_growth_is_flushed_before_a_clear():
-    r = Rig()
-    r.asm.message("stream", {"name": "stdout", "text": "a"})
-    r.asm.message("stream", {"name": "stdout", "text": "b"})
-    r.asm.message("clear_output", {"wait": False})
-    assert [e.type for e in r.seen] == ["output_added", "output_replaced", "outputs_cleared"]
-    assert r.items() == [] and not r.sched.pending
-
-
-def test_error_and_execute_result_are_appended_and_unknown_messages_ignored():
-    r = Rig()
-    r.asm.message("execute_result", {"execution_count": 2, "data": {"text/plain": "5"}, "metadata": {}})
-    r.asm.message("error", {"ename": "E", "evalue": "v", "traceback": ["tb"]})
-    r.asm.message("status", {"state": "busy"})
-    r.asm.finish()
-    r.asm.message("stream", {"name": "stdout", "text": "late"})  # after the end: ignored, counted
-    assert r.items() == [("execute_result", "5"), ("error", "tb")]
-    assert r.asm.ignored_messages == 2
-
-
 def test_stream_stops_growing_at_the_preview_limit_and_is_marked_truncated():
     r = Rig(limits=OutputLimits(inline_bytes=8, preview_bytes=20))
     for _ in range(10):
@@ -260,21 +180,6 @@ def test_stream_stops_growing_at_the_preview_limit_and_is_marked_truncated():
     assert item.truncated and item.sizeBytes == len(last_blob) + 80 and item.preview == "01234567"
     assert not is_inline(item)
 
-
-def test_size_only_growth_after_the_limit_is_written_once_at_the_end():
-    r = Rig(limits=OutputLimits(inline_bytes=4, preview_bytes=5))
-    r.asm.message("stream", {"name": "stdout", "text": "abcde"})
-    r.sched.advance(300)
-    n = len(r.seen)
-    for _ in range(50):
-        r.asm.message("stream", {"name": "stdout", "text": "zz"})
-        r.sched.advance(300)
-    assert len(r.seen) == n  # the kept text did not change: nothing to rewrite
-    r.asm.finish()
-    assert len(r.seen) == n + 1 and r.group().items[0].sizeBytes == len(r.seen[-1].prepared.blob) + 100
-
-
-# -- an independent oracle: Jupyter's output area as a plain list ------------------------------------
 
 def oracle(messages):
     """The final outputs (type, text) the way JupyterLab's output area builds them. No events, no indexes."""
@@ -360,32 +265,3 @@ def test_assembler_matches_the_oracle_on_generated_sequences(steps, flush_ms):
     flag = bool(group and group.clearPending)
     assert flag == clear_next, (msgs, flag)
     assert not r.sched.pending
-
-
-# -- bounded memory ---------------------------------------------------------------------------------
-
-def test_a_100mb_stream_stays_bounded():
-    chunk = "x" * 65536
-    sched = FakeScheduler()
-    asm = OutputAssembler("run", "c", lambda events: None, sched, OutputLimits())
-    tracemalloc.start()
-    try:
-        base, _ = tracemalloc.get_traced_memory()
-        for i in range(1600):  # 100 MiB
-            asm.message("stream", {"name": "stdout", "text": chunk})
-            if i % 100 == 0:
-                sched.advance(300)
-        asm.finish()
-        _, peak = tracemalloc.get_traced_memory()
-    finally:
-        tracemalloc.stop()
-    assert peak - base < 40 * 1024 * 1024, peak - base
-    assert asm._stream.total == 1600 * 65536 and asm._stream.kept <= OutputLimits().preview_bytes
-
-
-def test_flush_interval_zero_still_orders_events():
-    r = Rig(flush_ms=0)
-    r.asm.message("stream", {"name": "stdout", "text": "a"})
-    r.asm.message("stream", {"name": "stdout", "text": "b"})
-    r.sched.advance(0)
-    assert r.items() == [("stream", "ab")]

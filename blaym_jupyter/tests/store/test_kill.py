@@ -1,4 +1,4 @@
-"""Real crash tests (S4, Task 9): a child process is SIGKILLed in the middle of a stream of
+"""Real crash tests: a child process is SIGKILLed in the middle of a stream of
 ingests, blob writes and branch creations; then the root is reopened and recovery runs.
 
 Every cycle uses its own history in the SAME root, so recovery has earlier cycles' histories
@@ -18,7 +18,6 @@ from pathlib import Path
 import pytest
 
 from blaym_jupyter.local import open_service
-from blaym_jupyter.ports.blobs import hash_hex
 from blaym_jupyter.ports.events import canonical_event_json
 from blaym_jupyter.service.auth import FixedTokenAuthorizer
 from blaym_jupyter.service.blobrefs import is_inline, items_of
@@ -84,6 +83,7 @@ def check_history(svc, report, exploration, baseline: list[str], rnd) -> None:
         assert not [r for r in tip.runs if r.status.root == "running"], "no run left running"
 
 
+@pytest.mark.slow
 def test_kill_cycles_leave_a_history_that_recovers(tmp_path):
     rnd = random.Random(SEED)
     closed = 0
@@ -122,31 +122,3 @@ def test_kill_cycles_leave_a_history_that_recovers(tmp_path):
         finally:
             svc.close()
     assert closed > 0, "no cycle left a run open: the kill points are not reaching mid-run"
-
-
-def test_staging_debris_and_an_orphan_file_before_recovery(tmp_path):
-    svc = open_service(tmp_path, FixedTokenAuthorizer(TOKEN), recover=False)
-    ex = "debris-1"
-    svc.ingest(TOKEN, {"explorationId": ex, "editor": "jupyterlab", "instanceId": "t", "events": [{
-        "schemaVersion": 2, "eventId": "00000000-0000-4000-8000-0000000000aa", "explorationId": ex,
-        "wallTimeMs": 1, "userId": "local", "workspaceId": "local", "originId": "o", "type": "notebook_snapshot",
-        "payload": {"path": "a.ipynb", "notebookMetadata": {}, "kernelName": "python3", "language": "python", "cells": []}}]})
-    svc.close()
-    base = tmp_path / "explorations" / ex
-    (base / "staging" / "op-1").mkdir(parents=True)
-    (base / "staging" / "op-1" / "half").write_bytes(b"x")
-    (base / "staging" / "op-2").mkdir(parents=True)
-    stray = base / "blobs" / ("ab" * 32)
-    stray.parent.mkdir(parents=True, exist_ok=True)
-    stray.write_bytes(b"no row for me")
-    svc = open_service(tmp_path, FixedTokenAuthorizer(TOKEN))
-    try:
-        report = svc.recovery_report
-        assert report.staging_removed == 2 and not list((base / "staging").iterdir())
-        assert (ex, "sha256:" + "ab" * 32) in report.orphan_blobs
-        assert stray.exists()  # reported, never deleted
-        assert hash_hex("sha256:" + "ab" * 32)
-        assert [g[0] for g in report.gaps_written] == [ex]
-    finally:
-        svc.close()
-

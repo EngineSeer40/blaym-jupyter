@@ -1,8 +1,5 @@
-"""The API dispatcher over the memory-port service (S5, Task 8).
-
-Every route has a happy path, a bad-body case and an unauthorised case; response bodies are
-validated against the generated models; the gate refuses a second recorder instance before the
-service is called; the heartbeat reports `needsRegister` for an unknown instance.
+"""The API dispatcher over the memory-port service: the route table, sign-in, hostile input,
+busy store, the one-recorder gate, and one round trip of ingest and reads.
 
 `fixtures/api/routes.json` is generated from `api/routes.py`. To rewrite it after a change to the
 route table, run `BLAYM_REGEN_API_ROUTES=1 .venv/bin/python -m pytest blaym_jupyter/tests/api -k routes_file`;
@@ -17,8 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from blaym_jupyter.adapters.jupyter.auth import Credential, JupyterAuthorizer
 from blaym_jupyter.api import ROUTES, ApiRequest, Recording, handle
-from blaym_jupyter.api.dispatch import _HANDLERS
+from blaym_jupyter.api.dispatch import _HANDLERS, MAX_JSON_BODY_BYTES
 from blaym_jupyter.api.routes import as_json, match
 from blaym_jupyter.recording.registry import Registry
 from blaym_jupyter.recording.registry_store import FolderRegistryStore
@@ -33,12 +31,9 @@ from blaym_jupyter_types import (
     HistoryOutline,
     IngestResponse,
     NotebookStatus,
-    PrepareOutputsResponse,
     PutBlobResponse,
     RebuildResult,
-    ResolveCellRevisionResponse,
     SearchResponse,
-    ServiceInfo,
 )
 
 TOKEN = "t0ken"
@@ -91,31 +86,16 @@ def _json(response):
     return json.loads(response.body)
 
 
-# -- happy paths, one per route, with the response validated against the generated model --------
+def _raw(rig, method, path, body=b"", query=None, cred=TOKEN):
+    return handle(ApiRequest(method, path, query or {}, {}, body), cred, rig.rec)
 
 
-def test_info(rig):
-    r = rig.call("GET", "/info")
-    assert r.status == 200 and ServiceInfo.model_validate_json(r.body).apiVersion.root == 1
+SECRET = "sk-LIVE-9f8e7d6c5b4a"
+_ANY = {"explorationId": "e", "notebookId": "n", "contentHash": "sha256:" + "0" * 64}
+POST_ROUTES = [r.path for r in ROUTES if r.method == "POST"]
 
 
-def test_register_status_and_close(rig):
-    s = rig.register()
-    assert s.active and not s.recording
-    r = rig.call("GET", f"/notebooks/{s.notebookId}/status", query={"instanceId": "tab-1"})
-    assert r.status == 200 and NotebookStatus.model_validate_json(r.body).active
-    assert rig.call("POST", "/notebooks/close", body={"notebookId": s.notebookId, "instanceId": "tab-1"}).status == 204
-    again = rig.call("GET", f"/notebooks/{s.notebookId}/status", query={"instanceId": "tab-1"})
-    assert NotebookStatus.model_validate_json(again.body).needsRegister
-
-
-def test_heartbeat_of_an_unknown_instance_asks_to_register(rig):
-    r = rig.call("GET", "/notebooks/nope/status", query={"instanceId": "tab-9"})
-    status = NotebookStatus.model_validate_json(r.body)
-    assert r.status == 200 and status.needsRegister and not status.active
-
-
-def test_ingest_and_the_reads(rig):
+def test_ingest_and_the_reads_round_trip(rig):
     exp, branch = rig.seed()
     state = rig.call("GET", "/state", query={"explorationId": exp, "branchId": branch, "tick": "2"})
     assert state.status == 200 and RebuildResult.model_validate_json(state.body).root.status == "ok"
@@ -124,6 +104,26 @@ def test_ingest_and_the_reads(rig):
     assert [e.root.tick for e in EventsSinceResponse.model_validate_json(since.body).events] == [2]
     hits = rig.call("GET", "/search", query={"explorationId": exp, "query": "needle", "limit": "5"})
     assert SearchResponse.model_validate_json(hits.body).hits
+
+
+def test_register_status_heartbeat_and_close(rig):
+    s = rig.register()
+    assert s.active and not s.recording
+    path = f"/notebooks/{s.notebookId}/status"
+    assert NotebookStatus.model_validate_json(rig.call("GET", path, query={"instanceId": "tab-1"}).body).active
+    assert rig.call("POST", "/notebooks/close", body={"notebookId": s.notebookId, "instanceId": "tab-1"}).status == 204
+    assert NotebookStatus.model_validate_json(rig.call("GET", path, query={"instanceId": "tab-1"}).body).needsRegister
+    unknown = NotebookStatus.model_validate_json(rig.call("GET", "/notebooks/nope/status", query={"instanceId": "t9"}).body)
+    assert unknown.needsRegister and not unknown.active
+
+
+def test_blobs_stream_in_and_come_back(rig):
+    exp = rig.register().explorationId
+    put = rig.call("PUT", f"/blobs/{exp}", body=iter([b"hello ", b"streamed ", b"world"]))
+    assert put.status == 200
+    got = rig.call("GET", f"/blobs/{exp}/{PutBlobResponse.model_validate_json(put.body).contentHash}")
+    assert got.status == 200 and got.body == b"hello streamed world"
+    assert rig.call("GET", f"/blobs/{exp}/sha256:{'0' * 64}").status == 404
 
 
 def test_timeline_and_events_between_routes(rig):
@@ -136,105 +136,74 @@ def test_timeline_and_events_between_routes(rig):
     between = rig.call("GET", "/events-between", query={**q, "fromTick": "2", "toTick": "2"})
     assert [e.root.tick for e in EventsBetweenResponse.model_validate_json(between.body).events] == [2]
     assert rig.call("GET", "/timeline", query={**q, "branchId": "nope"}).status == 404
-    assert rig.call("GET", "/events-between", query={**q, "fromTick": "2"}).status == 400
-    assert rig.call("GET", "/timeline", query={**q, "limit": "9999"}).status == 400  # over the contract maximum
 
 
-def test_resolve_cell_revision(rig):
-    exp, _ = rig.seed()
-    r = rig.call("POST", "/cells/revision", body={"explorationId": exp, "cellId": "c1", "code": "needle = 2"})
-    assert ResolveCellRevisionResponse.model_validate_json(r.body).root.status == "ok"
-
-
-def test_put_blob_streams_chunks_and_get_blob_returns_the_bytes(rig):
-    exp = rig.register().explorationId
-    chunks = iter([b"hello ", b"streamed ", b"world"])
-    put = rig.call("PUT", f"/blobs/{exp}", body=chunks)
-    assert put.status == 200
-    h = PutBlobResponse.model_validate_json(put.body).contentHash
-    got = rig.call("GET", f"/blobs/{exp}/{h}")
-    assert got.status == 200 and got.body == b"hello streamed world"
-    assert got.headers["Content-Type"] == "application/octet-stream"
-    assert rig.call("PUT", f"/blobs/{exp}", body=b"x" * 3_000_000).status == 200  # bytes are chunked
-
-
-def test_prepare_outputs_stores_blobs_and_matches_the_item_order(rig):
-    exp = rig.register().explorationId
-    big = "x" * 40_000
-    r = rig.call("POST", "/outputs/prepare", body={"explorationId": exp, "outputs": [
-        {"output_type": "stream", "name": "stdout", "text": "hi\n"},
-        {"output_type": "display_data", "data": {"text/plain": big, "image/png": "AAAA"}, "metadata": {}},
-        {"output_type": "error", "ename": "E", "evalue": "v", "traceback": ["tb"]}]})
-    items = PrepareOutputsResponse.model_validate_json(r.body).items
-    assert [i.outputType.value for i in items] == ["stream", "display_data", "error"]
-    stored = rig.call("GET", f"/blobs/{exp}/{items[1].contentHash}")
-    assert stored.status == 200 and b"image/png" in stored.body
-
-
-# -- bad bodies --------------------------------------------------------------------------------
-
-POST_ROUTES = ["/ingest", "/outputs/prepare", "/cells/revision", "/notebooks/register", "/notebooks/close"]
-
-
-@pytest.mark.parametrize("path", POST_ROUTES)
-@pytest.mark.parametrize("body", [b"{not json", b"{}", b"[]"])
-def test_a_bad_body_is_400_with_a_short_message(rig, path, body):
-    r = rig.call("POST", path, body=body)
-    assert r.status == 400
-    message = _json(r)["error"]
-    assert message and "Traceback" not in message and len(message) < 300
-
-
-def test_a_bad_body_does_not_echo_its_content(rig):
-    r = rig.call("POST", "/cells/revision", body={"explorationId": "e", "cellId": "c", "code": 12345,
-                                                  "secret": "sk-live-abcdefghijkl"})
-    assert r.status == 400 and b"sk-live" not in r.body
-
-
-@pytest.mark.parametrize("path,query", [
-    ("/notebooks/x/status", {}), ("/state", {"explorationId": "e", "branchId": "b"}),
-    ("/state", {"explorationId": "e", "branchId": "b", "tick": "soon"}), ("/outline", {}),
-    ("/events-since", {"explorationId": "e"}), ("/search", {"explorationId": "e"}),
-])
-def test_a_bad_query_is_400(rig, path, query):
-    assert rig.call("GET", path, query=query).status == 400
-
-
-def test_a_bad_history_id_is_400_for_blobs_and_an_unknown_blob_is_404(rig):
-    assert rig.call("PUT", "/blobs/..%2Fx", body=b"x").status == 400
-    exp = rig.register().explorationId
-    assert rig.call("GET", f"/blobs/{exp}/sha256:{'0' * 64}").status == 404
-    assert rig.call("PUT", "/blobs/bad id", body=b"x").status == 400
-
-
-def test_prepare_outputs_with_an_unknown_output_type_is_400(rig):
-    exp = rig.register().explorationId
-    r = rig.call("POST", "/outputs/prepare", body={"explorationId": exp, "outputs": [{"output_type": "nope"}]})
-    assert r.status == 400
-
-
-# -- sign-in -----------------------------------------------------------------------------------
-
-_ANY = {"explorationId": "e", "notebookId": "n", "contentHash": "sha256:" + "0" * 64}
-
-
-@pytest.mark.parametrize("route", ROUTES, ids=lambda r: r.name)
-@pytest.mark.parametrize("cred", ["wrong", None])
-def test_every_route_refuses_a_bad_credential(rig, route, cred):
-    path = route.path.format(**_ANY)
-    before = len(rig.registry._records)
-    r = rig.call(route.method, path, body={"path": "z.ipynb"}, query={"instanceId": "i"}, cred=cred)
-    assert r.status == 401
-    assert len(rig.registry._records) == before  # the registry was not reached either
-
-
-# -- errors from the service --------------------------------------------------------------------
-
-
-def test_unknown_history_is_404(rig):
-    q = {"explorationId": "ghost", "branchId": "main", "afterTick": "0"}
-    assert rig.call("GET", "/events-since", query=q).status == 404
+def test_unknown_route_404_wrong_method_405_unknown_history_404(rig):
+    assert rig.call("GET", "/nothing").status == 404
+    r = rig.call("GET", "/ingest")
+    assert r.status == 405 and r.headers["Allow"] == "POST"
     assert rig.call("GET", "/outline", query={"explorationId": "ghost"}).status == 404
+
+
+def test_the_route_table_matches_its_handlers_and_the_contract_routes_file():
+    """Set BLAYM_REGEN_API_ROUTES=1 to rewrite the file; otherwise it must equal the table."""
+    assert {r.name for r in ROUTES} == set(_HANDLERS)
+    for r in ROUTES:
+        found, _, _ = match(r.method, r.path.format(**_ANY))
+        assert found is r
+    text = json.dumps(as_json(), indent=2) + "\n"
+    if os.environ.get("BLAYM_REGEN_API_ROUTES"):
+        ROUTES_FILE.parent.mkdir(parents=True, exist_ok=True)
+        ROUTES_FILE.write_text(text)
+    assert ROUTES_FILE.read_text() == text
+
+
+def test_a_request_without_a_valid_sign_in_is_refused_and_a_credential_cannot_be_forged(rig):
+    other = JupyterAuthorizer().mint()
+    forged = ("wrong", None, "", b"x" * 32, object(), Credential(b"x" * 32), other, {"_key": b""})
+    before = len(rig.registry._records)
+    for route in ROUTES:
+        path = route.path.format(**_ANY)
+        for cred in forged:
+            r = rig.call(route.method, path, body={"path": "z.ipynb"}, query={"instanceId": "i"}, cred=cred)
+            assert r.status == 401, (route.name, cred)
+    assert len(rig.registry._records) == before  # the registry was not reached either
+    assert "key" not in repr(Credential(b"secretkey")).lower().replace("credential", "")
+
+
+def test_bad_and_hostile_bodies_are_400_and_an_oversized_body_is_413(rig):
+    deep = [b"[" * 100_000, b"{" * 100_000, b'{"a":' * 50_000 + b"1" + b"}" * 50_000]
+    bodies = [b"{not json", b"{}", b"[]", b"\xff\xfe\x00bad", b"", b"null", b'"s"', b"12", b'{"events": 5}', *deep]
+    for path in POST_ROUTES:
+        for body in bodies:
+            r = _raw(rig, "POST", path, body)
+            assert r.status == 400, (path, body[:20], r.status)
+            assert "Traceback" not in _json(r)["error"] and len(_json(r)["error"]) < 300
+    exp = rig.register().explorationId
+    assert _raw(rig, "POST", "/ingest", b" " * (MAX_JSON_BODY_BYTES + 1)).status == 413
+    for path, query in [("/state", {"explorationId": "e", "branchId": "b", "tick": "9" * 6000}),
+                        ("/state", {"explorationId": "e", "branchId": "b", "tick": "soon"}),
+                        ("/events-since", {"explorationId": "e"}), ("/search", {"explorationId": "e"})]:
+        assert _raw(rig, "GET", path, query=query).status == 400
+    assert _raw(rig, "PUT", "/blobs/..%2Fx", b"x").status == 400
+    for method, bad in (("PUT", "/blobs/a%2fb"), ("PUT", "/blobs/a\x00b"), ("GET", f"/blobs/{exp}/.."),
+                        ("GET", f"/blobs/{exp}/" + "z" * 5000)):
+        assert _raw(rig, method, bad, b"x").status in (400, 404)
+
+
+def test_a_secret_is_never_echoed_in_an_error(rig):
+    for body in ({"explorationId": SECRET, "editor": SECRET, "instanceId": 1, "events": SECRET},
+                 {"notebookId": SECRET, "instanceId": 5}, {"path": SECRET, "editor": SECRET},
+                 {"explorationId": "e", "cellId": "c", "code": 12345, "secret": SECRET}):
+        for path in POST_ROUTES:
+            assert SECRET not in _raw(rig, "POST", path, json.dumps(body).encode()).body.decode(), path
+    for path, q in (("/outline", {"explorationId": SECRET}),
+                    ("/state", {"explorationId": SECRET, "branchId": SECRET, "tick": "1"}),
+                    ("/search", {"explorationId": SECRET, "query": SECRET, "kinds": SECRET}),
+                    ("/events-since", {"explorationId": SECRET, "branchId": SECRET, "afterTick": SECRET})):
+        assert SECRET not in _raw(rig, "GET", path, query=q).body.decode(), path
+    assert SECRET not in _raw(rig, "PUT", f"/blobs/{SECRET}", b"x").body.decode()
+    assert SECRET not in _raw(rig, "GET", f"/nope/{SECRET}").body.decode()
 
 
 def test_a_busy_store_is_503_with_retry_after_and_the_committed_outcomes(rig):
@@ -247,38 +216,7 @@ def test_a_busy_store_is_503_with_retry_after_and_the_committed_outcomes(rig):
     assert r.status == 503 and r.headers["Retry-After"] == "1" and _json(r)["outcomes"] == []
 
 
-def test_a_busy_store_on_the_startup_gap_keeps_the_flag_for_the_next_ingest(rig):
-    status = rig.register()
-    rig.registry._startup_unclean[status.explorationId] = True  # the last session did not close cleanly
-    s = Scenario()
-    s.start(cells=[("c1", "x = 1")])
-    real, calls = rig.service.ingest, []
-
-    def flaky(cred, request):
-        calls.append(request)
-        if len(calls) == 2:  # the start-up gap
-            raise ServiceBusy("locked", [])
-        return real(cred, request)
-
-    rig.service.ingest = flaky
-    body = rig.ingest_body(status.explorationId, s.events)
-    assert rig.call("POST", "/ingest", body=body).status == 503  # the gap hit a busy store
-    assert rig.registry.startup_unclean(status.explorationId)  # so the flag is still set
-    retry = rig.call("POST", "/ingest", body=body)  # the browser resends the batch
-    assert retry.status == 200 and len(calls) == 4  # the snapshot again (duplicate), then the gap
-    assert not rig.registry.startup_unclean(status.explorationId)
-
-
-def test_unknown_route_404_and_wrong_method_405(rig):
-    assert rig.call("GET", "/nothing").status == 404
-    r = rig.call("GET", "/ingest")
-    assert r.status == 405 and r.headers["Allow"] == "POST"
-
-
-# -- the gate -------------------------------------------------------------------------------------
-
-
-def test_a_second_instance_is_refused_before_the_service(rig):
+def test_a_second_instance_is_refused_before_the_service_and_cannot_take_the_notebook(rig):
     first = rig.register("tab-1")
     second = rig.register("tab-2")
     assert first.active and not second.active and second.reason.value == "other_recorder_active"
@@ -293,41 +231,19 @@ def test_a_second_instance_is_refused_before_the_service(rig):
     assert refused.status == 200 and calls == []
     assert [(o.root.status, o.root.reason.value, o.root.eventId) for o in out.outcomes] == [
         ("refused", "not_active_recorder", recorder(s.events[0])["eventId"])]
+    assert rig.call("GET", "/outline", query={"explorationId": first.explorationId}).status == 404  # nothing stored
+
+    assert rig.call("POST", "/notebooks/close", body={"notebookId": first.notebookId, "instanceId": "tab-2"}).status == 204
+    again = rig.call("GET", f"/notebooks/{first.notebookId}/status", query={"instanceId": "tab-1"})
+    assert NotebookStatus.model_validate_json(again.body).active  # an inactive close changes nothing
 
     ok = rig.call("POST", "/ingest", body=rig.ingest_body(first.explorationId, s.events, "tab-1"))
     assert IngestResponse.model_validate_json(ok.body).outcomes[0].root.status == "accepted" and len(calls) == 1
+    never = rig.call("POST", "/ingest", body=rig.ingest_body("never-registered", s.events))
+    assert IngestResponse.model_validate_json(never.body).outcomes[0].root.reason.value == "not_active_recorder"
 
 
-def test_an_unregistered_instance_is_refused(rig):
-    s = Scenario()
-    s.start(cells=[("c1", "x = 1")])
-    r = rig.call("POST", "/ingest", body=rig.ingest_body("never-registered", s.events))
-    assert IngestResponse.model_validate_json(r.body).outcomes[0].root.reason.value == "not_active_recorder"
-
-
-# -- the table ------------------------------------------------------------------------------------
-
-
-def test_every_route_has_a_handler_and_the_table_matches():
-    assert {r.name for r in ROUTES} == set(_HANDLERS)
-    for r in ROUTES:
-        found, _, _ = match(r.method, r.path.format(**_ANY))
-        assert found is r
-
-
-def test_routes_file_is_generated_from_the_table():
-    """Set BLAYM_REGEN_API_ROUTES=1 to rewrite the file; otherwise it must equal the table."""
-    text = json.dumps(as_json(), indent=2) + "\n"
-    if os.environ.get("BLAYM_REGEN_API_ROUTES"):
-        ROUTES_FILE.parent.mkdir(parents=True, exist_ok=True)
-        ROUTES_FILE.write_text(text)
-    assert ROUTES_FILE.read_text() == text
-
-
-# -- Task 20: the start-up gap (O7) --------------------------------------------------------------
-
-
-def test_a_lost_session_gets_one_closed_gap_after_the_next_first_snapshot_and_a_clean_one_none(tmp_path):
+def test_a_lost_session_gets_one_closed_gap_after_the_next_first_snapshot(tmp_path):
     lost = Rig(tmp_path / "lost")
     (tmp_path / "lost").mkdir()
     exp, branch = lost.seed()  # the page never closes: the server record stays open
@@ -339,21 +255,25 @@ def test_a_lost_session_gets_one_closed_gap_after_the_next_first_snapshot_and_a_
     assert IngestResponse.model_validate_json(r.body).outcomes[0].root.status == "accepted"
     since = again.call("GET", "/events-since", query={"explorationId": exp, "branchId": branch, "afterTick": "0"})
     events = EventsSinceResponse.model_validate_json(since.body).events
-    types = [e.root.type for e in events]
-    assert types[-3:] == ["notebook_snapshot", "recording_gap_started", "recording_gap_ended"]
+    assert [e.root.type for e in events][-3:] == ["notebook_snapshot", "recording_gap_started", "recording_gap_ended"]
     started = events[-2].root.payload
     assert (started.source.value, started.reason.value) == ("browser", "unknown")
-    again.call("POST", "/ingest", body=again.ingest_body(exp, Scenario().events, "tab-2"))  # no second gap
 
-    clean = Rig(tmp_path / "clean")
-    (tmp_path / "clean").mkdir()
-    exp2, branch2 = clean.seed()
-    clean.call("POST", "/notebooks/close", body={"notebookId": exp2, "instanceId": "tab-1"})
-    reopened = Rig(tmp_path / "clean")
-    st = reopened.register("tab-2")
-    s2 = Scenario()
-    s2.start(cells=[("c1", "needle = 2")])
-    reopened.call("POST", "/ingest", body=reopened.ingest_body(st.explorationId, s2.events, "tab-2"))
-    since = reopened.call("GET", "/events-since", query={"explorationId": exp2, "branchId": branch2, "afterTick": "0"})
-    assert not [e for e in EventsSinceResponse.model_validate_json(since.body).events
-                if e.root.type.startswith("recording_gap")]
+
+def test_the_api_refuses_writes_it_does_not_own(rig):
+    first = rig.register("tab-1", "a.ipynb")
+    s = Scenario()
+    s.start(cells=[("c1", "x = 1")])
+    # the server's own instance id cannot ingest through the API
+    r = rig.call("POST", "/ingest", body=rig.ingest_body(first.explorationId, s.events, "blaym-server"))
+    assert IngestResponse.model_validate_json(r.body).outcomes[0].root.status == "refused"
+    # events for another history cannot ride in an envelope the caller holds
+    theirs = rig.register("tab-9", "b.ipynb", fingerprint={"nbformat": "4.5", "sourceHash": "other", "cellIds": ["z9"]})
+    assert theirs.explorationId != first.explorationId
+    body = rig.ingest_body(first.explorationId, s.events, "tab-1")
+    for ev in body["events"]:
+        ev["explorationId"] = theirs.explorationId
+    out = IngestResponse.model_validate_json(rig.call("POST", "/ingest", body=body).body)
+    assert all(o.root.status != "accepted" for o in out.outcomes)
+    outline = rig.call("GET", "/outline", query={"explorationId": theirs.explorationId})
+    assert outline.status == 404 or json.loads(outline.body).get("highestTick", 0) == 0

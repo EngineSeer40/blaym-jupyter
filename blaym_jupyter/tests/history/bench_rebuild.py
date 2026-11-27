@@ -1,4 +1,4 @@
-"""Jump-speed benchmark for the real rebuilder (S3a, Task 5 follow-up).
+"""Jump-speed benchmark for the real rebuilder.
 
 Not a test (pytest does not collect it). Run by hand:
 

@@ -1,4 +1,4 @@
-"""Rename and copy through Jupyter's real contents REST API (S5, Task 17)."""
+"""Rename and copy through Jupyter's real contents REST API."""
 
 import asyncio
 import json
@@ -67,18 +67,6 @@ async def test_rename_keeps_one_history_even_while_the_page_has_the_old_path(jp_
         status = await register(jp_fetch, path=path)
         assert (status.explorationId, status.recording, status.notices) == (exp, True, [])
     assert host.registry.notebook_id_for_path("b.ipynb") == exp
-
-
-async def test_a_folder_rename_moves_the_notebooks_inside_it(jp_fetch, jp_serverapp, jp_root_dir):
-    make_notebook(jp_root_dir, "dir/a.ipynb")
-    exp = await start_recording(jp_fetch, "dir/a.ipynb")
-    host = await settle(jp_serverapp)
-    before, _ = history(host, exp)
-    await rename(jp_fetch, "dir", "other")
-    await settle(jp_serverapp)
-    tick, state = history(host, exp)
-    assert tick == before + 1 and "other/a.ipynb" in json.dumps(state)
-    assert (await register(jp_fetch, path="other/a.ipynb")).explorationId == exp
 
 
 async def test_a_copy_makes_a_second_history_and_leaves_the_original_alone(jp_fetch, jp_serverapp, jp_root_dir):

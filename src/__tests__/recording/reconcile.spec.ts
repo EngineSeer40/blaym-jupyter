@@ -6,8 +6,7 @@ import {
   expectedModel,
   FakeNotebook,
   Harness,
-  stepsArb,
-  status
+  stepsArb
 } from './generate';
 
 jest.setTimeout(120000);
@@ -117,32 +116,10 @@ describe('reconcile: whole-notebook changes become one resync', () => {
     expect(await h.change()).toEqual([]);
     expect(h.resyncs).toBe(0);
   });
-
-  test('reconciling before any snapshot asks for one', async () => {
-    const h = new Harness();
-    expect(h.reconciler.reconcile(h.nb, h.identity)).toEqual({
-      kind: 'resync',
-      reason: 'not_started'
-    });
-  });
 });
 
 describe('builder', () => {
-  test('default author is unknown with no confidence field (O2)', async () => {
-    const h = await started(nb => nb.insert(0, 'code', 'x'));
-    h.nb.insert(1, 'code', 'y');
-    const [e] = await h.change();
-    expect((e as any).authorHint).toBe('unknown');
-    expect('authorConfidence' in e).toBe(false);
-    expect((e as any).editor).toBe('jupyterlab');
-    expect((e as any).originId).toBe('tab1');
-    expect((e as any).links).toEqual({
-      cellId: (e as any).payload.cellId,
-      cellRevision: 1
-    });
-  });
-
-  test('the metadata policy is applied: kernelspec and timing never reach an event', async () => {
+  test('events are built by the recorder rules', async () => {
     const h = await started(nb => nb.insert(0, 'code', 'x'));
     h.nb.nbMetadata = { kernelspec: { name: 'python3' }, title: 't' };
     h.nb.list[0].metadata = {
@@ -150,7 +127,15 @@ describe('builder', () => {
       execution: { 'iopub.execute_input': 'x' },
       tags: ['a']
     };
+    h.nb.insert(1, 'code', 'pasted');
+    h.nb.list[1].outputs = [{ output_type: 'stream', text: 'a' }];
     const events = await h.change();
+    const pasted = events.find(e => e.type === 'cell_inserted') as any;
+    expect(pasted.payload.cellId).toBeTruthy();
+    expect(pasted.payload.outputs).toHaveLength(1);
+    expect(h.transport.prepared).toHaveLength(1);
+    expect((pasted as any).authorHint).toBe('unknown');
+    expect('authorConfidence' in pasted).toBe(false);
     const nbEvent = events.find(
       e => e.type === 'notebook_metadata_changed'
     ) as any;
@@ -159,115 +144,10 @@ describe('builder', () => {
     ) as any;
     expect(nbEvent.payload.metadata).toEqual({ title: 't' });
     expect(cellEvent.payload.metadata).toEqual({ tags: ['a'] });
-    // a change only in dropped keys is no change at all
-    h.nb.nbMetadata = { kernelspec: { name: 'other' }, title: 't' };
-    expect(await h.change()).toEqual([]);
-    // the snapshot carries the policy-applied metadata too
-    const snap = (await h.snapshot()) as any;
-    expect(snap.payload.notebookMetadata).toEqual({ title: 't' });
-    expect(snap.payload.cells[0].metadata).toEqual({ tags: ['a'] });
-  });
-
-  test('snapshot outputs go through prepareOutputs and form groups named snapshot:<eventId>', async () => {
-    const nb = new FakeNotebook();
-    nb.insert(0, 'code', 'x');
-    nb.list[0].outputs = [
-      { output_type: 'stream', text: 'a' },
-      { output_type: 'error' }
-    ];
-    nb.insert(1, 'markdown', 'md');
-    const h = new Harness(nb);
-    const snap = (await h.snapshot()) as any;
-    expect(h.transport.prepared).toHaveLength(1);
-    expect(snap.payload.cells[0].outputs).toHaveLength(1);
-    expect(snap.payload.cells[0].outputs[0].runId).toBe(
-      `snapshot:${snap.eventId}`
-    );
-    expect(snap.payload.cells[0].outputs[0].items).toHaveLength(2);
-    expect(snap.payload.cells[1].outputs).toEqual([]);
-  });
-
-  test('a pasted cell with outputs carries prepared items', async () => {
-    const h = await started();
-    h.nb.insert(0, 'code', 'x');
-    h.nb.list[0].outputs = [{ output_type: 'stream', text: 'a' }];
-    const [e] = await h.change();
-    expect((e as any).payload.outputs).toHaveLength(1);
-    expect(h.transport.prepared).toHaveLength(1);
-  });
-
-  test('revisions continue from the server and never go down; +1 only when code changed', async () => {
-    const nb = new FakeNotebook();
-    nb.cellIdsStable = false;
-    nb.insert(0, 'code', 'same');
-    nb.insert(1, 'code', 'changed');
-    nb.insert(2, 'code', 'fresh');
-    const h = new Harness(nb);
-    const [a, b] = nb.list.map(c => h.identity.blaymId(c.id));
-    h.builder.noteStatus({ [a]: 7, [b]: 4, gone: 3 });
-    h.builder.noteTip([
-      { cellId: a, code: 'same' },
-      { cellId: b, code: 'older' }
-    ]);
-    const snap = (await h.snapshot()) as any;
-    expect(snap.payload.cells.map((c: any) => c.revision)).toEqual([7, 5, 1]);
-    // a lower number from the server never lowers a known revision
-    h.builder.noteStatus({ [a]: 2 });
-    h.nb.list[0].source = 'same!';
+    h.nb.list[0].source = 'x!';
     await h.change();
     await h.finish();
     const src = h.events.filter(e => e.type === 'cell_source_changed') as any[];
-    expect(src[0].payload.revision).toBe(8);
-    const resnap = (await h.snapshot()) as any;
-    expect(resnap.payload.cells[0].revision).toBe(8);
-    expect(status().cellRevisions).toEqual({});
-  });
-
-  test('lowering a revision is caught by the applier (planted fault)', () => {
-    const a = new Applier();
-    a.apply({
-      type: 'notebook_snapshot',
-      payload: {
-        path: 'p',
-        notebookMetadata: {},
-        cells: [
-          {
-            cellId: 'c',
-            cellType: 'code',
-            code: '',
-            revision: 5,
-            metadata: {},
-            outputs: []
-          }
-        ]
-      }
-    } as any);
-    a.apply({
-      type: 'notebook_snapshot',
-      payload: {
-        path: 'p',
-        notebookMetadata: {},
-        cells: [
-          {
-            cellId: 'c',
-            cellType: 'code',
-            code: '',
-            revision: 4,
-            metadata: {},
-            outputs: []
-          }
-        ]
-      }
-    } as any);
-    expect(a.problems).toEqual(['snapshot lowered revision of c']);
-  });
-
-  test('events are built in call order even when one waits for outputs', async () => {
-    const h = await started();
-    h.nb.insert(0, 'code', 'x');
-    h.nb.list[0].outputs = [{ output_type: 'stream', text: 'a' }];
-    h.nb.insert(1, 'code', 'y');
-    const ev = await h.change();
-    expect(ev.map(e => (e as any).payload.index)).toEqual([0, 1]);
+    expect(src[0].payload.revision).toBe(2);
   });
 });

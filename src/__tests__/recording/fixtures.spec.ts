@@ -1,5 +1,5 @@
 /**
- * Cross-language recorder fixtures (S5 Task 14).
+ * Cross-language recorder fixtures.
  *
  * Each scenario drives the real TypeScript recorder (reconciler, typing grouper,
  * event builder, outbox) over a fake notebook, a fake clock and a fake transport,
@@ -442,9 +442,9 @@ const scenarios: Array<{ name: string; description: string; build: Build }> = [
 ];
 
 describe('recorder fixtures: the files are what the scenarios write now', () => {
-  test.each(scenarios.map(s => [s.name, s] as const))(
-    'scenario %s',
-    async (name, sc) => {
+  test('every scenario file is what the scenarios write now', async () => {
+    for (const sc of scenarios) {
+      const name = sc.name;
       const built = await sc.build();
       expect(built.requests.length).toBeGreaterThan(0);
       const scenario: Scenario = {
@@ -456,7 +456,7 @@ describe('recorder fixtures: the files are what the scenarios write now', () => 
       const file = join(DIR, `scenario-${name}.json`);
       if (WRITE) {
         writeFileSync(file, text);
-        return;
+        continue;
       }
       let onDisk = '';
       try {
@@ -470,7 +470,7 @@ describe('recorder fixtures: the files are what the scenarios write now', () => 
         );
       }
     }
-  );
+  });
 
   test('no scenario file is left without a scenario', () => {
     const files = (readdirSync(DIR) as string[])

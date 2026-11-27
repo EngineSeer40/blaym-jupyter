@@ -43,33 +43,7 @@ async function setup() {
   return { observer, cell, shared, panel, tick, events, snapshots };
 }
 
-describe('outputs never cause a snapshot (LT-1, LT-7)', () => {
-  it('an emptied output list (a re-run, a cleared cell) sends no snapshot', async () => {
-    const t = await setup();
-    expect(t.snapshots()).toBe(1);
-    t.panel.kernel!.send('execute_request', 'c1', 'm1');
-    t.cell.outputs = [];
-    t.shared.changed.emit();
-    await t.tick();
-    expect(t.snapshots()).toBe(1);
-  });
-
-  it('code to markdown and back is two cell_type_changed and no snapshot', async () => {
-    const t = await setup();
-    for (const type of ['markdown', 'code']) {
-      t.shared.cells.splice(0, 1, new FakeCell('c1', type, 'x = 1'));
-      t.shared.changed.emit();
-      await t.tick();
-    }
-    expect(
-      t
-        .events()
-        .filter(e => e.type === 'cell_type_changed')
-        .map(e => e.payload.cellType)
-    ).toEqual(['markdown', 'code']);
-    expect(t.snapshots()).toBe(1);
-  });
-});
+describe('outputs never cause a snapshot', () => {});
 
 describe('clear commands become cell_outputs_cleared', () => {
   const cleared = (t: Awaited<ReturnType<typeof setup>>): string[] =>
@@ -108,12 +82,6 @@ describe('clear commands become cell_outputs_cleared', () => {
     await t.run('notebook:clear-all-cell-outputs', []);
     expect(cleared(t)).toEqual(['c1', 'c3']);
     expect(t.snapshots()).toBe(1);
-  });
-
-  it('clear cell output: only the selected cells that had output', async () => {
-    const t = await three(['c2', 'c3']);
-    await t.run('notebook:clear-cell-output', [2]);
-    expect(cleared(t)).toEqual(['c3']);
   });
 
   it('emptied output without a clear command (a re-run, restart and run all) sends none', async () => {

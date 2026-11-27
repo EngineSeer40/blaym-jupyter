@@ -12,50 +12,25 @@ const files: string[] = readdirSync(DIR)
   .sort();
 
 describe('shared rebuild fixtures', () => {
-  it('finds the fixtures', () => {
+  it('every event, outline and recorded result validates', () => {
     expect(files.length).toBeGreaterThanOrEqual(16);
-  });
-
-  it.each(files.map(f => [f]))(
-    '%s: every event and recorded result validates',
-    (file: string) => {
+    const check = (name: string, value: unknown, file: string) => {
+      const r = validateContract(name, value);
+      expect({ file, name, errors: r.ok ? [] : r.errors }).toEqual({
+        file,
+        name,
+        errors: []
+      });
+    };
+    for (const file of files) {
       const data = JSON.parse(readFileSync(join(DIR, file), 'utf8'));
       expect(data.events.length).toBeGreaterThan(0);
       expect(data.expectations.length).toBeGreaterThan(0);
-      data.events.forEach((event: unknown, i: number) => {
-        const r = validateContract('BlaymEvent', event);
-        expect({
-          file,
-          event: i,
-          ok: r.ok,
-          errors: r.ok ? [] : r.errors
-        }).toEqual({
-          file,
-          event: i,
-          ok: true,
-          errors: []
-        });
-      });
-      const outline = validateContract('HistoryOutline', data.outline);
-      expect({
-        file,
-        ok: outline.ok,
-        errors: outline.ok ? [] : outline.errors
-      }).toEqual({ file, ok: true, errors: [] });
-      data.expectations.forEach((ex: { result: unknown }, i: number) => {
-        const r = validateContract('RebuildResult', ex.result);
-        expect({
-          file,
-          result: i,
-          ok: r.ok,
-          errors: r.ok ? [] : r.errors
-        }).toEqual({
-          file,
-          result: i,
-          ok: true,
-          errors: []
-        });
-      });
+      data.events.forEach((e: unknown) => check('BlaymEvent', e, file));
+      check('HistoryOutline', data.outline, file);
+      data.expectations.forEach((ex: { result: unknown }) =>
+        check('RebuildResult', ex.result, file)
+      );
     }
-  );
+  });
 });

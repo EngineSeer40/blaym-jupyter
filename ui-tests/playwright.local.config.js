@@ -11,7 +11,7 @@ module.exports = {
   testDir: path.join(__dirname, 'tests'),
   testMatch: process.env.BLAYM_SPEC
     ? new RegExp(process.env.BLAYM_SPEC)
-    : /recording\.spec\.ts/,
+    : /end-to-end\.spec\.ts/,
   reporter: [['list']],
   workers: 1,
   retries: 0,

@@ -1,4 +1,4 @@
-"""Storage benchmark for the real service on SQLite (S4, Task 11).
+"""Storage benchmark for the real service on SQLite.
 
 Not a test (pytest does not collect it: the name does not start with `test_`). Run by hand:
 

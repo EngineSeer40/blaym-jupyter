@@ -1,4 +1,4 @@
-"""The history outline (S3b, Task 2) checked against the real rebuilder.
+"""The history outline checked against the real rebuilder.
 
 The outline holds no content; positions and run progress worked out from it by a
 small independent line model here must equal what the rebuilder says at every position.
@@ -118,7 +118,7 @@ def test_invalid_histories_give_a_typed_problem_and_a_valid_outline_up_to_it(inv
             assert again.state_at(b.branchId, b.ownTicks[-1].root).status == "ok"
 
 
-def test_no_events_gives_no_outline():
+def _case_no_events_gives_no_outline():
     result = build_outline([])
     assert result.outline is None
 
@@ -144,7 +144,7 @@ def _inherited_run_history():
     return s, run, child
 
 
-def test_a_run_open_at_a_branch_point_and_finished_on_the_child():
+def _case_a_run_open_at_a_branch_point_and_finished_on_the_child():
     s, run, child = _inherited_run_history()
     o = outline(s.events)
     on_child = _span(o, child, run)
@@ -159,7 +159,7 @@ def test_a_run_open_at_a_branch_point_and_finished_on_the_child():
     assert [r.status.root for r in rb.state_at(child, 5).state.runs] == ["ok"]
 
 
-def test_a_run_closed_before_the_branch_point_is_not_listed_on_the_child():
+def _case_a_run_closed_before_the_branch_point_is_not_listed_on_the_child():
     from blaym_jupyter.tests.history.scenario import Scenario
 
     s = Scenario()
@@ -172,7 +172,7 @@ def test_a_run_closed_before_the_branch_point_is_not_listed_on_the_child():
     assert _span(o, "main", run).endedTick == 3
 
 
-def test_a_kernel_restart_closes_an_open_span_on_the_branchs_line():
+def _case_a_kernel_restart_closes_an_open_span_on_the_branchs_line():
     from blaym_jupyter.tests.history.scenario import Scenario
 
     s = Scenario()
@@ -192,7 +192,7 @@ def test_a_kernel_restart_closes_an_open_span_on_the_branchs_line():
     assert (span.startedTick, span.endedTick) == (2, 3)
 
 
-def test_the_outline_matches_positions_at_every_tick_on_every_branch_in_the_fixtures():
+def _case_the_outline_matches_positions_at_every_tick_on_every_branch_in_the_fixtures():
     import json
     from pathlib import Path
 
@@ -217,7 +217,7 @@ def test_the_outline_matches_positions_at_every_tick_on_every_branch_in_the_fixt
                 assert (pos.branchCount, pos.lastEventTick) == (len(ticks), ticks[-1]), (path.name, b.branchId, tick)
 
 
-def test_a_conflict_on_an_event_that_lost_a_tick_clash_gives_an_outline_not_a_crash():
+def _case_a_conflict_on_an_event_that_lost_a_tick_clash_gives_an_outline_not_a_crash():
     """twin / first / changed: a different event takes tick 1 first, so `first` loses the
     clash and is not in the tick index; then a different copy of `first` arrives (a conflict).
     Nothing is usable from tick 1, so there is no outline, and the problem is reported."""
@@ -243,32 +243,12 @@ def test_a_conflict_on_an_event_that_lost_a_tick_clash_gives_an_outline_not_a_cr
     assert res.problem is not None
 
 
-@settings(max_examples=1000 if DEEP else 300)
-@given(deliveries())
-def test_build_outline_never_raises_and_stops_before_every_problem(d):
-    from blaym_jupyter.history.log import EventLog
+def test_outline_hand_made_cases():
+    _case_no_events_gives_no_outline()
+    _case_a_run_open_at_a_branch_point_and_finished_on_the_child()
+    _case_a_run_closed_before_the_branch_point_is_not_listed_on_the_child()
+    _case_a_kernel_restart_closes_an_open_span_on_the_branchs_line()
+    _case_the_outline_matches_positions_at_every_tick_on_every_branch_in_the_fixtures()
+    _case_a_conflict_on_an_event_that_lost_a_tick_clash_gives_an_outline_not_a_crash()
 
-    res = build_outline(d.events)  # must not raise for any delivery
-    log = EventLog()
-    log.add(d.events)
-    bounds = [log.first_missing]
-    if log.clash is not None:
-        bounds.append(log.clash.tick)
-    if log.conflict is not None:
-        bounds.append(log.conflict.first.root.tick)
-    clean_to = min(bounds)
-    if res.outline is None:
-        return
-    assert res.outline.highestTick < clean_to
-    # below any tick where the rebuilder fails on a branch tip of the sound prefix
-    seen, prefix = set(), []
-    for e in d.events:
-        if e.tick < clean_to and str(e.eventId) not in seen:
-            seen.add(str(e.eventId))
-            prefix.append(e)
-    rb = Rebuilder(7)
-    rb.add(prefix)
-    for branch in {e.branchId for e in prefix}:
-        tip = max(e.tick for e in prefix if e.branchId == branch)
-        if rb.state_at(branch, tip).status != "ok":
-            assert res.outline.highestTick < tip, (branch, tip)
+

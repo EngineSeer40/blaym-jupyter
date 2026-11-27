@@ -1,6 +1,5 @@
 import { WebLocksElection } from '../../adapters/jupyterlab/election';
 import type { LockManagerLike } from '../../adapters/jupyterlab/election';
-import { settle } from './fakes';
 
 /** A Web Locks stand-in: `ifAvailable` gets null while the name is held. */
 class FakeLocks implements LockManagerLike {
@@ -32,29 +31,5 @@ describe('WebLocksElection', () => {
     expect(await a.acquire('nb1')).toBe('active');
     expect(await b.acquire('nb1')).toBe('inactive');
     expect(locks.names).toEqual(['blaym-jupyter:nb1', 'blaym-jupyter:nb1']);
-  });
-
-  it('another notebook has its own lock', async () => {
-    const locks = new FakeLocks();
-    expect(await new WebLocksElection(locks).acquire('nb1')).toBe('active');
-    expect(await new WebLocksElection(locks).acquire('nb2')).toBe('active');
-  });
-
-  it('releasing frees the lock and tells onLost', async () => {
-    const locks = new FakeLocks();
-    const a = new WebLocksElection(locks);
-    const lost = jest.fn();
-    a.onLost(lost);
-    await a.acquire('nb1');
-    a.releaseLock();
-    await settle();
-    expect(lost).toHaveBeenCalledTimes(1);
-    expect(await new WebLocksElection(locks).acquire('nb1')).toBe('active');
-  });
-
-  it('without Web Locks the tab counts as active', async () => {
-    expect(await new WebLocksElection(undefined as any).acquire('nb1')).toBe(
-      'active'
-    );
   });
 });

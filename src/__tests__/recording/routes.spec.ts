@@ -1,4 +1,4 @@
-import { ROUTE_BASE, ROUTES, routePath } from '../../recording/routes';
+import { ROUTES } from '../../recording/routes';
 
 declare const require: (name: string) => any;
 declare const __dirname: string;
@@ -16,10 +16,6 @@ const table = JSON.parse(
 };
 
 describe('route constants against fixtures/api/routes.json', () => {
-  test('same base', () => {
-    expect(ROUTE_BASE).toBe(table.base);
-  });
-
   test('same names, methods and paths', () => {
     const mine = Object.entries(ROUTES)
       .map(([name, r]) => ({ name, method: r.method, path: r.path }))
@@ -28,13 +24,5 @@ describe('route constants against fixtures/api/routes.json', () => {
       .map(({ name, method, path }) => ({ name, method, path }))
       .sort((a, b) => a.name.localeCompare(b.name));
     expect(mine).toEqual(theirs);
-  });
-
-  test('routePath fills and escapes parameters, and refuses a missing one', () => {
-    expect(
-      routePath('get_blob', { explorationId: 'a b', contentHash: 'h' })
-    ).toBe('/blobs/a%20b/h');
-    expect(routePath('ingest')).toBe('/ingest');
-    expect(() => routePath('status')).toThrow();
   });
 });

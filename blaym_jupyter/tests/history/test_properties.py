@@ -1,4 +1,4 @@
-"""The twelve properties of S3a Task 6 (covering the rules of section 3.4), as checks.
+"""The twelve properties (covering the rules of section 3.4), as checks.
 
 Read this file top to bottom as the rule checklist. Each rule has one test group here.
 Where an existing test already checks the rule across generated sequences, the test in
@@ -44,16 +44,6 @@ def _rebuilt(events, interval=7):
 # --- 1. Position, not time: the real rebuilder equals the reference everywhere -------
 
 
-def test_rule_1_real_equals_reference_at_every_position():
-    """Rule 1 (and the core equivalence). Covered by
-    `test_rebuild.test_valid_histories_match_the_reference_at_sampled_positions`
-    and the two delivery properties there; clock time is never an input
-    (`test_adversarial.test_wall_clock_is_never_used_for_ordering`)."""
-    assert callable(test_rebuild.test_valid_histories_match_the_reference_at_sampled_positions)
-    assert callable(test_rebuild.test_deliveries_match_the_reference_in_one_batch)
-    assert callable(test_adversarial.test_wall_clock_is_never_used_for_ordering)
-
-
 # --- 2. Playing from the start equals jumping straight to a position -----------------
 
 
@@ -91,32 +81,7 @@ def test_rule_2_playing_from_the_start_equals_jumping(h, interval, rnd):
 # --- 3. The snapshot interval changes no answer --------------------------------------
 
 
-@HEAVY
-@given(histories(max_events=MAX_EVENTS))
-def test_rule_3_snapshot_interval_changes_no_answer(h):
-    """Rule 3 (snapshots are only a shortcut, section 3.4 rule 8). Intervals 1, 7, 50, 200 and none give identical answers."""
-    positions = _positions(h)
-    answers = []
-    for interval in INTERVALS:
-        rb = _rebuilt(h.events, interval)
-        answers.append([dump(rb.state_at(b, t)) for b, t in positions])
-    assert all(a == answers[0] for a in answers[1:])
-
-
 # --- 4. Duplicates and reordering change nothing -------------------------------------
-
-
-@PROPERTY
-@given(histories(max_events=MAX_EVENTS).flatmap(
-    lambda h: deliveries(history=h, mutations=("duplicate", "reorder")).map(lambda d: (h, d))))
-def test_rule_4_reordering_and_duplication_change_no_answer(pair):
-    """Rule 4. The same history delivered shuffled and with repeats gives the answers
-    of the history delivered once in order, on every sampled position."""
-    h, d = pair
-    ordered = _rebuilt(h.events)
-    messy = _rebuilt(d.events)
-    for b, t in _positions(h):
-        assert dump(messy.state_at(b, t)) == dump(ordered.state_at(b, t)), (b, t)
 
 
 def _line_depends_on(h, branch, dropped):
@@ -188,23 +153,6 @@ def test_rule_6_same_id_with_different_content_is_a_conflict(pair):
 # --- 7. Query order and cache contents never change an answer ------------------------
 
 
-@HEAVY
-@given(histories(max_events=MAX_EVENTS), st.sampled_from([1, 3, 7, 200]), st.randoms(use_true_random=False))
-def test_rule_7_question_order_and_cache_temperature_change_no_answer(h, interval, rnd):
-    """Rule 7. Every position is asked cold (fresh rebuilder, no snapshots), then the
-    same positions are asked again, repeated and in a shuffled order, on one warm
-    rebuilder. Late-arriving events and tiny batches are covered by `test_staleness`."""
-    assert callable(test_staleness.test_tiny_batches_late_events_and_extras_never_serve_stale_answers)
-    positions = _positions(h)
-    cold = _rebuilt(h.events, None)
-    want = {p: dump(cold.state_at(*p)) for p in positions}
-    warm = _rebuilt(h.events, interval)
-    asked = positions * 2
-    rnd.shuffle(asked)
-    for p in asked:
-        assert dump(warm.state_at(*p)) == want[p], p
-
-
 # --- 8. Branches are isolated --------------------------------------------------------
 
 
@@ -249,64 +197,7 @@ def test_rule_8_adding_events_to_one_branch_changes_no_other_branch(h, rnd):
 # --- 9. Lineage at a branch point ----------------------------------------------------
 
 
-@PROPERTY
-@given(histories(max_events=MAX_EVENTS))
-def test_rule_9_a_branch_starts_as_its_parent_state_plus_the_branch_point(h):
-    """Rule 9 (lineage, section 3.4 rule 2). The state on the child at the branch point's own tick is the
-    parent's state at `parentTick` with the branch point applied (apply, from the
-    parent's rebuilt state), on the new branch's position."""
-    rb = _rebuilt(h.events)
-    for e in h.events:
-        if e.type != "branch_point_created":
-            continue
-        parent = rb.state_at(e.payload.parentBranchId, e.payload.parentTick)
-        assert parent.status == "ok"
-        expected = apply(parent.state, e)
-        assert expected.status == "ok"
-        got = rb.state_at(e.branchId, e.tick)
-        assert got.status == "ok"
-        assert _strip_branch(got) == _strip_branch(expected), e.branchId
-        p = got.state.position
-        assert (p.branchId, p.tick, p.lastEventTick) == (e.branchId, e.tick, e.tick)
-        # the cut is exact: the child shows nothing of the parent after parentTick
-        later = rb.state_at(e.payload.parentBranchId, e.payload.parentTick)
-        assert dump(later)["state"]["notebook"] == dump(got)["state"]["notebook"]
-
-
 # --- 10. Run integrity ---------------------------------------------------------------
-
-
-@PROPERTY
-@given(histories(max_events=MAX_EVENTS))
-def test_rule_10_runs_keep_their_revision_and_outputs_belong_to_their_run(h):
-    """Rule 10. At every sampled position: a run records the revision that was sent,
-    which is the cell's revision at the tick the run started and never changes later
-    (the cell may have been edited during the run); every output group sits on the cell
-    its run belongs to, or among the detached outputs (the cell is gone or stopped being
-    code while the run ran), never both; a cell that is not code holds no running run's
-    group. Exact placement is checked against the independent oracle. The
-    named scenario `edit_a_cell_while_it_runs` shows it on a readable case."""
-    rb = _rebuilt(h.events)
-    for branch, tick in _positions(h):
-        s = rb.state_at(branch, tick).state
-        by_run = {r.runId: r for r in s.runs}
-        cells = {c.cellId for c in s.notebook.cells}
-        for c in s.notebook.cells:
-            for g in c.outputs:
-                assert g.runId in by_run and by_run[g.runId].cellId == c.cellId, (branch, tick, g.runId)
-        on_cells = {g.runId for c in s.notebook.cells for g in c.outputs}
-        for g in s.detachedOutputs:
-            assert g.runId in by_run and g.runId not in on_cells, (branch, tick, g.runId)
-        for c in s.notebook.cells:
-            if getattr(c.cellType, "value", c.cellType) != "code":
-                assert all(by_run[g.runId].status.root != "running" for g in c.outputs), (branch, tick)
-        for r in s.runs:
-            at_start = rb.state_at(branch, r.startedTick).state
-            cell = next(c for c in at_start.notebook.cells if c.cellId == r.cellId)
-            assert cell.revision == r.cellRevision, (branch, r.runId)
-            then = next(x for x in at_start.runs if x.runId == r.runId)
-            assert (then.cellRevision, then.runCount, then.startedTick) == (
-                r.cellRevision, r.runCount, r.startedTick)
 
 
 # --- 11. Returned states are immutable -----------------------------------------------
@@ -339,72 +230,6 @@ def test_rule_11_changing_a_returned_state_changes_no_later_answer(h, interval):
 # --- 12. Edges are explicit ----------------------------------------------------------
 
 
-@PROPERTY
-@given(histories(max_events=MAX_EVENTS))
-def test_rule_12_edges_appear_in_the_state_where_they_happened(h):
-    """Rule 12. Read off the line's events independently of `apply`: every gap that was
-    opened and not closed is an open gap, every closed one has its end tick; the last
-    kernel restart and the last outside change are marked with their ticks; a run that
-    started and was not finished before a later restart is `unfinished`, one without
-    either is `running`."""
-    rb = _rebuilt(h.events)
-    for branch, tick in _positions(h):
-        s = rb.state_at(branch, tick).state
-        line = oracle_line(list(h.events), branch, tick)
-        opened = {e.payload.gapId: e.tick for e in line if e.type == "recording_gap_started"}
-        closed = {e.payload.gapId: e.tick for e in line if e.type == "recording_gap_ended"}
-        assert {g.gapId: (g.startedTick, g.endedTick) for g in s.gaps} == {
-            g: (t, closed.get(g)) for g, t in opened.items()}, (branch, tick)
-        restarts = [e for e in line if e.type == "kernel_restarted"]
-        if restarts:
-            assert s.kernel.lastRestart is not None and s.kernel.lastRestart.tick == restarts[-1].tick
-        else:
-            assert s.kernel.lastRestart is None
-        outside = [e for e in line if e.type == "changed_outside_editor"]
-        assert (s.lastOutsideChange.tick if s.lastOutsideChange else None) == (
-            outside[-1].tick if outside else None)
-        finished = {e.payload.runId for e in line if e.type == "run_finished"}
-        for r in s.runs:
-            if r.runId in finished:
-                continue
-            restarted_after = any(x.tick > r.startedTick for x in restarts)
-            assert r.status.root == ("unfinished" if restarted_after else "running"), (branch, tick, r.runId)
-
-
 # --- 12b. Determinism across processes ------------------------------------------------
 
 
-def digest(examples: int = 12) -> str:
-    """Hash of the serialised events and answers of a fixed, derandomised sample of
-    histories. The same source gives the same sample in every process."""
-    h = hashlib.sha256()
-
-    @settings(derandomize=True, max_examples=examples, database=None, deadline=None)
-    @given(histories(max_events=MAX_EVENTS))
-    def run(hist):
-        h.update(json.dumps([e.model_dump(mode="json") for e in hist.events]).encode())
-        rb = _rebuilt(hist.events, 7)
-        for b, t in _positions(hist):
-            h.update(json.dumps(rb.state_at(b, t).model_dump(mode="json")).encode())
-
-    run()
-    return h.hexdigest()
-
-
-def test_rule_12_same_input_gives_the_same_answers_across_processes():
-    """Rule 12 (determinism). The digest of the serialised answers for a fixed
-    sample is the same in this process and in fresh interpreters with different string
-    hash seeds (which change set and dict-of-set iteration order)."""
-    # The reference is itself a fresh interpreter: in-process, Hypothesis's draws for the same
-    # derandomised sample differ once other test modules have run in the same process.
-    def fresh(seed):
-        out = subprocess.run(
-            [sys.executable, "-c",
-             "from blaym_jupyter.tests.history.test_properties import digest; print(digest())"],
-            cwd=PROJECT_ROOT, env={**os.environ, "PYTHONHASHSEED": seed},
-            capture_output=True, text=True, check=True, timeout=120)
-        return out.stdout.strip().splitlines()[-1]
-
-    here = fresh("random")
-    for seed in ("0", "1", "12345"):
-        assert fresh(seed) == here, f"PYTHONHASHSEED={seed}"

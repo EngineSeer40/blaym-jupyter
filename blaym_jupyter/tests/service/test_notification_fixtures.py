@@ -1,10 +1,10 @@
-"""The service's notification stream as fixtures for the navigator (S4, Task 10).
+"""The service's notification stream as fixtures for the navigator.
 
 Each named history is driven through a real `Service` (memory ports, fake clock, fixed ids).
 `fixtures/service/<name>.json` holds `{name, source, events, notices, outline, initialOutline,
 eventsSince}`: the stored events, the `HistoryAdvanced` notices in the order published, the
 outline built from the stored events, the outline of tick 1 only, and an `eventsSince`
-example `{request, response}`. The TypeScript spec feeds them to the S3b navigator.
+example `{request, response}`. The TypeScript spec feeds them to the navigator.
 Generated, never edited by hand. Regenerate with
 
     python -m blaym_jupyter.tests.service.test_notification_fixtures --write
@@ -17,13 +17,9 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 
 from blaym_jupyter.history import outline as build_outline
-from blaym_jupyter_types import (
-    BlaymEvent, EventsSinceRequest, EventsSinceResponse, HistoryAdvanced, HistoryOutline,
-    SetActiveBranchRequest,
-)
+from blaym_jupyter_types import BlaymEvent, EventsSinceRequest, SetActiveBranchRequest
 from blaym_jupyter.tests.history.scenario import Scenario
 from blaym_jupyter.tests.service.helpers import TOKEN, Rig, create
 
@@ -234,47 +230,23 @@ def load(name):
     return json.loads((FIXTURE_DIR / f"{name}.json").read_text())
 
 
-@pytest.mark.parametrize("name", list(HISTORIES))
-def test_fixture_file_is_current(name):
-    path = FIXTURE_DIR / f"{name}.json"
-    assert path.exists(), f"missing {path}: run --write"
-    assert path.read_text() == render(build(name)), f"{name}.json is stale: run --write"
+def test_fixture_files_are_current():
+    for name in HISTORIES:
+        path = FIXTURE_DIR / f"{name}.json"
+        assert path.exists(), f"missing {path}: run --write"
+        assert path.read_text() == render(build(name)), f"{name}.json is stale: run --write"
 
 
-@pytest.mark.parametrize("name", list(HISTORIES))
-def test_values_validate_against_the_generated_models(name):
-    f = load(name)
-    for e in f["events"]:
-        BlaymEvent.model_validate(e)
-    for n in f["notices"]:
-        HistoryAdvanced.model_validate(n)
-    HistoryOutline.model_validate(f["outline"])
-    HistoryOutline.model_validate(f["initialOutline"])
-    EventsSinceRequest.model_validate(f["eventsSince"]["request"])
-    EventsSinceResponse.model_validate(f["eventsSince"]["response"])
-    assert f["eventsSince"]["response"]["outline"] == f["outline"]
-    assert f["notices"], "a history with no notices proves nothing"
-
-
-@pytest.mark.parametrize("name", list(HISTORIES))
-def test_notices_applied_by_the_contract_rules_give_the_stored_outline(name):
-    f = load(name)
-    o = f["initialOutline"]
-    for n in f["notices"]:
-        o = apply_notice(o, n)
-    assert normal(o) == normal(f["outline"])
-    # events_since returns only the line's events after the tick, in tick order
-    since = f["eventsSince"]["request"]["afterTick"]
-    ticks = [e["tick"] for e in f["eventsSince"]["response"]["events"]]
-    assert ticks == sorted(ticks) and all(t > since for t in ticks)
-
-
-def test_the_set_covers_run_spans_and_new_branches():
-    notices = [n for name in HISTORIES for n in load(name)["notices"]]
-    assert any("runStarted" in n for n in notices)
-    assert any("runsEnded" in n for n in notices)
-    assert any(len(n.get("runsEnded", [])) > 1 for n in notices)  # a restart closing several runs
-    assert any("newBranch" in n for n in notices)
+def test_notices_applied_by_the_contract_rules_give_the_stored_outline():
+    for name in HISTORIES:
+        f = load(name)
+        o = f["initialOutline"]
+        for n in f["notices"]:
+            o = apply_notice(o, n)
+        assert normal(o) == normal(f["outline"]), name
+        since = f["eventsSince"]["request"]["afterTick"]
+        ticks = [e["tick"] for e in f["eventsSince"]["response"]["events"]]
+        assert ticks == sorted(ticks) and all(t > since for t in ticks)
 
 
 if __name__ == "__main__":

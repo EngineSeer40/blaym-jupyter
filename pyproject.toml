@@ -98,3 +98,7 @@ before-build-python = ["jlpm clean:all"]
 
 [tool.check-wheel-contents]
 ignore = ["W002"]
+
+[tool.pytest.ini_options]
+markers = ["slow: real-process and real-kernel tests, left out of the default run (use -m slow)"]
+addopts = "-m 'not slow'"

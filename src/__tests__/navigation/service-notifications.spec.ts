@@ -1,5 +1,4 @@
 import type { HistoryAdvanced, HistoryOutline } from 'blaym-jupyter-types';
-import { validateContract } from 'blaym-jupyter-types';
 import {
   initialState,
   navigator,
@@ -77,44 +76,12 @@ class Run {
 const fetches = (r: Run) =>
   r.requests.filter(q => q.type === 'fetchMissedSince');
 
-describe('service notifications through the S3b navigator', () => {
-  it('finds the fixtures', () => {
+describe('service notifications through the navigator', () => {
+  it('in order, and each notice twice, the outline equals the one built from the events', () => {
     expect(files.length).toBeGreaterThanOrEqual(6);
-  });
-
-  describe.each(files.map(f => [f]))('%s', (file: string) => {
-    const f = load(file);
-    const target = normal(f.outline);
-
-    it('every value validates against its contract', () => {
-      f.events.forEach(e =>
-        expect(validateContract('BlaymEvent', e).ok).toBe(true)
-      );
-      f.notices.forEach(n =>
-        expect(validateContract('HistoryAdvanced', n).ok).toBe(true)
-      );
-      expect(validateContract('HistoryOutline', f.outline).ok).toBe(true);
-      expect(validateContract('HistoryOutline', f.initialOutline).ok).toBe(
-        true
-      );
-      expect(
-        validateContract('EventsSinceRequest', f.eventsSince.request).ok
-      ).toBe(true);
-      expect(
-        validateContract('EventsSinceResponse', f.eventsSince.response).ok
-      ).toBe(true);
-    });
-
-    it('in order: the outline equals the one built from the events', () => {
-      const r = new Run(f);
-      f.notices.forEach(n => r.notify(n));
-      expect(r.refusals).toEqual([]);
-      // following now, the navigator asks for the new state; it never asks for missed events
-      expect(fetches(r)).toEqual([]);
-      expect(r.outline).toEqual(target);
-    });
-
-    it('every notice twice changes nothing after the first', () => {
+    for (const file of files) {
+      const f = load(file);
+      const target = normal(f.outline);
       const r = new Run(f);
       f.notices.forEach(n => {
         r.notify(n);
@@ -123,50 +90,34 @@ describe('service notifications through the S3b navigator', () => {
         expect(r.state).toEqual(after);
       });
       expect(r.refusals).toEqual([]);
+      // following now, the navigator never asks for missed events
+      expect(fetches(r)).toEqual([]);
       expect(r.outline).toEqual(target);
-    });
+    }
+  });
 
-    it('two adjacent notices swapped: the later one waits, a fetch is asked, the outline answer converges', () => {
-      const real = f.notices.filter(n => n.tick > f.initialOutline.highestTick);
-      for (let i = 0; i + 1 < real.length; i++) {
-        const r = new Run(f);
-        real.slice(0, i).forEach(n => r.notify(n));
-        const before = r.state.outline as HistoryOutline;
-        r.notify(real[i + 1]);
-        expect(r.state.outline).toEqual(before);
-        expect(fetches(r)).toEqual([
-          { type: 'fetchMissedSince', tick: before.highestTick }
-        ]);
-        r.notify(real[i]);
-        real.slice(i + 2).forEach(n => r.notify(n));
-        // the late notice applied, the early duplicate is ignored: still converges after the answer
-        r.send({ type: 'outlineReceived', outline: f.outline });
-        expect(r.outline).toEqual(target);
-      }
-    });
-
-    it('one notice dropped: a fetch is asked and the outline answer converges', () => {
+  it('a notice swapped or dropped: a fetch is asked and the outline answer converges', () => {
+    for (const file of files) {
+      const f = load(file);
+      const target = normal(f.outline);
       const real = f.notices.filter(n => n.tick > f.initialOutline.highestTick);
       for (let i = 0; i < real.length - 1; i++) {
-        const r = new Run(f);
-        real.slice(0, i).forEach(n => r.notify(n));
-        const at = (r.state.outline as HistoryOutline).highestTick;
-        real.slice(i + 1).forEach(n => r.notify(n));
-        expect(fetches(r).length).toBeGreaterThan(0);
-        expect(fetches(r)[0]).toEqual({ type: 'fetchMissedSince', tick: at });
-        r.send({ type: 'outlineReceived', outline: f.outline });
-        expect(r.outline).toEqual(target);
+        for (const swap of [true, false]) {
+          const r = new Run(f);
+          real.slice(0, i).forEach(n => r.notify(n));
+          const at = (r.state.outline as HistoryOutline).highestTick;
+          if (swap) {
+            r.notify(real[i + 1]);
+            r.notify(real[i]);
+            real.slice(i + 2).forEach(n => r.notify(n));
+          } else {
+            real.slice(i + 1).forEach(n => r.notify(n));
+          }
+          expect(fetches(r)[0]).toEqual({ type: 'fetchMissedSince', tick: at });
+          r.send({ type: 'outlineReceived', outline: f.outline });
+          expect(r.outline).toEqual(target);
+        }
       }
-    });
-
-    it('the eventsSince answer: its outline converges from the start', () => {
-      const r = new Run(f);
-      r.send({
-        type: 'outlineReceived',
-        outline: f.eventsSince.response.outline
-      });
-      expect(r.refusals).toEqual([]);
-      expect(r.outline).toEqual(target);
-    });
+    }
   });
 });

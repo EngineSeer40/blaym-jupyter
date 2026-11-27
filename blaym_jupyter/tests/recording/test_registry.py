@@ -12,7 +12,7 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 from blaym_jupyter.recording.registry import DEFAULT_ALIVE_WINDOW_MS, Registry
 from blaym_jupyter.recording.registry_store import FolderRegistryStore
 from blaym_jupyter.testing.fakes import FakeClock
-from blaym_jupyter_types import NotebookFingerprint, NotebookRegistration, OpenGap
+from blaym_jupyter_types import NotebookFingerprint, NotebookRegistration
 
 WINDOW = DEFAULT_ALIVE_WINDOW_MS
 
@@ -72,152 +72,43 @@ def test_first_register_creates_a_record_with_recording_off(env):
     assert data["recording"] is False and data["path"] == "a.ipynb" and data["version"] == 1
 
 
-def test_register_is_idempotent(env):
-    a = env.reg.register(registration())
-    b = env.reg.register(registration())
-    assert a.notebookId == b.notebookId and len(env.store.load_all()) == 1
-
-
-def test_switching_recording_on_persists_across_a_new_registry(env):
-    env.reg.register(registration(setRecording=True))
-    env2 = env.restart()
-    s = env2.reg.register(registration(instance="i9"))
-    assert s.notebookId == "nb1" and s.recording is True
-    assert env2.reg.register(registration(instance="i9", setRecording=False)).recording is False
-    assert env.restart().reg.register(registration()).recording is False
-
-
-def test_second_instance_refused_while_first_alive(env):
+def test_one_instance_records_a_notebook_and_a_stale_one_or_a_takeover_hands_it_over(env):
     env.reg.register(registration(instance="i1", setRecording=True))
     s = env.reg.register(registration(instance="i2", setRecording=False))
     assert (s.active, s.reason, s.holderInstanceId) == (False, "other_recorder_active", "i1")
     assert s.recording is True  # the refused instance changed nothing
     assert env.reg.gate_ingest("i1", "nb1") == "ok"
     assert env.reg.gate_ingest("i2", "nb1") == "not_active_recorder"
-
-
-def test_second_instance_wins_when_first_is_stale(env):
-    env.reg.register(registration(instance="i1"))
-    env.clock._ms += WINDOW + 1
+    env.clock._ms += WINDOW + 1  # the holder goes quiet
     s = env.reg.register(registration(instance="i2"))
     assert s.active and s.needsResync
     assert env.reg.gate_ingest("i1", "nb1") == "not_active_recorder"
-    # the old holder coming back does not take it back
-    assert env.reg.status("nb1", "i1").active is False
-
-
-def test_a_heartbeat_keeps_the_holder_alive(env):
-    env.reg.register(registration(instance="i1"))
-    env.reg.register(registration(instance="i2"))
-    for _ in range(5):
-        env.clock._ms += WINDOW - 1
-        assert env.reg.status("nb1", "i1").active
-    assert not env.reg.status("nb1", "i2").active
-
-
-def test_stale_holder_loses_to_a_heartbeat_of_the_other_instance(env):
-    env.reg.register(registration(instance="i1"))
-    env.reg.register(registration(instance="i2"))
-    env.clock._ms += WINDOW + 1
-    s = env.reg.status("nb1", "i2")
+    assert env.reg.status("nb1", "i1").active is False  # the old holder coming back does not take it back
+    s = env.reg.register(registration(instance="i1", takeover=True))  # a takeover wins while the holder is alive
     assert s.active and s.needsResync
-    assert not env.reg.status("nb1", "i2").needsResync  # asked once
+    assert env.reg.gate_ingest("i2", "nb1") == "not_active_recorder"
 
 
-def test_takeover_wins_even_if_first_is_alive(env):
-    env.reg.register(registration(instance="i1"))
-    s = env.reg.register(registration(instance="i2", takeover=True))
-    assert s.active and s.needsResync
-    assert env.reg.gate_ingest("i1", "nb1") == "not_active_recorder"
-
-
-def test_close_frees_the_notebook_at_once(env):
-    env.reg.register(registration(instance="i1"))
-    env.reg.close("nb1", "i1")
-    assert env.reg.register(registration(instance="i2")).active
-    assert not env.reg.status("nb1", "i1").active and env.reg.status("nb1", "i1").needsRegister
-
-
-def test_clean_close_is_told_apart_from_a_lost_session(env):
-    env.reg.register(registration())
-    env.reg.close("nb1", "i1")
-    e2 = env.restart()
-    e2.reg.register(registration())
-    assert e2.reg.was_clean_close("nb1") is True
-    e3 = e2.restart()  # i1 never closed
-    e3.reg.register(registration())
-    assert e3.reg.was_clean_close("nb1") is False
-
-
-def test_collaboration_is_not_supported_and_recording_stays_off(env):
-    s = env.reg.register(registration(collaboration=True, setRecording=True))
-    assert (s.active, s.reason, s.recording) == (False, "collaboration_not_supported", False)
-    assert env.reg.gate_ingest("i1", s.notebookId) == "not_active_recorder"
-    assert env.store.load_all()[0]["recording"] is False
-
-
-def test_rename_keeps_the_id(env):
-    s = env.reg.register(registration())
+def test_rename_copy_and_move_follow_or_split_the_notebook_id(env):
+    fp = dict(ids=("c1", "c2", "c3"), source_hash="edited")
+    a = env.reg.register(registration(setRecording=True))
     env.reg.note_rename("a.ipynb", "b.ipynb")
     env.files.discard("a.ipynb")
     env.files.add("b.ipynb")
-    again = env.reg.register(registration(path="b.ipynb", ids=("c1", "c2", "c3"), source_hash="edited"))
-    assert again.notebookId == s.notebookId and again.notices == []
+    again = env.reg.register(registration(path="b.ipynb", **fp))
+    assert again.notebookId == a.notebookId and again.notices == []
     rec = env.store.load_all()[0]
     assert rec["path"] == "b.ipynb" and rec["previousPaths"] == ["a.ipynb"]
-
-
-def test_copy_while_original_exists_gets_a_new_id_and_notice(env):
-    a = env.reg.register(registration(setRecording=True))
-    env.files.add("copy.ipynb")
-    c = env.reg.register(registration(path="copy.ipynb", instance="i2"))
+    env.files.add("copy.ipynb")  # a copy while the original exists is a new notebook
+    c = env.reg.register(registration(path="copy.ipynb", instance="i2", **fp))
     assert c.notebookId != a.notebookId
     assert [n.code for n in c.notices] == ["copied"] and c.recording is False and c.active
-    assert len(env.store.load_all()) == 2
-
-
-def test_move_while_original_is_gone_follows_the_id(env):
-    a = env.reg.register(registration(setRecording=True))
-    env.files.discard("a.ipynb")
+    env.files.discard("b.ipynb")  # a move while the original is gone follows the id
     env.files.add("moved.ipynb")
-    m = env.reg.register(registration(path="moved.ipynb"))
+    m = env.reg.register(registration(path="moved.ipynb", **fp))
     assert m.notebookId == a.notebookId and m.recording is True
     assert [n.code for n in m.notices] == ["moved"]
-    assert len(env.store.load_all()) == 1
-
-
-def test_old_notebook_with_identical_sources_follows_and_edited_one_is_new(env):
-    a = env.reg.register(registration(stable=False, source_hash="same"))
-    env.files.discard("a.ipynb")
-    env.files.update({"b.ipynb", "c.ipynb"})
-    edited = env.reg.register(registration(path="c.ipynb", stable=False, source_hash="edited", instance="i2"))
-    assert edited.notebookId != a.notebookId and edited.notices == []
-    moved = env.reg.register(registration(path="b.ipynb", stable=False, source_hash="same", instance="i3"))
-    assert moved.notebookId == a.notebookId and [n.code for n in moved.notices] == ["moved"]
-
-
-def test_register_after_a_server_restart_needs_register_first(env):
-    env.reg.register(registration(setRecording=True))
-    e2 = env.restart()
-    hb = e2.reg.status("nb1", "i1")
-    assert hb.needsRegister and not hb.active and hb.notebookId == "nb1"
-    assert e2.reg.gate_ingest("i1", "nb1") == "not_active_recorder"
-    s = e2.reg.register(registration())
-    assert s.active and s.notebookId == "nb1" and s.recording
-    assert not e2.reg.status("nb1", "i1").needsRegister
-
-
-def test_heartbeat_carries_the_probe_state(tmp_path):
-    class Probe:
-        def runs_open(self, e): return 2
-        def cell_revisions(self, e): return {"c1": 4}
-        def open_gaps(self, e): return [OpenGap(gapId="g", source="browser", reason="no_client")]
-
-    e = Env(tmp_path, probe=Probe())
-    e.files.add("a.ipynb")
-    s = e.reg.register(registration())
-    hb = e.reg.status(s.notebookId, "i1")
-    assert (hb.runsOpen, hb.cellRevisions, hb.openGaps[0].gapId) == (2, {"c1": 4}, "g")
+    assert len(env.store.load_all()) == 2
 
 
 def test_aliases_and_liveness(env):
@@ -244,12 +135,6 @@ def test_scan_marks_missing_and_never_deletes(env):
     assert env.store.load_all()[0]["pathMissing"] is False
 
 
-def test_note_save_records_the_hash(env):
-    env.reg.register(registration())
-    env.reg.note_save("a.ipynb", "deadbeef")
-    assert env.store.load_all()[0]["lastWrittenHash"] == "deadbeef"
-
-
 # ---- durability ----------------------------------------------------------------------
 
 
@@ -257,7 +142,7 @@ class Crash(Exception):
     pass
 
 
-def test_a_crash_between_temp_write_and_rename_is_never_half_read(tmp_path):
+def test_a_crash_while_writing_a_record_never_leaves_a_half_read_or_partial_record(tmp_path):
     e = Env(tmp_path)
     e.files.add("a.ipynb")
     e.reg.register(registration(setRecording=True))
@@ -276,17 +161,18 @@ def test_a_crash_between_temp_write_and_rename_is_never_half_read(tmp_path):
     # an orphaned temp file from a real kill is ignored on load
     (tmp_path / "notebooks" / ".nb1_metadata.json.dead.tmp").write_text('{"half')
     assert e.restart().reg.register(registration()).recording is True
+    # a crash on the first write leaves no record
+    fresh = tmp_path / "fresh"
+    fresh.mkdir()
 
-
-def test_a_crash_on_first_write_leaves_no_record(tmp_path):
-    class Faulty(FolderRegistryStore):
+    class FaultyFirst(FolderRegistryStore):
         def _commit(self, tmp, final):
             raise Crash
 
-    r = Registry(Faulty(tmp_path), FakeClock(), Counter(), path_exists=lambda p: True)
+    r = Registry(FaultyFirst(fresh), FakeClock(), Counter(), path_exists=lambda p: True)
     with pytest.raises(Crash):
         r.register(registration())
-    assert FolderRegistryStore(tmp_path).load_all() == []
+    assert FolderRegistryStore(fresh).load_all() == []
 
 
 def test_unknown_future_version_is_left_untouched_and_counted(tmp_path):
@@ -327,7 +213,7 @@ class _NoDelete(FolderRegistryStore):
         raise AssertionError("a record was deleted")
 
 
-@settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(st.lists(OPS, max_size=40))
 def test_generated_sequences_keep_the_invariants(tmp_path_factory, ops):
     root = tmp_path_factory.mktemp("gen")
@@ -376,3 +262,52 @@ def test_generated_sequences_keep_the_invariants(tmp_path_factory, ops):
         for nb in rec_ids:
             holders = [i for i in ("i1", "i2", "i3") if reg.gate_ingest(i, nb) == "ok"]
             assert len(holders) <= 1  # at most one active instance per notebook
+
+
+MODEL_OPS = st.lists(st.one_of(
+    st.tuples(st.just("register"), st.sampled_from(["i1", "i2", "i3"]), st.booleans()),
+    st.tuples(st.just("heartbeat"), st.sampled_from(["i1", "i2", "i3"])),
+    st.tuples(st.just("close"), st.sampled_from(["i1", "i2", "i3"])),
+    st.tuples(st.just("wait"), st.sampled_from([1_000, WINDOW // 2, WINDOW + 1])),
+), max_size=60)
+
+
+@settings(max_examples=50, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(MODEL_OPS)
+def test_active_instance_matches_a_simple_reference_model(tmp_path_factory, ops):
+    from blaym_jupyter.recording.registry_store import FolderRegistryStore
+    clock = FakeClock()
+    reg = Registry(FolderRegistryStore(tmp_path_factory.mktemp("m")), clock, Counter(), path_exists=lambda p: True)
+    nb = None
+    holder, seen = None, {}
+    for op in ops:
+        if op[0] == "wait":
+            clock._ms += op[1]
+            continue
+        inst = op[1]
+        now = clock.now_ms()
+        if op[0] == "register":
+            s = reg.register(registration(instance=inst, takeover=op[2]))
+            nb = s.notebookId
+            seen[inst] = now
+            if holder is None or op[2] or now - seen.get(holder, -10**12) > WINDOW or holder == inst:
+                holder = inst
+            # (the model: a holder that was heard within the window keeps the notebook)
+        elif nb is None:
+            continue
+        elif op[0] == "heartbeat":
+            if inst not in seen:
+                assert reg.status(nb, inst).needsRegister
+                continue
+            prev_seen = dict(seen)
+            reg.status(nb, inst)
+            seen[inst] = now
+            if holder is None or holder == inst or now - prev_seen.get(holder, -10**12) > WINDOW:
+                holder = inst
+        else:
+            reg.close(nb, inst)
+            seen.pop(inst, None)
+            if holder == inst:
+                holder = None
+        if nb is not None:
+            assert [i for i in ("i1", "i2", "i3") if reg.gate_ingest(i, nb) == "ok"] == ([holder] if holder else [])

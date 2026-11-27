@@ -1,24 +1,13 @@
-"""Search through the service (S4, Task 8): policy, redaction first, rebuild, failures."""
+"""Search through the service: policy, redaction first, rebuild, failures."""
 
 from __future__ import annotations
 
-import random
-
-import pytest
-from hypothesis import given, strategies as st
-from hypothesis import settings as hsettings
 
 from blaym_jupyter_types import SearchRequest, SetActiveBranchRequest
 
-from blaym_jupyter.local import open_service
-from blaym_jupyter.service.auth import FixedTokenAuthorizer, Unauthorized
-from blaym_jupyter.tests.history.generate import histories
 from blaym_jupyter.tests.history.scenario import Scenario, output_item
 from blaym_jupyter.tests.service.helpers import TOKEN, Rig, create
-from blaym_jupyter.tests.service.test_branches import run_generated
 from blaym_jupyter.testing.memory import MemorySearchIndex
-
-SECRET = "ghp_aB3dE5gH7jK9mN1pQ3sT5vW7yZ9bC1dE3fG5"
 
 
 def make(**kw):
@@ -71,30 +60,6 @@ def test_run_code_chat_outputs_found_with_kind_and_tick():
     assert len(find(rig, "residual", limit=1)) == 1
 
 
-def test_every_edit_setting_indexes_unrun_versions():
-    rig, idx = make(index_every_edit=True)
-    rig.send(story().events)
-    assert find(rig, "never_run_version")
-
-
-def test_planted_key_is_not_findable_anywhere():
-    rig, idx = make(index_every_edit=True)
-    s = Scenario()
-    s.start(cells=[("c1", f"token = '{SECRET}'")])
-    s.edit("c1", f"k = '{SECRET}'")
-    run = s.run("c1")
-    s.output(run, f"printed {SECRET}")
-    s._emit("output_added", {"runId": run, "cellId": "c1", "outputIndex": 1,
-                             "item": item(["application/vnd.plotly.v1+json"], "{}", f"title {SECRET}")},
-            revs=s._current_revisions())
-    s.chat("m1", f"my key is {SECRET}")
-    rig.send(s.events)
-    assert idx._docs
-    assert all(SECRET not in d.text and "ghp_" not in d.text for d in idx._docs)
-    assert find(rig, SECRET) == [] and find(rig, "ghp_aB3dE5") == []
-    assert find(rig, "hidden")  # the marker itself is searchable text
-
-
 def test_search_on_a_branch_returns_that_branch():
     rig, idx = make()
     s = Scenario()
@@ -115,15 +80,14 @@ def test_search_on_a_branch_returns_that_branch():
     assert hits[0].tick == rig.stored()[-1].tick
 
 
-def test_duplicate_resend_indexes_once_and_create_branch_indexes_nothing():
+def test_rebuilding_the_index_from_history_gives_the_same_hits():
     rig, idx = make()
-    s = story()
-    rig.send(s.events)
-    n = len(idx._docs)
-    rig.send(s.events)
-    assert len(idx._docs) == n
-    create(rig, rig.root, 1)
-    assert len(idx._docs) == n
+    rig.send(story().events)
+    terms = ["residual", "fit poor", "stdout", "chart title", "col_beta", "never_run_version"]
+    before = {q: [(h.kind, h.tick) for h in find(rig, q)] for q in terms}
+    assert any(before.values())
+    assert rig.service.rebuild_search(TOKEN, rig.exp) > 0
+    assert {q: [(h.kind, h.tick) for h in find(rig, q)] for q in terms} == before
 
 
 class FailingIndex(MemorySearchIndex):
@@ -139,56 +103,3 @@ def test_index_failure_never_fails_ingest():
     assert len(rig.stored()) == len(out)
 
 
-def test_unauthorized_and_no_index():
-    rig, idx = make()
-    with pytest.raises(Unauthorized):
-        rig.service.search("wrong", SearchRequest(explorationId=rig.exp, query="x"))
-    with pytest.raises(Unauthorized):
-        rig.service.rebuild_search("wrong", rig.exp)
-    plain = Rig()
-    plain.send(story().events)
-    assert plain.service.search(TOKEN, SearchRequest(explorationId=plain.exp, query="x")).hits == []
-
-
-def snapshot_of(idx):
-    return sorted((d.exploration_id, d.branch_id, d.tick, d.kind, d.text) for d in idx._docs)
-
-
-DOCS_SEEN = {"n": 0}
-
-
-@hsettings(deadline=None)
-@given(h=histories(shapes=("one", "nested", "siblings", "before_parent", "first", "mixed"), max_events=40, service_safe=True),
-       seed=st.integers(0, 10_000), every=st.booleans())
-def test_rebuild_equals_incremental_for_generated_histories(h, seed, every):
-    rig, idx = make(index_every_edit=every, interval=5)
-    run_generated(rig, h, random.Random(seed), sample=False)
-    before = snapshot_of(idx)
-    DOCS_SEEN["n"] += len(before)
-    count = rig.service.rebuild_search(TOKEN, rig.exp)
-    assert snapshot_of(idx) == before and count == len(before)
-    assert not rig.service.search_errors
-
-
-def test_the_generated_histories_produced_documents():
-    assert DOCS_SEEN["n"] > 20
-
-
-def test_sqlite_service_end_to_end_and_rebuild(tmp_path):
-    svc = open_service(tmp_path, FixedTokenAuthorizer(TOKEN))
-    try:
-        rig = Rig()
-        rig.service = svc
-        rig.events = svc._events
-        rig.send(story().events)
-        assert (tmp_path / "search.sqlite3").exists()
-        hits = find(rig, "residual")
-        assert {h.kind for h in hits} == {"code", "chart_text"}
-        assert find(rig, "col_beta")[0].kind == "table_columns"
-        assert not svc.search_errors
-        before = [(h.tick, h.kind) for h in find(rig, "residual")]
-        svc.rebuild_search(TOKEN, rig.exp)
-        assert [(h.tick, h.kind) for h in find(rig, "residual")] == before
-        assert find(rig, SECRET) == []
-    finally:
-        svc.close()

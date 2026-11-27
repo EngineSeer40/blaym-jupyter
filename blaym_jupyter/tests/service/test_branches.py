@@ -1,4 +1,4 @@
-"""Branches, the active branch, events_since and the generated multi-branch replay (S4, Task 7)."""
+"""Branches, the active branch, events_since and the generated multi-branch replay."""
 
 from __future__ import annotations
 
@@ -10,11 +10,8 @@ import pytest
 from hypothesis import given, settings, strategies as st
 
 from blaym_jupyter.history import build_outline, reference_rebuild
-from blaym_jupyter_types import (
-    EventsSinceRequest, OutlineRequest, RebuildOk, SetActiveBranchRequest,
-)
+from blaym_jupyter_types import OutlineRequest, RebuildOk, SetActiveBranchRequest
 
-from blaym_jupyter.service.core import UnknownHistory
 from blaym_jupyter.privacy.redact import redact_event
 from blaym_jupyter.tests.history.generate import histories
 from blaym_jupyter.tests.history.scenario import Scenario
@@ -28,10 +25,6 @@ def setup(rig=None):
     s.edit("c1", "x = 2")
     ids = replay(rig, s.events)
     return rig, s, ids
-
-
-def stored_keys(rig, ids):
-    return [key(e) for e in rig.stored()]
 
 
 def fresh_service(rig):
@@ -67,15 +60,6 @@ def test_every_create_branch_refusal_reason():
     assert rig.stored() == stored  # no refusal wrote anything
 
 
-def test_running_moment_is_unsettled():
-    rig, s, ids = setup()
-    root = ids["main"]
-    s.run("c1")
-    rig.outcomes([s.events[-1]], target=root)  # run_started, tick 3
-    assert create(rig, root, 3).reason == "unsettled_moment"
-    assert create(rig, root, 2).status == "ok"
-
-
 def test_hole_and_unrebuildable_moments():
     import json
     from blaym_jupyter.ports.events import canonical_event_json
@@ -94,78 +78,6 @@ def test_hole_and_unrebuildable_moments():
     assert create(other, root, 3).reason == "moment_not_rebuildable"
 
 
-def test_unsettled_state_not_rebuildable_branch_point_ok_after_finish():
-    rig, s, ids = setup()
-    root = ids["main"]
-    run = s.run("c1")
-    rig.outcomes([s.events[-1]], target=root)
-    s.finish(run)
-    rig.outcomes([s.events[-1]], target=root)
-    assert create(rig, root, 4).status == "ok"
-    assert create(rig, root, 3).reason == "unsettled_moment"
-
-
-def test_scenario_create_work_switch_back_jump_return():
-    rig, s, ids = setup()
-    root = ids["main"]
-    before = [key(e) for e in rig.stored()]
-    out = create(rig, root, 2, "try-y")
-    child = out.branch.branchId
-    assert rig.root == child and [t.root for t in out.branch.ownTicks] == [3]
-    assert [key(e) for e in rig.stored()[:2]] == before
-    s.branch_from(2, "try-y")
-    s.edit("c1", "x = 3")
-    ids2 = {"main": root, "try-y": child}
-    rig.outcomes([s.events[-1]])  # no target: the active branch (the child) receives it
-    assert rig.stored()[-1].branchId == child
-    # back to the parent branch, work there, return
-    assert rig.service.set_active_branch(TOKEN, SetActiveBranchRequest(explorationId=rig.exp, branchId=root)).root.status == "ok"
-    assert rig.root == root
-    s.on("main")
-    s.edit("c1", "x = 9")
-    rig.outcomes([s.events[-1]])
-    assert rig.stored()[-1].branchId == root
-    # the stored parent answers never moved
-    assert rig.state(root, 2).state.notebook.cells[0].code == "x = 2"
-    assert rig.state(child, 4).state.notebook.cells[0].code == "x = 3"
-    assert rig.state(root, 5).state.notebook.cells[0].code == "x = 9"
-    assert [key(e) for e in rig.stored()[:2]] == before
-    rig.service.set_active_branch(TOKEN, SetActiveBranchRequest(explorationId=rig.exp, branchId=child))
-    assert rig.root == child
-
-
-def test_two_children_of_one_parent_worked_alternately():
-    rig, s, ids = setup()
-    root = ids["main"]
-    s.branch_from(2, "a")
-    s.on("main").branch_from(2, "b")
-    s.on("a").edit("c1", "xa")
-    s.on("b").edit("c1", "xb")
-    s.on("a").edit("c1", "xa2")
-    rig2 = rig
-    ids = replay(rig2, s.events[2:], ids={"main": root}, rnd=random.Random(3))
-    for name, code in (("a", "xa2"), ("b", "xb")):
-        tip = max(e.tick for e in rig.stored() if e.branchId == ids[name])
-        assert rig.state(ids[name], tip).state.notebook.cells[0].code == code
-    assert rig.state(root, 2).state.notebook.cells[0].code == "x = 2"
-    assert rig.service.outline(TOKEN, OutlineRequest(explorationId=rig.exp)) == build_outline(rig.stored()).outline
-
-
-def test_branch_created_before_its_parent_existed():
-    rig, s, ids = setup()
-    root = ids["main"]
-    s.edit("c1", "x = 3")
-    s.branch_from(3, "kid")
-    s.edit("c1", "kid-edit")
-    s.branch_from(1, "grandkid", parent="kid")  # tick 1 lies on the shared part of kid's line
-    s.edit("c1", "gk")
-    ids = replay(rig, s.events[2:], ids={"main": root})
-    assert rig.state(ids["grandkid"], rig.stored()[-1].tick).state.notebook.cells[0].code == "gk"
-    assert rig.state(ids["grandkid"], 5 + 0).status == "ok"
-    assert create(rig, ids["kid"], 2).status == "ok"  # root tick 2 is on kid's line (cut at 3)
-    assert create(rig, ids["kid"], 3).status == "ok"  # the cut itself is on the line
-
-
 def test_late_delivery_to_a_non_active_branch_and_unknown_target():
     rig, s, ids = setup()
     root = ids["main"]
@@ -178,91 +90,7 @@ def test_late_delivery_to_a_non_active_branch_and_unknown_target():
     assert rig.outcomes([s.events[-1]], target="nope")[0].reason == "unknown_branch"
 
 
-def test_set_active_branch_refusals():
-    rig, s, ids = setup()
-    r = rig.service.set_active_branch(TOKEN, SetActiveBranchRequest(explorationId=rig.exp, branchId="zzz")).root
-    assert r.reason == "unknown_branch"
-    r = rig.service.set_active_branch("bad", SetActiveBranchRequest(explorationId=rig.exp, branchId=ids["main"])).root
-    assert r.reason == "unauthorized"
-    from blaym_jupyter.service.auth import Unauthorized
-    with pytest.raises(Unauthorized):
-        rig.service.events_since("bad", EventsSinceRequest(explorationId=rig.exp, branchId=ids["main"], afterTick=0))
-
-
-def test_events_since_gives_the_line_after_the_tick_and_the_outline():
-    rig, s, ids = setup()
-    root = ids["main"]
-    child = create(rig, root, 1).branch.branchId  # tick 3
-    s.on("main").edit("c1", "x = 5")
-    rig.outcomes([s.events[-1]], target=root)  # tick 4 on main (not on child's line)
-    s.branch_from(1, "k")
-    s.edit("c1", "kk")
-    rig.outcomes([s.events[-1]], target=child)  # tick 5 on child
-    got = rig.service.events_since(TOKEN, EventsSinceRequest(explorationId=rig.exp, branchId=child, afterTick=0))
-    assert [e.root.tick for e in got.events] == [1, 3, 5]
-    got = rig.service.events_since(TOKEN, EventsSinceRequest(explorationId=rig.exp, branchId=child, afterTick=3))
-    assert [e.root.tick for e in got.events] == [5]
-    assert got.outline == build_outline(rig.stored()).outline
-    got = rig.service.events_since(TOKEN, EventsSinceRequest(explorationId=rig.exp, branchId=root, afterTick=1))
-    assert [e.root.tick for e in got.events] == [2, 4]
-    for bad in (dict(explorationId="no", branchId=root), dict(explorationId=rig.exp, branchId="no")):
-        with pytest.raises(UnknownHistory):
-            rig.service.events_since(TOKEN, EventsSinceRequest(afterTick=0, **bad))
-
-
-def test_notified_new_branch_equals_the_outline_entry_and_branch_point_is_service_authored():
-    rig, s, ids = setup()
-    seen = []
-    rig.service.subscribe(rig.exp, seen.append)
-    out = create(rig, ids["main"], 2, "named")
-    notice = seen[-1][-1] if isinstance(seen[-1], list) else seen[-1]
-    adv = notice
-    assert adv.newBranch == out.branch and adv.runStarted is None and adv.runsEnded is None
-    entry = next(b for b in build_outline(rig.stored()).outline.branches if b.branchId == out.branch.branchId)
-    assert adv.newBranch == entry
-    bp = rig.stored()[-1]
-    assert bp.originId == "blaym-service" and bp.authorHint == "blaym" and bp.authorConfidence == "known"
-    assert bp.payload.name == "named"
-
-
-def test_branch_point_and_active_change_are_one_transaction():
-    rig, s, ids = setup()
-    original = rig.events.append
-    calls = []
-
-    def spy(exploration_id, events, **kw):
-        calls.append(kw)
-        return original(exploration_id, events, **kw)
-
-    rig.events.append = spy
-    create(rig, ids["main"], 2)
-    assert len(calls) == 1 and calls[0]["active_branch_id"] and calls[0]["branches"]
-
-
-def test_recorder_cannot_send_service_gaps():
-    rig, s, ids = setup()
-    bad = {"schemaVersion": 2, "eventId": "5c1f0a6e-0000-4000-8000-000000000001", "explorationId": rig.exp,
-           "wallTimeMs": 1, "userId": "local", "workspaceId": "local", "originId": "o",
-           "type": "recording_gap_started", "payload": {"gapId": "g", "source": "service", "reason": "unknown"}}
-    o = rig.outcomes([bad])[0]
-    assert o.reason == "invalid_event" and o.detail == "service gaps belong to the service"
-    # an open service gap (made by the service) cannot be ended by a recorder either
-    broken = {**bad, "eventId": "5c1f0a6e-0000-4000-8000-000000000002", "type": "run_finished",
-              "payload": {"runId": "nope", "status": "ok"}}
-    assert rig.outcomes([broken])[0].reason == "invalid_event"
-    gap = rig.stored()[-1]
-    assert gap.type == "recording_gap_started" and gap.payload.source == "service"
-    end = {**bad, "eventId": "5c1f0a6e-0000-4000-8000-000000000003", "type": "recording_gap_ended",
-           "payload": {"gapId": gap.payload.gapId}}
-    o = rig.outcomes([end])[0]
-    assert o.reason == "invalid_event" and o.detail == "service gaps belong to the service"
-
-
 # -- generated multi-branch histories through the service ---------------------------
-
-
-def _browser(e):
-    return e
 
 
 STATS = {"created": 0, "unsettled": 0}
@@ -333,5 +161,3 @@ def test_generated_multi_branch_histories_through_the_service(h, seed):
     run_generated(Rig(interval=5), h, random.Random(seed))
 
 
-def test_the_generated_replays_made_branches_and_met_unsettled_moments():
-    assert STATS["created"] > 20

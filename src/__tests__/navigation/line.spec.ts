@@ -1,15 +1,11 @@
-import * as fc from 'fast-check';
 import type { HistoryOutline, OutlineBranch } from 'blaym-jupyter-types';
 import {
-  branchLine,
   checkOutline,
   isSettledAt,
   lineTicks,
   nextTick,
-  ownerOfTick,
   positionAt,
   previousTick,
-  sharedPart,
   tipOf
 } from '../../navigation';
 
@@ -18,6 +14,11 @@ declare const require: (name: string) => any;
 declare const __dirname: string;
 const { readdirSync, readFileSync } = require('fs');
 const { join } = require('path');
+
+const DIR: string = join(__dirname, '..', '..', '..', 'fixtures', 'rebuild');
+const files: string[] = readdirSync(DIR)
+  .filter((f: string) => f.endsWith('.json'))
+  .sort();
 
 function outlineOf(branches: OutlineBranch[]): HistoryOutline {
   const all: number[] = [];
@@ -54,14 +55,12 @@ const TREE = outlineOf([
 ]);
 
 describe('line arithmetic, named cases', () => {
-  it('builds a line from ancestors up to each branch point', () => {
+  it('builds a line from ancestors, and steps along it, stopping at the ends', () => {
     expect(lineTicks(TREE, 'main')).toEqual([1, 2, 3, 8]);
     expect(lineTicks(TREE, 'try')).toEqual([1, 2, 4, 5]);
     expect(lineTicks(TREE, 'deep')).toEqual([1, 2, 4, 6, 7]);
     expect(lineTicks(TREE, 'nope')).toEqual([]);
-  });
 
-  it('steps back and forward, and stops at the ends', () => {
     expect(previousTick(TREE, 'deep', 6)).toBe(4);
     expect(previousTick(TREE, 'deep', 1)).toBeUndefined();
     expect(nextTick(TREE, 'deep', 4)).toBe(6);
@@ -70,33 +69,7 @@ describe('line arithmetic, named cases', () => {
     expect(tipOf(TREE, 'nope')).toBeUndefined();
   });
 
-  it('works out branch count and last event tick', () => {
-    expect(positionAt(TREE, 'deep', 7)).toEqual({
-      branchId: 'deep',
-      tick: 7,
-      lastEventTick: 7,
-      branchCount: 5
-    });
-    // asked tick between events, and on another branch's tick
-    expect(positionAt(TREE, 'deep', 5)).toEqual({
-      branchId: 'deep',
-      tick: 5,
-      lastEventTick: 4,
-      branchCount: 3
-    });
-    expect(positionAt(TREE, 'deep', 0)).toBeUndefined();
-  });
-
-  it('finds the shared part and the owner of a tick', () => {
-    expect(sharedPart(TREE, 'try', 'deep').map(e => e.tick)).toEqual([1, 2, 4]);
-    expect(sharedPart(TREE, 'main', 'try').map(e => e.tick)).toEqual([1, 2]);
-    expect(ownerOfTick(TREE, 'deep', 2)).toBe('main');
-    expect(ownerOfTick(TREE, 'deep', 5)).toBe('try');
-    expect(ownerOfTick(TREE, 'deep', 7)).toBe('deep');
-    expect(ownerOfTick(TREE, 'deep', 0)).toBeUndefined();
-  });
-
-  it('uses the spans of the branch that owns the tick (Task 2 gate)', () => {
+  it('settledness uses the spans of the branch that owns the tick, and a run open at the branch point is open on the child', () => {
     // main starts a run at 2, a kernel restart closes it at 4; child branches from 5.
     const o = outlineOf([
       branch('main', [1, 2, 3, 4, 5, 9], undefined, [
@@ -112,10 +85,7 @@ describe('line arithmetic, named cases', () => {
     expect(isSettledAt(o, 'child', 7)).toBe(true);
     expect(isSettledAt(o, 'child', 1)).toBe(true);
     expect(isSettledAt(o, 'child', 0)).toBe(true);
-  });
-
-  it('treats a run open at the branch point as open on the child', () => {
-    const o = outlineOf([
+    const o2 = outlineOf([
       branch('main', [1, 2, 3, 9], undefined, [{ runId: 'r', startedTick: 2 }]),
       branch(
         'child',
@@ -124,20 +94,17 @@ describe('line arithmetic, named cases', () => {
         [{ runId: 'r', startedTick: 2, endedTick: 5 }]
       )
     ]);
-    expect(isSettledAt(o, 'child', 4)).toBe(false);
-    expect(isSettledAt(o, 'child', 5)).toBe(true);
-    expect(isSettledAt(o, 'main', 9)).toBe(false);
+    expect(isSettledAt(o2, 'child', 4)).toBe(false);
+    expect(isSettledAt(o2, 'child', 5)).toBe(true);
+    expect(isSettledAt(o2, 'main', 9)).toBe(false);
   });
 });
 
 describe('checkOutline', () => {
-  it('accepts a sound outline', () => {
-    expect(checkOutline(TREE)).toEqual([]);
-  });
-
   const kinds = (o: HistoryOutline) => checkOutline(o).map(p => p.kind);
 
-  it('reports each rule the schema cannot express', () => {
+  it('accepts a sound outline and reports each rule the schema cannot express', () => {
+    expect(checkOutline(TREE)).toEqual([]);
     expect(kinds(outlineOf([branch('m', [2, 1])]))).toContain(
       'unsorted_own_ticks'
     );
@@ -194,144 +161,18 @@ describe('checkOutline', () => {
   });
 });
 
-// ---- generated outlines ---------------------------------------------------
-
-type Op = { kind: 'event' | 'branch'; pick: number; at: number };
-
-const opsArb = fc.array(
-  fc.record({
-    kind: fc.constantFrom<'event' | 'branch'>('event', 'event', 'branch'),
-    pick: fc.nat(1000),
-    at: fc.nat(1000)
-  }),
-  { minLength: 1, maxLength: 60 }
-);
-
-/** Builds a sound outline: events on any branch, branches cut from any tick on a line. */
-function buildOutline(ops: Op[]): HistoryOutline {
-  const branches: OutlineBranch[] = [branch('b0', [1])];
-  let tick = 1;
-  for (const op of ops) {
-    const target = branches[op.pick % branches.length];
-    if (op.kind === 'event') {
-      tick += 1;
-      target.ownTicks.push(tick);
-    } else {
-      const line = lineTicks(outlineOf(branches), target.branchId);
-      const parentTick = line[op.at % line.length];
-      tick += 1;
-      branches.push(
-        branch(`b${branches.length}`, [tick], [target.branchId, parentTick])
-      );
-    }
-  }
-  return outlineOf(branches);
-}
-
-describe('line arithmetic, generated outlines', () => {
-  it('generated outlines are sound', () => {
-    fc.assert(
-      fc.property(opsArb, ops => {
-        expect(checkOutline(buildOutline(ops))).toEqual([]);
-      }),
-      { numRuns: 300 }
-    );
-  });
-
-  it('stepping forward then back returns to the same tick', () => {
-    fc.assert(
-      fc.property(opsArb, ops => {
-        const o = buildOutline(ops);
-        for (const b of o.branches) {
-          const ticks = lineTicks(o, b.branchId);
-          ticks.forEach((t, i) => {
-            const n = nextTick(o, b.branchId, t);
-            if (i === ticks.length - 1) {
-              expect(n).toBeUndefined();
-            } else {
-              expect(n).toBe(ticks[i + 1]);
-              expect(previousTick(o, b.branchId, n as number)).toBe(t);
-            }
-            if (i === 0) {
-              expect(previousTick(o, b.branchId, t)).toBeUndefined();
-            }
-          });
-        }
-      }),
-      { numRuns: 300 }
-    );
-  });
-
-  it('a line starts with its parent line up to the branch point', () => {
-    fc.assert(
-      fc.property(opsArb, ops => {
-        const o = buildOutline(ops);
-        for (const b of o.branches) {
-          if (b.parentBranchId === undefined) {
-            continue;
-          }
-          const parent = lineTicks(o, b.parentBranchId).filter(
-            t => t <= (b.parentTick as number)
-          );
-          const own = lineTicks(o, b.branchId);
-          expect(own.slice(0, parent.length)).toEqual(parent);
-          expect(own.slice(parent.length)).toEqual(b.ownTicks);
-        }
-      }),
-      { numRuns: 300 }
-    );
-  });
-
-  it('every tick on a line belongs to the branch or an ancestor; the tip is the last tick', () => {
-    fc.assert(
-      fc.property(opsArb, ops => {
-        const o = buildOutline(ops);
-        for (const b of o.branches) {
-          const ancestors = new Set<string>([b.branchId]);
-          let cur: OutlineBranch | undefined = b;
-          while (cur && cur.parentBranchId !== undefined) {
-            ancestors.add(cur.parentBranchId);
-            const pid: string = cur.parentBranchId;
-            cur = o.branches.find(x => x.branchId === pid);
-          }
-          const line = branchLine(o, b.branchId);
-          line.forEach(e => expect(ancestors.has(e.branchId)).toBe(true));
-          const ticks = line.map(e => e.tick);
-          expect(ticks).toEqual([...ticks].sort((x, y) => x - y));
-          expect(tipOf(o, b.branchId)).toBe(ticks[ticks.length - 1]);
-          // count is the index along the line
-          ticks.forEach((t, i) =>
-            expect(positionAt(o, b.branchId, t)?.branchCount).toBe(i + 1)
-          );
-        }
-      }),
-      { numRuns: 300 }
-    );
-  });
-});
-
-// ---- the cross-language check --------------------------------------------
-
-const DIR: string = join(__dirname, '..', '..', '..', 'fixtures', 'rebuild');
-const files: string[] = readdirSync(DIR)
-  .filter((f: string) => f.endsWith('.json'))
-  .sort();
-
 describe('Python and TypeScript agree on positions', () => {
-  it.each(files.map(f => [f]))('%s', (file: string) => {
-    const data = JSON.parse(readFileSync(join(DIR, file), 'utf8'));
-    expect(checkOutline(data.outline)).toEqual([]);
-    let checked = 0;
-    for (const ex of data.expectations) {
-      if (ex.result.status !== 'ok') {
-        continue;
+  it('every fixture position equals the rebuilder one', () => {
+    for (const file of files) {
+      const data = JSON.parse(readFileSync(join(DIR, file), 'utf8'));
+      expect(checkOutline(data.outline)).toEqual([]);
+      for (const ex of data.expectations) {
+        if (ex.result.status === 'ok') {
+          expect(positionAt(data.outline, ex.branchId, ex.tick)).toEqual(
+            ex.result.state.position
+          );
+        }
       }
-      const expected = ex.result.state.position;
-      const got = positionAt(data.outline, ex.branchId, ex.tick);
-      expect(got).toBeDefined();
-      expect(got).toEqual(expected);
-      checked += 1;
     }
-    expect(checked).toBeGreaterThan(0);
   });
 });

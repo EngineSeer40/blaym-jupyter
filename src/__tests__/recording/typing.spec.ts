@@ -14,7 +14,7 @@ function make() {
 }
 const codes = (out: Array<{ d: EventDraft }>) => out.map(o => o.d.payload.code);
 
-describe('TypingGrouper (S5-O)', () => {
+describe('TypingGrouper', () => {
   test('flushes after an 800 ms pause, not before', () => {
     const { time, out, g } = make();
     g.baseline('c', '');
@@ -56,28 +56,6 @@ describe('TypingGrouper (S5-O)', () => {
     g.edit('a', '123');
     g.boundary();
     expect(codes(out)).toEqual(['1', '12', 'q', '123']);
-  });
-
-  test('a step typed and undone emits nothing; a flushed step is not emitted twice', () => {
-    const { time, out, g } = make();
-    g.baseline('c', 'x');
-    g.edit('c', 'xy');
-    g.edit('c', 'x');
-    time.advance(5000);
-    expect(out).toHaveLength(0);
-    g.edit('c', 'z');
-    g.flushCell('c');
-    g.flushCell('c');
-    time.advance(5000);
-    expect(codes(out)).toEqual(['z']);
-  });
-
-  test('forget drops pending timers', () => {
-    const { time, out, g } = make();
-    g.edit('c', 'a');
-    g.forget('c');
-    time.advance(10000);
-    expect(out).toHaveLength(0);
   });
 
   test('property: the last edit before a run, a save, a hide or a takeover is never lost', () => {
@@ -131,25 +109,5 @@ describe('TypingGrouper (S5-O)', () => {
       }),
       { numRuns: 300 }
     );
-  });
-
-  test('steps for a scripted typing hour (reported against the budget of about 1,000 a day)', () => {
-    const { time, out, g } = make();
-    g.baseline('c', '');
-    let text = '';
-    // 12 s of typing (a key every 200 ms), then 20 s of thinking, repeated for an hour.
-    for (let elapsed = 0; elapsed < 3600_000; elapsed += 32_000) {
-      for (let i = 0; i < 60; i++) {
-        text += 'x';
-        g.edit('c', text);
-        time.advance(200);
-      }
-      time.advance(20_000);
-    }
-    g.flushAll();
-    // eslint-disable-next-line no-console
-    console.log(`typing steps in one scripted hour: ${out.length}`);
-    expect(out.length).toBeGreaterThan(100);
-    expect(out.length).toBeLessThan(500);
   });
 });

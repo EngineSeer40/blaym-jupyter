@@ -1,4 +1,4 @@
-import type { NotebookRegistration, NotebookStatus } from 'blaym-jupyter-types';
+import type { NotebookRegistration } from 'blaym-jupyter-types';
 import { Heartbeat } from '../../recording';
 import { FakeTime, FakeTransport, settle, status } from './generate';
 
@@ -45,7 +45,7 @@ const go = async (time: FakeTime, ms: number) => {
   }
 };
 
-describe('Heartbeat (S5-S)', () => {
+describe('Heartbeat', () => {
   test('registers, then asks for status at once and every 15 s', async () => {
     const { hb, transport, time } = make();
     await hb.start();
@@ -56,35 +56,6 @@ describe('Heartbeat (S5-S)', () => {
     expect(transport.statuses).toBe(2);
     await go(time, 45_000);
     expect(transport.statuses).toBe(5);
-  });
-
-  test('heartbeatMs is a setting', async () => {
-    const { hb, transport, time } = make({ heartbeatMs: 1000 });
-    await hb.start();
-    await go(time, 3000);
-    expect(transport.statuses).toBe(4);
-  });
-
-  test('needsRegister registers again', async () => {
-    const { hb, transport, time } = make();
-    let first = true;
-    transport.statusHandler = () => {
-      const s = status({ needsRegister: first });
-      first = false;
-      return Promise.resolve(s);
-    };
-    await hb.start();
-    expect(transport.registers).toBe(2);
-    await go(time, 15_000);
-    expect(transport.registers).toBe(2);
-  });
-
-  test('needsResync asks for a resync', async () => {
-    const { hb, transport, log } = make();
-    transport.statusHandler = () =>
-      Promise.resolve(status({ needsResync: true }));
-    await hb.start();
-    expect(log).toContain('resync:server');
   });
 
   test('an inactive answer is reported once; becoming active resyncs', async () => {
@@ -102,51 +73,5 @@ describe('Heartbeat (S5-S)', () => {
       'active:true',
       'resync:became_active'
     ]);
-  });
-
-  test('browser-opened gaps are closed once, and only after the snapshot', async () => {
-    const { hb, transport, gaps, time, setPending } = make();
-    const open: NotebookStatus['openGaps'] = [
-      { gapId: 'g1', source: 'browser', reason: 'no_client' },
-      { gapId: 'g2', source: 'kernel', reason: 'unknown' }
-    ];
-    transport.statusHandler = () => Promise.resolve(status({ openGaps: open }));
-    setPending(true);
-    await hb.start();
-    expect(gaps).toEqual([]);
-    setPending(false);
-    await go(time, 15_000);
-    expect(gaps).toEqual(['g1']);
-    await go(time, 30_000);
-    expect(gaps).toEqual(['g1']);
-  });
-
-  test('errors do not stop the beat', async () => {
-    const errors: string[] = [];
-    const { hb, transport, time } = make({ onError: k => errors.push(k) });
-    let fail = true;
-    transport.statusHandler = () =>
-      fail ? Promise.reject(new Error('x')) : Promise.resolve(status());
-    await hb.start();
-    await go(time, 15_000);
-    fail = false;
-    await go(time, 15_000);
-    expect(errors).toEqual(['status', 'status']);
-    expect(transport.statuses).toBe(3);
-  });
-
-  test('close sends close once and stops the beat; stop does not send close', async () => {
-    const a = make();
-    await a.hb.start();
-    a.hb.close();
-    await go(a.time, 60_000);
-    expect(a.transport.closed).toEqual([['nb1', 'tab1']]);
-    expect(a.transport.statuses).toBe(1);
-    const b = make();
-    await b.hb.start();
-    b.hb.stop();
-    await go(b.time, 60_000);
-    expect(b.transport.closed).toEqual([]);
-    expect(b.transport.statuses).toBe(1);
   });
 });

@@ -1,4 +1,4 @@
-// Task 21b: one scripted session in a real JupyterLab, recording on, a nbformat 4.4 notebook
+// The one end-to-end session in a real JupyterLab, recording on, a nbformat 4.4 notebook
 // (no cell ids). Afterwards the Blaym state is read through the API routes only.
 // Needs the server of ui-tests/run-galata.sh (env BLAYM_ROOT). Run it with
 //   BLAYM_SPEC=end-to-end ui-tests/run-galata.sh
@@ -101,6 +101,13 @@ test('end-to-end session', async ({
   await openNb(page, baseURL!, NB);
 
   const registers: Any[] = [];
+  const sent: Any[] = []; // events the first page sends to the ingest route
+  page.on('request', r => {
+    if (r.url().includes(`${API}/ingest`)) {
+      sent.push(...(r.postDataJSON()?.events ?? []));
+    }
+  });
+  const count = (t: string) => sent.filter(e => e.type === t).length;
   page.on('response', async r => {
     if (r.url().includes(`${API}/notebooks/register`) && r.ok()) {
       registers.push(await r.json().catch(() => undefined));
@@ -147,6 +154,42 @@ test('end-to-end session', async ({
   };
   const cellsOf = async (): Promise<string[]> =>
     (await latest()).notebook.cells.map((c: Any) => c.code);
+
+  // author marking: a scripted AI tool command edits cell 0, a hand edit follows in cell 1
+  await page.evaluate(() => {
+    const app = (window as Any).jupyterapp;
+    app.commands.addCommand('jupyterlab-ai-commands:set-cell-source', {
+      execute: (args: Any) => {
+        app.shell.currentWidget.model.sharedModel.cells[args.index].setSource(
+          args.text
+        );
+        app.shell.currentWidget.content.activeCellIndex = args.index;
+      }
+    });
+  });
+  await page.evaluate(() =>
+    (window as Any).jupyterapp.commands.execute(
+      'jupyterlab-ai-commands:set-cell-source',
+      { index: 0, text: 'a = 100  # by the agent' }
+    )
+  );
+  await page.waitForTimeout(2500);
+  await active(page, 1);
+  await setSource(page, 1, 'b = 20  # by hand');
+  await page.waitForTimeout(2500);
+  const stepOf = (code: string) =>
+    sent.filter(
+      e => e.type === 'cell_source_changed' && String(e.payload?.code) === code
+    );
+  expect(
+    stepOf('a = 100  # by the agent').map(e => [e.authorHint, e.authorConfidence])
+  ).toEqual([['ai', 'known']]);
+  expect(
+    stepOf('b = 20  # by hand').map(e => [
+      e.authorHint,
+      'authorConfidence' in e
+    ])
+  ).toEqual([['unknown', false]]);
 
   // edit, add, move, delete
   await setSource(
@@ -206,6 +249,62 @@ test('end-to-end session', async ({
   expect(outs[1]).toContain('display_data'); // table
   expect(outs[2]).toContain('stream'); // text (the chart cell became the 30 s cell)
   expect(outs[4]).toContain('error');
+
+  // re-run, Run All stopping at an error, type change and back, Clear Outputs
+  const outText = (i: number): Promise<string> =>
+    page.evaluate(
+      (n: number) =>
+        JSON.stringify(
+          (window as Any).jupyterapp.shell.currentWidget.content.widgets[
+            n
+          ].model.outputs.toJSON()
+        ),
+      i
+    );
+  const runsOf = async (i: number): Promise<number> => {
+    const st = await latest();
+    const id = st.notebook.cells[i].cellId;
+    return st.runs.filter((r: Any) => r.cellId === id).length;
+  };
+  const snapshots = count('notebook_snapshot');
+  await setSource(page, 2, 'print("again")'); // re-run of a cell that has output
+  await active(page, 2);
+  await cmd(page, 'notebook:run-cell');
+  await expect.poll(() => outText(2), { timeout: 40000 }).toContain('again');
+  await page.waitForTimeout(2500);
+  const rerun = JSON.stringify((await latest()).notebook.cells[2].outputs);
+  expect(rerun).toContain('again');
+  expect(rerun).not.toContain('text out');
+  // a cell after the failing cell is skipped by Run All: no run recorded for it
+  await setSource(page, 3, 'print("quick")');
+  await active(page, 4);
+  await cmd(page, 'notebook:insert-cell-below');
+  await setSource(page, 5, 'print("skipped")');
+  await active(page, 5);
+  await cmd(page, 'notebook:run-cell');
+  await expect.poll(() => outText(5), { timeout: 40000 }).toContain('skipped');
+  await page.waitForTimeout(2500);
+  const skippedRuns = await runsOf(5);
+  await cmd(page, 'notebook:run-all-cells');
+  await page.waitForTimeout(8000);
+  expect(await runsOf(5)).toBe(skippedRuns);
+  await setSource(page, 3, 'time.sleep(30)\nprint("done waiting")');
+  // code to Markdown and back: two events, no snapshot
+  const typeChanges = count('cell_type_changed');
+  await active(page, 0);
+  await cmd(page, 'notebook:change-cell-to-markdown');
+  await page.waitForTimeout(1500);
+  await cmd(page, 'notebook:change-cell-to-code');
+  await page.waitForTimeout(1500);
+  expect(count('cell_type_changed') - typeChanges).toBe(2);
+  // Clear Outputs is one event
+  const cleared = count('cell_outputs_cleared');
+  await active(page, 2);
+  await cmd(page, 'notebook:clear-cell-output');
+  await expect
+    .poll(() => count('cell_outputs_cleared') - cleared, { timeout: 15000 })
+    .toBe(1);
+  expect(count('notebook_snapshot')).toBe(snapshots);
 
   // a long run with 30 s of silence; the browser is closed during it, then reopened
   await setSource(
@@ -373,6 +472,11 @@ test('end-to-end session', async ({
   const open = st.gaps.filter((g: Any) => g.endedTick === undefined);
   console.log('GAPS ' + JSON.stringify(st.gaps));
   expect(open).toEqual([]);
+  // recorded outputs stay in history: the table of cell 1 is kept, cell 2 was cleared
+  const finalOuts = st.notebook.cells.map((c: Any) =>
+    c.outputs.flatMap((g: Any) => g.items.map((x: Any) => x.outputType))
+  );
+  expect(finalOuts).toEqual([[], ['display_data'], []]);
 
   // the long run's output and the runs, from the recorded events
   expect(

@@ -1,0 +1,20 @@
+{
+    "name": "blaym-notebook-core",
+    "version": "0.1.0",
+    "description": "Editor-neutral core of Blaym for notebooks: recording and navigation",
+    "license": "MIT",
+    "private": true,
+    "main": "lib/index.js",
+    "types": "lib/index.d.ts",
+    "files": [
+        "lib/**/*"
+    ],
+    "scripts": {
+        "build": "tsc",
+        "clean": "rimraf lib tsconfig.tsbuildinfo",
+        "test": "jest"
+    },
+    "dependencies": {
+        "blaym-notebook-types": "link:../../../blaym-notebook-types"
+    }
+}

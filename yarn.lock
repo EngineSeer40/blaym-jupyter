@@ -2238,7 +2238,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/apputils@npm:^4.7.6":
+"@jupyterlab/apputils@npm:^4.0.0, @jupyterlab/apputils@npm:^4.7.6":
   version: 4.7.6
   resolution: "@jupyterlab/apputils@npm:4.7.6"
   dependencies:
@@ -2567,7 +2567,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/notebook@npm:^4.6.6":
+"@jupyterlab/notebook@npm:^4.0.0, @jupyterlab/notebook@npm:^4.6.6":
   version: 4.6.6
   resolution: "@jupyterlab/notebook@npm:4.6.6"
   dependencies:
@@ -2691,7 +2691,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/settingregistry@npm:^4.6.6":
+"@jupyterlab/settingregistry@npm:^4.0.0, @jupyterlab/settingregistry@npm:^4.6.6":
   version: 4.6.6
   resolution: "@jupyterlab/settingregistry@npm:4.6.6"
   dependencies:
@@ -2723,7 +2723,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/statusbar@npm:^4.6.6":
+"@jupyterlab/statusbar@npm:^4.0.0, @jupyterlab/statusbar@npm:^4.6.6":
   version: 4.6.6
   resolution: "@jupyterlab/statusbar@npm:4.6.6"
   dependencies:
@@ -3146,6 +3146,25 @@ __metadata:
     "@lumino/signaling": ^2.1.6
     "@lumino/virtualdom": ^2.0.5
   checksum: c64e27e55b1178d06ff292a830984a33b467c43ff30d7f7bdb7990f2b4f91409443d2de00d8b7218543ac446e3416810444c434c183d659c00ed8d85302f196a
+  languageName: node
+  linkType: hard
+
+"@lumino/widgets@npm:^2.0.0":
+  version: 2.11.0
+  resolution: "@lumino/widgets@npm:2.11.0"
+  dependencies:
+    "@lumino/algorithm": ^2.0.5
+    "@lumino/commands": ^2.3.4
+    "@lumino/coreutils": ^2.2.3
+    "@lumino/disposable": ^2.1.6
+    "@lumino/domutils": ^2.0.5
+    "@lumino/dragdrop": ^2.1.9
+    "@lumino/keyboard": ^2.0.5
+    "@lumino/messaging": ^2.0.5
+    "@lumino/properties": ^2.0.5
+    "@lumino/signaling": ^2.1.6
+    "@lumino/virtualdom": ^2.0.5
+  checksum: 353c9f888b7229d85d3fe2ae79702a20107c6778c78d8cfd5cef43d87f250a21a29210f0a9b542dbc101ed356cce039db47ee15b618342ff5594d8ad25a005d3
   languageName: node
   linkType: hard
 
@@ -4562,28 +4581,40 @@ __metadata:
   languageName: node
   linkType: hard
 
-"blaym-jupyter-types@link:../blaym-jupyter-types::locator=blaym-jupyter%40workspace%3A.":
+"blaym-notebook-types@link:../../../blaym-notebook-types::locator=blaym-notebook-core%40workspace%3Acore%2Fts":
   version: 0.0.0-use.local
-  resolution: "blaym-jupyter-types@link:../blaym-jupyter-types::locator=blaym-jupyter%40workspace%3A."
+  resolution: "blaym-notebook-types@link:../../../blaym-notebook-types::locator=blaym-notebook-core%40workspace%3Acore%2Fts"
   languageName: node
   linkType: soft
 
-"blaym-jupyter@workspace:.":
+"blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-jupyter%40workspace%3Ajupyter":
   version: 0.0.0-use.local
-  resolution: "blaym-jupyter@workspace:."
+  resolution: "blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-jupyter%40workspace%3Ajupyter"
+  languageName: node
+  linkType: soft
+
+"blaym-jupyter@workspace:jupyter":
+  version: 0.0.0-use.local
+  resolution: "blaym-jupyter@workspace:jupyter"
   dependencies:
     "@eslint/js": ^9.0.0
     "@jupyter/builder": ^1.2.0
     "@jupyter/eslint-plugin": ^1.4.0
     "@jupyterlab/application": ^4.0.0
+    "@jupyterlab/apputils": ^4.0.0
     "@jupyterlab/coreutils": ^6.0.0
+    "@jupyterlab/notebook": ^4.0.0
     "@jupyterlab/services": ^7.0.0
+    "@jupyterlab/settingregistry": ^4.0.0
+    "@jupyterlab/statusbar": ^4.0.0
     "@jupyterlab/testutils": ^4.0.0
+    "@lumino/widgets": ^2.0.0
     "@types/jest": ^29.2.0
     "@types/json-schema": ^7.0.11
     "@types/react": ^18.0.26
     "@types/react-addons-linked-state-mixin": ^0.14.22
-    blaym-jupyter-types: "link:../blaym-jupyter-types"
+    blaym-notebook-types: "link:../../blaym-notebook-types"
+    blaym-notebook-core: "workspace:*"
     eslint: ^9.0.0
     eslint-config-prettier: ^9.0.0
     eslint-plugin-prettier: ^5.0.0
@@ -4602,6 +4633,20 @@ __metadata:
     typescript: ~5.5.4
     typescript-eslint: ^8.0.0
     yjs: ^13.5.0
+  languageName: unknown
+  linkType: soft
+
+"blaym-notebook-core@workspace:*, blaym-notebook-core@workspace:core/ts":
+  version: 0.0.0-use.local
+  resolution: "blaym-notebook-core@workspace:core/ts"
+  dependencies:
+    blaym-notebook-types: "link:../../../blaym-notebook-types"
+  languageName: unknown
+  linkType: soft
+
+"blaym-notebook@workspace:.":
+  version: 0.0.0-use.local
+  resolution: "blaym-notebook@workspace:."
   languageName: unknown
   linkType: soft
 
@@ -7763,16 +7808,16 @@ __metadata:
   languageName: node
   linkType: hard
 
-"lib0@npm:0.2.111":
-  version: 0.2.111
-  resolution: "lib0@npm:0.2.111"
+"lib0@npm:^0.2.85, lib0@npm:^0.2.99":
+  version: 0.2.120
+  resolution: "lib0@npm:0.2.120"
   dependencies:
     isomorphic.js: ^0.2.4
   bin:
     0ecdsa-generate-keypair: bin/0ecdsa-generate-keypair.js
     0gentesthtml: bin/gentesthtml.js
     0serve: bin/0serve.js
-  checksum: 84ad7f159380dcc4689529f65bf933cc81b95a84b88eeb81bb69710be48850f54461f6afb31f706a10c030aee357e9b100d34e15631cb32d52365deea58be334
+  checksum: 7c0c2f964f147804c9a18c96c7e74722e79cfc77b773708474f507422e543a79c927497ceab3d96227727d90e38f8b5b72916db1f6bbf25ad4d10bcd3ceecd57
   languageName: node
   linkType: hard
 

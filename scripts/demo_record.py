@@ -26,7 +26,7 @@ import tornado.websocket  # noqa: E402
 from jupyter_server.serverapp import ServerApp  # noqa: E402
 
 from blaym_jupyter.adapters.jupyter import SETTINGS_KEY  # noqa: E402
-from blaym_jupyter_types import OutlineRequest, StateAtRequest  # noqa: E402
+from blaym_notebook_types import OutlineRequest, StateAtRequest  # noqa: E402
 
 CELLS = [("c1", "x = 20\nprint('x is', x)"), ("c2", "1 / 0"),
          ("c3", "from IPython.display import display\ndisplay({'text/plain': 'a table', 'text/html': '<table/>'}, raw=True)")]

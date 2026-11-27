@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "rootDir": ".."
+  },
+  "include": ["src/**/*", "../core/ts/src/__tests__/recording/generate.ts"]
+}

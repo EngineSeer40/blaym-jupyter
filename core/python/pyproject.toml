@@ -1,0 +1,17 @@
+[build-system]
+requires = ["hatchling>=1.5.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "blaym-notebook"
+version = "0.1.0"
+description = "Editor-neutral core of Blaym for notebooks: history, store, service and recording"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = ["blaym-notebook-types"]
+
+[tool.uv.sources]
+blaym-notebook-types = { path = "../../../blaym-notebook-types", editable = true }
+
+[tool.hatch.build.targets.wheel]
+packages = ["blaym_notebook"]

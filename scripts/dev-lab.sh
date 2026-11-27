@@ -22,13 +22,13 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROBE="$ROOT/probes/s1-capture"
 DEV="$HOME/.cache/blaym-dev"
-EXT="$ROOT/blaym_jupyter/labextension"
+EXT="$ROOT/jupyter/blaym_jupyter/labextension"
 
 [ -x "$ROOT/.venv/bin/jupyter" ] || { echo "dev-lab.sh: missing $ROOT/.venv/bin/jupyter (repo .venv with jupyterlab)" >&2; exit 2; }
-if [ ! -f "$EXT/package.json" ] || [ -n "$(find "$ROOT/src" "$ROOT/schema" "$ROOT/style" "$ROOT/package.json" -newer "$EXT/package.json" -type f 2>/dev/null | head -1)" ]; then
+if [ ! -f "$EXT/package.json" ] || [ -n "$(find "$ROOT/jupyter/src" "$ROOT/jupyter/schema" "$ROOT/jupyter/style" "$ROOT/jupyter/package.json" "$ROOT/core/ts/src" -newer "$EXT/package.json" -type f 2>/dev/null | head -1)" ]; then
   [ -x "$PROBE/.venv/bin/jupyter-builder" ] || { echo "dev-lab.sh: missing $PROBE/.venv/bin/jupyter-builder (needed to build the extension offline)" >&2; exit 2; }
   echo "Building the extension..."
-  (cd "$ROOT" && npx tsc --sourceMap && PATH="$PROBE/.venv/bin:$PATH" jupyter-builder build --development True .) || exit 1
+  (cd "$ROOT/core/ts" && npx tsc) && (cd "$ROOT/jupyter" && npx tsc --sourceMap && PATH="$PROBE/.venv/bin:$PATH" jupyter-builder build --development True .) || exit 1
 fi
 
 [ -n "${BLAYM_DEV_FRESH:-}" ] && rm -rf "$DEV"

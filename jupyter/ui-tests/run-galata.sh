@@ -28,7 +28,7 @@ PROBE="$ROOT/probes/s1-capture"
 CHROMIUM="${BLAYM_CHROMIUM:-$HOME/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell}"
 
 need() { [ -e "$1" ] || { echo "run-galata.sh: missing $1 ($2)" >&2; exit 2; }; }
-need "$PROBE/.venv/bin/jupyter-builder" "jupyter-builder of the S1 probe venv"
+need "$ROOT/.venv/bin/jupyter-builder" "jupyter-builder of the main venv"
 need "$PROBE/ui/node_modules/@jupyterlab/galata" "galata of the S1 probe ui folder"
 need "$PROBE/ui/node_modules/.bin/playwright" "playwright of the S1 probe ui folder"
 need "$CHROMIUM" "cached headless Chromium; set BLAYM_CHROMIUM"
@@ -38,7 +38,7 @@ need "$ROOT/.venv/bin/jupyter" "the repo .venv with jupyterlab"
 cd "$ROOT/jupyter" || exit 1
 (cd "$ROOT/core/ts" && npx tsc) || exit 1
 npx tsc --sourceMap || exit 1
-PATH="$PROBE/.venv/bin:$PATH" jupyter-builder build --development True . || exit 1
+PATH="$ROOT/.venv/bin:$PATH" jupyter-builder build --development True . || exit 1
 
 WORK="$(mktemp -d)"
 mkdir -p "$WORK/root" "$WORK/data/labextensions" "$WORK/config"

@@ -65,8 +65,8 @@
         "@jupyterlab/settingregistry": "^4.0.0",
         "@jupyterlab/statusbar": "^4.0.0",
         "@lumino/widgets": "^2.0.0",
-        "blaym-notebook-types": "link:../../blaym-notebook-types",
-        "blaym-notebook-core": "workspace:*"
+        "blaym-notebook-core": "workspace:*",
+        "blaym-notebook-types": "link:../../blaym-notebook-types"
     },
     "devDependencies": {
         "@eslint/js": "^9.0.0",

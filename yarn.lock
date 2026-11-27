@@ -3130,26 +3130,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@lumino/widgets@npm:^1.37.2 || ^2.8.0, @lumino/widgets@npm:^2.10.0, @lumino/widgets@npm:^2.8.0":
-  version: 2.10.0
-  resolution: "@lumino/widgets@npm:2.10.0"
-  dependencies:
-    "@lumino/algorithm": ^2.0.5
-    "@lumino/commands": ^2.3.4
-    "@lumino/coreutils": ^2.2.3
-    "@lumino/disposable": ^2.1.6
-    "@lumino/domutils": ^2.0.5
-    "@lumino/dragdrop": ^2.1.9
-    "@lumino/keyboard": ^2.0.5
-    "@lumino/messaging": ^2.0.5
-    "@lumino/properties": ^2.0.5
-    "@lumino/signaling": ^2.1.6
-    "@lumino/virtualdom": ^2.0.5
-  checksum: c64e27e55b1178d06ff292a830984a33b467c43ff30d7f7bdb7990f2b4f91409443d2de00d8b7218543ac446e3416810444c434c183d659c00ed8d85302f196a
-  languageName: node
-  linkType: hard
-
-"@lumino/widgets@npm:^2.0.0":
+"@lumino/widgets@npm:^1.37.2 || ^2.8.0, @lumino/widgets@npm:^2.0.0, @lumino/widgets@npm:^2.10.0, @lumino/widgets@npm:^2.8.0":
   version: 2.11.0
   resolution: "@lumino/widgets@npm:2.11.0"
   dependencies:
@@ -4581,18 +4562,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"blaym-notebook-types@link:../../../blaym-notebook-types::locator=blaym-notebook-core%40workspace%3Acore%2Fts":
-  version: 0.0.0-use.local
-  resolution: "blaym-notebook-types@link:../../../blaym-notebook-types::locator=blaym-notebook-core%40workspace%3Acore%2Fts"
-  languageName: node
-  linkType: soft
-
-"blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-jupyter%40workspace%3Ajupyter":
-  version: 0.0.0-use.local
-  resolution: "blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-jupyter%40workspace%3Ajupyter"
-  languageName: node
-  linkType: soft
-
 "blaym-jupyter@workspace:jupyter":
   version: 0.0.0-use.local
   resolution: "blaym-jupyter@workspace:jupyter"
@@ -4613,8 +4582,8 @@ __metadata:
     "@types/json-schema": ^7.0.11
     "@types/react": ^18.0.26
     "@types/react-addons-linked-state-mixin": ^0.14.22
-    blaym-notebook-types: "link:../../blaym-notebook-types"
     blaym-notebook-core: "workspace:*"
+    blaym-notebook-types: "link:../../blaym-notebook-types"
     eslint: ^9.0.0
     eslint-config-prettier: ^9.0.0
     eslint-plugin-prettier: ^5.0.0
@@ -4642,6 +4611,18 @@ __metadata:
   dependencies:
     blaym-notebook-types: "link:../../../blaym-notebook-types"
   languageName: unknown
+  linkType: soft
+
+"blaym-notebook-types@link:../../../blaym-notebook-types::locator=blaym-notebook-core%40workspace%3Acore%2Fts":
+  version: 0.0.0-use.local
+  resolution: "blaym-notebook-types@link:../../../blaym-notebook-types::locator=blaym-notebook-core%40workspace%3Acore%2Fts"
+  languageName: node
+  linkType: soft
+
+"blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-jupyter%40workspace%3Ajupyter":
+  version: 0.0.0-use.local
+  resolution: "blaym-notebook-types@link:../../blaym-notebook-types::locator=blaym-jupyter%40workspace%3Ajupyter"
+  languageName: node
   linkType: soft
 
 "blaym-notebook@workspace:.":

@@ -97,7 +97,8 @@ export function createVersions(
   const buttons = new Map<VersionMode, HTMLButtonElement>();
   for (const [m, label] of [
     ['grouped', 'grouped'],
-    ['every', 'every step']
+    ['every', 'every step'],
+    ['sessions', 'by session']
   ] as const) {
     const b = el('button', 'bv-segment', label);
     b.type = 'button';
@@ -145,12 +146,26 @@ export function createVersions(
     r.style.setProperty('top', `${i * ROW_HEIGHT}px`);
     r.style.setProperty('height', `${ROW_HEIGHT}px`);
     const text = el('div', 'bv-version-text');
+    // A session row has no one author or time: its span on the first line, its counts on the second.
+    const cut = item.summary.lastIndexOf(' · ');
+    const isSession = item.kind === 'session' && cut > 0;
     text.append(
-      el('div', 'bv-version-summary', item.summary),
-      el('div', 'bv-version-time', formatTime(item.timeMs))
+      el(
+        'div',
+        'bv-version-summary',
+        isSession ? item.summary.slice('session · '.length, cut) : item.summary
+      ),
+      el(
+        'div',
+        'bv-version-time',
+        isSession ? item.summary.slice(cut + 3) : formatTime(item.timeMs)
+      )
     );
+    if (isSession) {
+      r.title = item.summary;
+    }
     r.append(renderIcon(item.kind, item.author, item.confidence, 22), text);
-    const chip = authorChip(item);
+    const chip = item.kind === 'session' ? null : authorChip(item);
     if (chip) {
       r.append(chip);
     }

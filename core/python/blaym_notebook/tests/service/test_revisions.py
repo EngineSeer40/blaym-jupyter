@@ -88,8 +88,8 @@ def test_a_branch_sees_the_revisions_of_its_branch_point_not_later_ones():
     assert resolve(rig, "c1", "later-on-parent", branch=child) == {"status": "code_differs", "currentRevision": 3}
     assert resolve(rig, "c1", "later-on-parent", branch=root) == {"status": "ok", "cellRevision": 3}
     assert resolve(rig, "c1", "c", branch=root) == {"status": "code_differs", "currentRevision": 3}
-    # no branch given: the active branch (the child, after create_branch)
-    assert resolve(rig, "c1", "c") == {"status": "ok", "cellRevision": 3}
+    # no branch given: the active branch (still the root; create_branch does not move it)
+    assert resolve(rig, "c1", "later-on-parent") == {"status": "ok", "cellRevision": 3}
 
 
 # -- generated edit sequences against an independent oracle -----------------------------------

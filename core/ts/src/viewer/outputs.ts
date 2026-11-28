@@ -11,6 +11,8 @@ import { renderOutputText } from './ghost';
 import type { OutputRenderer } from './ghost';
 import { renderIcon } from './icons';
 import { sanitizeTable } from './sanitize';
+import { placeholderKind } from './frames';
+import type { SizeMemory } from './frames';
 
 const IMAGES = ['image/png', 'image/jpeg', 'image/gif'];
 const SVG = 'image/svg+xml';
@@ -69,13 +71,17 @@ function div(className: string, text?: string): HTMLDivElement {
 function placeholder(
   mime: string,
   title: string | undefined,
-  kind: string
+  kind: string,
+  word?: string
 ): HTMLElement {
   const box = div('bv-placeholder bv-out-placeholder');
   box.append(renderIcon(kind, null, null, 14));
   const m = document.createElement('span');
   m.className = 'bv-out-mime';
-  m.textContent = mime;
+  m.textContent = word ?? mime;
+  if (word) {
+    box.title = mime;
+  }
   box.append(m);
   if (title) {
     const t = document.createElement('span');
@@ -87,6 +93,42 @@ function placeholder(
 
 export interface OutputRendererOptions {
   fetchBlob(hash: string): Promise<ArrayBuffer>;
+  /** Remembers the height each output was drawn at, so a placeholder can keep it. */
+  sizes?: SizeMemory;
+}
+
+/**
+ * The quick frame's output: no fetch, a box with the kind's icon and the
+ * `searchText` title (else the MIME type), at the size last drawn for the hash.
+ */
+export function createQuickOutputRenderer(sizes: SizeMemory): OutputRenderer {
+  return (item, mount) => {
+    const kind = placeholderKind(item);
+    mount.setAttribute('data-output-type', item.outputType);
+    const mimes = item.mimeTypes;
+    const word =
+      kind === 'chart'
+        ? mimes.some(m => m.startsWith('image/'))
+          ? 'Image'
+          : 'Chart'
+        : kind === 'table'
+          ? 'Table'
+          : mimes.length > 0 && mimes.every(m => m.startsWith('text/'))
+            ? 'Text'
+            : 'Output';
+    const box = placeholder(
+      mimes[0] ?? item.outputType,
+      item.searchText || undefined,
+      kind === 'chart' ? 'chart' : 'other',
+      `${word}${item.searchText ? ' ·' : ''}`
+    );
+    box.classList.add('bv-out-quick');
+    box.style.setProperty(
+      'min-height',
+      `${sizes.heightOf(item.contentHash, kind)}px`
+    );
+    mount.append(box);
+  };
 }
 
 export function createOutputRenderer(
@@ -185,7 +227,16 @@ export function createOutputRenderer(
     const shown = draw(item, data);
     if (shown) {
       mount.replaceChildren(shown);
+      if (shown instanceof HTMLImageElement && !shown.complete) {
+        shown.addEventListener('load', () => measure(item, mount));
+      } else {
+        measure(item, mount);
+      }
     }
+  }
+
+  function measure(item: OutputItem, mount: HTMLElement): void {
+    options.sizes?.remember(item.contentHash, mount.offsetHeight);
   }
 
   function whenVisible(mount: HTMLElement, run: () => void): void {
@@ -213,7 +264,14 @@ export function createOutputRenderer(
       item.outputType === 'stream' ||
       item.outputType === 'error' ||
       (item.preview !== '' && item.mimeTypes.every(m => m === PLAIN));
-    if (!inline) {
+    if (inline) {
+      window.requestAnimationFrame(() => measure(item, mount));
+    } else {
+      // Until the content has loaded the box keeps the height last drawn for it.
+      const known = options.sizes?.known(item.contentHash);
+      if (known) {
+        mount.style.setProperty('min-height', `${known}px`);
+      }
       whenVisible(mount, () => {
         void fill(item, mount);
       });

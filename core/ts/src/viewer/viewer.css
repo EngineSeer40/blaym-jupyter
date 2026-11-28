@@ -63,6 +63,30 @@ body {
   white-space: nowrap;
 }
 
+.bv-recorder {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: var(--bv-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.bv-recorder[hidden] {
+  display: none;
+}
+
+.bv-record-here {
+  padding: 2px 8px;
+  border: 1px solid var(--bv-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bv-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
 .bv-pill[data-status='live'] {
   border-color: color-mix(in srgb, var(--bv-primary) 40%, transparent);
   color: var(--bv-primary);
@@ -417,6 +441,11 @@ body {
     height: auto;
     border-right: 1px solid var(--bv-border);
     border-bottom: 0;
+  }
+
+  /* The tree needs more room for its text rows than the changes view does. */
+  .bv-versions.bv-versions-tree:not(.bv-versions-collapsed) {
+    width: var(--bv-tree-panel-width, 340px);
   }
 
   .bv-main {
@@ -873,4 +902,286 @@ body {
   padding: 0 4px;
   border-radius: 3px;
   background: color-mix(in srgb, var(--bv-changed) 14%, transparent);
+}
+
+/* The tree view: lanes, badges, text rows and the playhead. */
+.bv-tree-root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  outline: none;
+}
+
+.bv-tree-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--bv-border);
+  font-size: 11px;
+}
+
+.bv-tree-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--bv-border);
+  border-radius: 4px;
+  background: var(--bv-card);
+  color: var(--bv-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.bv-tree-btn:focus-visible,
+.bv-tree-root:focus-visible .bv-tree-win {
+  outline: 1px solid var(--bv-primary);
+  outline-offset: -1px;
+}
+
+.bv-tree-btn[aria-pressed='true'] {
+  border-color: var(--bv-highlight);
+  color: var(--bv-highlight);
+}
+
+.bv-tree-follow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  color: var(--bv-muted);
+}
+
+.bv-tree-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.bv-tree-win {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.bv-tree-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.bv-tree-off {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--bv-fg) 30%, transparent);
+}
+
+.bv-tree-off-end {
+  top: auto;
+  bottom: 6px;
+}
+
+.bv-ov {
+  position: relative;
+  flex: none;
+  width: 18px;
+  border-left: 1px solid var(--bv-border);
+  background: color-mix(in srgb, var(--bv-fg) 4%, transparent);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.bv-ov-svg {
+  display: block;
+  height: 100%;
+}
+
+.bv-ov-lane,
+.bv-ov-dense {
+  fill: var(--bv-lane);
+}
+
+.bv-ov-sel {
+  fill: var(--bv-highlight);
+}
+
+.bv-ov-box {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border: 1px solid var(--bv-highlight);
+  background: color-mix(in srgb, var(--bv-highlight) 16%, transparent);
+  pointer-events: none;
+}
+
+.bv-ov-head {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--bv-danger);
+  pointer-events: none;
+}
+
+.bv-tree-inner {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bv-tree-svg {
+  display: block;
+  overflow: visible;
+}
+
+.bv-tree-lane {
+  fill: none;
+  stroke: var(--bv-lane);
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.bv-tree-lane-sel {
+  stroke: var(--bv-highlight);
+}
+
+.bv-tree-row {
+  fill: var(--bv-fg);
+  font-size: 11px;
+  dominant-baseline: central;
+}
+
+.bv-tree-row-sel {
+  fill: var(--bv-highlight);
+}
+
+.bv-tree-branch {
+  font-weight: 600;
+}
+
+.bv-tree-sticky {
+  font-style: italic;
+  font-weight: 600;
+}
+
+.bv-tree-more {
+  fill: var(--bv-muted);
+  font-size: 10px;
+}
+
+.bv-tree-ring {
+  fill: none;
+  stroke: var(--bv-highlight);
+  stroke-width: 2;
+}
+
+.bv-tree-head {
+  stroke: var(--bv-danger);
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+.bv-tree-handle {
+  fill: var(--bv-card);
+  stroke: var(--bv-danger);
+  stroke-width: 2.5;
+}
+
+.bv-tree-tip {
+  position: absolute;
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--bv-border);
+  border-radius: 4px;
+  background: var(--bv-card);
+  color: var(--bv-fg);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+.bv-tree-dot {
+  fill: var(--bv-muted);
+  stroke: var(--bv-card);
+  stroke-width: 1.5;
+}
+
+.bv-tree-sticky {
+  paint-order: stroke;
+  stroke: var(--bv-card);
+  stroke-width: 4px;
+}
+
+.bv-tree-strip {
+  fill: var(--bv-card);
+}
+
+.bv-search {
+  flex: 0 1 200px;
+  min-width: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--bv-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bv-fg);
+  font: inherit;
+  font-size: 11px;
+}
+
+.bv-search:focus-visible {
+  outline: 1px solid var(--bv-primary);
+  outline-offset: -1px;
+}
+
+/* S8: the buttons that make and switch branches, and the switch line under the header. */
+.bv-continue {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid var(--bv-border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--bv-primary);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.bv-continue:disabled,
+.bv-tree-switch:disabled {
+  color: var(--bv-muted);
+  cursor: default;
+}
+
+.bv-continue-why {
+  flex: 1;
+  font-size: 11px;
+  text-align: right;
+}
+
+.bv-switch-bar {
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--bv-border);
+  font-size: 11px;
+}
+
+.bv-switch-bar[hidden],
+.bv-switch[hidden],
+.bv-tree-switch[hidden] {
+  display: none;
+}
+
+.bv-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bv-tree-branch {
+  margin-left: auto;
+  color: var(--bv-muted);
+  white-space: nowrap;
+}
+
+.bv-tree-switch {
+  color: var(--bv-primary);
 }

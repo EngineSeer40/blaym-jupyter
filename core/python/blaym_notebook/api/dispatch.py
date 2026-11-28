@@ -10,6 +10,7 @@ from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import unquote
 
 from blaym_notebook_types import (
+    CreateBranchRequest,
     EventsBetweenRequest,
     EventsSinceRequest,
     GetBlobRequest,
@@ -24,6 +25,7 @@ from blaym_notebook_types import (
     PrepareOutputsResponse,
     ResolveCellRevisionRequest,
     SearchRequest,
+    SetActiveBranchRequest,
     StateAtRequest,
     TimelineIndexRequest,
 )
@@ -291,6 +293,15 @@ def _search(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     return _json(200, rec.service.search(cred, codec.from_mapping(SearchRequest, data)))
 
 
+def _create_branch(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    """A refusal is the service's answer (status 200), not an HTTP error."""
+    return _json(200, rec.service.create_branch(cred, codec.parse(CreateBranchRequest, req.body)))
+
+
+def _set_active_branch(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
+    return _json(200, rec.service.set_active_branch(cred, codec.parse(SetActiveBranchRequest, req.body)))
+
+
 def _get_blob(req: ApiRequest, params, cred, rec: Recording) -> ApiResponse:
     request = codec.from_mapping(GetBlobRequest, params)
     try:
@@ -343,6 +354,7 @@ _HANDLERS: dict[str, Callable[..., ApiResponse]] = {
     "rename": _rename, "save": _save,
     "info": _info, "state": _state, "outline": _outline, "events_since": _events_since,
     "timeline": _timeline, "events_between": _events_between,
-    "search": _search, "get_blob": _get_blob, "stream": _stream,
+    "search": _search, "create_branch": _create_branch, "set_active_branch": _set_active_branch,
+    "get_blob": _get_blob, "stream": _stream,
     "viewer_asset": _viewer_asset,
 }

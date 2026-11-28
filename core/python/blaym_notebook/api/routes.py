@@ -46,6 +46,8 @@ ROUTES: tuple[Route, ...] = (
     Route("events_between", "GET", "/events-between", "query:explorationId,branchId,fromTick,toTick,maxEvents?",
           "EventsBetweenResponse"),
     Route("search", "GET", "/search", "query:explorationId,query,kinds?,limit?", "SearchResponse"),
+    Route("create_branch", "POST", "/branches/create", "CreateBranchRequest", "CreateBranchResponse"),
+    Route("set_active_branch", "POST", "/branches/active", "SetActiveBranchRequest", "SetActiveBranchResponse"),
     Route("get_blob", "GET", "/blobs/{explorationId}/{contentHash}", "none", "bytes"),
     Route("stream", "GET", "/stream", "query:explorationId,afterTick?", "event-stream"),
     Route("viewer_asset", "GET", "/viewer/{name}", "none", "bytes"),

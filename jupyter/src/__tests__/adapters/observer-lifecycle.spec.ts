@@ -1,4 +1,5 @@
 import { NotebookObserver } from '../../adapters/jupyterlab/observer';
+import { status } from '../../../../core/ts/src/__tests__/recording/generate';
 import {
   CapturingTransport,
   FakeCell,
@@ -58,7 +59,8 @@ async function setup(
     transport,
     observer,
     events,
-    snapshots
+    snapshots,
+    election
   };
 }
 
@@ -125,4 +127,75 @@ describe('the status stays honest', () => {
       expect(r.states).toEqual(['recording']);
     }
   );
+});
+
+describe('record here', () => {
+  it('an inactive tab steals the lock, registers with takeover and records', async () => {
+    const t = await setup({ election: 'inactive' }, false);
+    const stolen: string[] = [];
+    let lose = () => undefined as void;
+    let wins = 0;
+    let release = () => undefined as void;
+    const holder = new Promise<boolean>(r => (release = () => r(true)));
+    Object.assign(t.election, {
+      onLost: (cb: () => void) => {
+        lose = cb;
+        return () => undefined;
+      },
+      takeover: () => {
+        // the first queue is cancelled by "record here"; the second waits for the holder
+        wins += 1;
+        return wins === 1 ? new Promise<boolean>(() => undefined) : holder;
+      },
+      steal: (id: string) => {
+        stolen.push(id);
+        return Promise.resolve(true);
+      }
+    });
+    // the server gives the notebook to whoever registers with takeover
+    t.transport.registerHandler = () =>
+      Promise.resolve(
+        status({
+          active:
+            !!t.transport.registrations[t.transport.registrations.length - 1]
+              ?.takeover
+        })
+      );
+    await t.observer.start();
+    await settle();
+    expect(t.observer.currentState).toEqual({
+      kind: 'inactive',
+      reason: 'other_tab'
+    });
+    await t.observer.recordHere();
+    await settle();
+    t.time.advance(10);
+    await settle();
+    expect(stolen).toEqual(['nb1']);
+    expect(t.transport.registrations.slice(-1)[0]?.takeover).toBe(true);
+    expect(t.observer.currentState).toEqual({ kind: 'recording' });
+
+    // the lock is taken from this tab: typing still queued is sent before it goes inactive
+    const sources = () =>
+      t.events()
+        .filter(e => e.type === 'cell_source_changed')
+        .map(e => JSON.stringify(e));
+    t.cell.type('x = 2');
+    expect(sources().some(x => x.includes('x = 2'))).toBe(false);
+    lose();
+    await settle();
+    t.time.advance(10);
+    await settle();
+    expect(sources().some(x => x.includes('x = 2'))).toBe(true);
+    // and it queues; when the holder lets go it takes the notebook back at once
+    expect(wins).toBe(2);
+    const before = t.transport.registrations.length;
+    release();
+    await settle();
+    expect(t.transport.registrations.length).toBe(before + 1);
+    expect(t.transport.registrations[before]?.takeover).toBe(true);
+    t.time.advance(10);
+    await settle();
+    expect(t.observer.currentState).toEqual({ kind: 'recording' });
+  });
 });

@@ -4,7 +4,7 @@ import type { Disposer, TabElection } from 'blaym-notebook-core';
 export interface LockManagerLike {
   request(
     name: string,
-    options: { ifAvailable?: boolean; signal?: AbortSignal },
+    options: { ifAvailable?: boolean; steal?: boolean; signal?: AbortSignal },
     callback: (lock: unknown) => Promise<unknown> | unknown
   ): Promise<unknown>;
 }
@@ -41,14 +41,13 @@ export class WebLocksElection implements TabElection {
             return undefined;
           }
           resolve('active');
-          return new Promise<void>(done => {
-            this.release = () => {
-              this.release = undefined;
-              done();
-            };
-          });
+          return this.hold();
         })
-        .catch(() => resolve('active'));
+        .catch(() => {
+          // A stolen lock ends the held request with an error.
+          this.lose();
+          resolve('active');
+        });
     });
   }
 
@@ -70,16 +69,55 @@ export class WebLocksElection implements TabElection {
           { signal: abort.signal },
           () => {
             resolve(true);
-            return new Promise<void>(done => {
-              this.release = () => {
-                this.release = undefined;
-                done();
-              };
-            });
+            return this.hold();
           }
         )
-        .catch(() => resolve(false));
+        .catch(() => {
+          this.lose();
+          resolve(false);
+        });
     });
+  }
+
+  /**
+   * Take the lock from the tab that holds it (`steal`): resolves true when
+   * this tab holds it. The holder's request ends and its `onLost` runs.
+   */
+  steal(notebookId: string): Promise<boolean> {
+    const locks = this.locks;
+    if (!locks) {
+      return Promise.resolve(false);
+    }
+    this.cancelTakeover();
+    return new Promise(resolve => {
+      locks
+        .request(`blaym-jupyter:${notebookId}`, { steal: true }, () => {
+          resolve(true);
+          return this.hold();
+        })
+        .catch(() => {
+          this.lose();
+          resolve(false);
+        });
+    });
+  }
+
+  /** Holds the lock until `release` runs. */
+  private hold(): Promise<void> {
+    return new Promise<void>(done => {
+      this.release = () => {
+        this.release = undefined;
+        done();
+      };
+    });
+  }
+
+  /** The held lock was taken away (not given up). */
+  private lose(): void {
+    if (this.release) {
+      this.release = undefined;
+      this.lostCallbacks.forEach(cb => cb());
+    }
   }
 
   cancelTakeover(): void {

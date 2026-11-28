@@ -23,6 +23,8 @@ import { diff, latestOutputs } from './diff';
 import type { CellMark, DiffResult } from './diff';
 import type { VersionMode } from './modes';
 import type { HostLive } from './host';
+import { typedText } from './frames';
+import type { Frames } from './frames';
 import type { Session } from './session';
 import { edgeBanner } from './shell';
 import { formatTime } from './versions';
@@ -64,8 +66,12 @@ export interface GhostInput {
   diff?: GhostDiff;
   /** Who made each cell's latest change; a cell not in it is unknown. */
   authors?: ReadonlyMap<string, CellAuthor>;
+  /** "continue from here", shown in the header while looking back; `reason` disables it and is said in a tooltip and a muted line. */
+  action?: { label: string; reason?: string; onClick(): void };
   /** Calm notes over the cells: a restart, a gap, a change from outside. */
   banners?: readonly EdgeNote[];
+  /** A quick frame: the code to show per cell (typing in), and no author chips. */
+  quick?: { code: ReadonlyMap<string, string> };
 }
 
 export interface EdgeNote {
@@ -273,11 +279,12 @@ function overlayClass(o: Overlay): { cls: string; note: string } | undefined {
 /** The code as text; changed lines go in their own tinted block when there are any. */
 function codeBlock(
   cell: NotebookCell,
-  mark: CellMark | undefined
+  mark: CellMark | undefined,
+  text = cell.code
 ): HTMLElement {
   const code = el('pre', 'bv-gcell-code');
   if (!mark || (mark.changedLines.length === 0 && !mark.wholeCell)) {
-    code.textContent = cell.code;
+    code.textContent = text;
     return code;
   }
   const changed = new Set(mark.changedLines);
@@ -327,16 +334,20 @@ function cellCard(
   if (isCode) {
     head.append(el('span', 'bv-gcell-label', `In [${n}]:`));
   }
-  head.append(codeBlock(cell, overlay?.mark));
+  head.append(
+    codeBlock(cell, overlay?.mark, input.quick?.code.get(cell.cellId))
+  );
   const side = el('div', 'bv-gcell-side');
   if (marked?.note) {
     side.append(el('span', 'bv-mark-note', marked.note));
   }
   const who = input.authors?.get(cell.cellId) ?? UNKNOWN_AUTHOR;
-  const whoChip = authorChip(who);
-  whoChip.setAttribute('data-author', who.author);
-  side.append(whoChip);
-  if (who.author === 'ai' && who.chatTurnId) {
+  if (!input.quick) {
+    const whoChip = authorChip(who);
+    whoChip.setAttribute('data-author', who.author);
+    side.append(whoChip);
+  }
+  if (!input.quick && who.author === 'ai' && who.chatTurnId) {
     const prompt = el('button', 'bv-link bv-prompt-link', 'prompt \u2197');
     prompt.type = 'button';
     prompt.title = 'The prompt that made this change';
@@ -396,6 +407,20 @@ export function renderGhostBook(target: HTMLElement, input: GhostInput): void {
     const tag = el('span', 'bv-loading-tag', 'loading');
     tag.setAttribute('role', 'status');
     head.append(tag);
+  }
+  const action = input.action;
+  if (action) {
+    const b = el('button', 'bv-continue', action.label) as HTMLButtonElement;
+    b.type = 'button';
+    b.disabled = action.reason !== undefined;
+    b.title =
+      action.reason ??
+      'Start a new branch from this moment and switch the notebook to it';
+    b.addEventListener('click', () => action.onClick());
+    head.append(b);
+    if (action.reason !== undefined) {
+      head.append(el('span', 'bv-muted bv-continue-why', action.reason));
+    }
   }
   book.append(head);
   if (input.banners?.length) {
@@ -458,9 +483,19 @@ export function createGhost(
   session: Session,
   live?: HostLive,
   renderOutput?: OutputRenderer,
-  diffs?: { cache: BaseCache; mode: VersionMode }
+  diffs?: { cache: BaseCache; mode: VersionMode },
+  quick?: {
+    frames: Frames;
+    output: OutputRenderer;
+    pace?: number;
+    lagMs?: number;
+  }
 ): Ghost {
   let entries: readonly ContextEntry[] = [];
+  // The code on show per cell, and the cells typing toward a newer version.
+  const shown = new Map<string, string>();
+  const typing = new Map<string, { from: string; to: string; t0: number }>();
+  let typingFrame = 0;
 
   const timeAt = (tick: number): number | undefined => {
     let found: ContextEntry | undefined;
@@ -472,6 +507,82 @@ export function createGhost(
     }
     return found?.timeMs;
   };
+
+  /** The quick frame: the newest answer without diff, chips or blobs; changed code types in. */
+  function drawQuick(state: RebuiltState, header: string): void {
+    const t = performance.now();
+    const code = new Map<string, string>();
+    for (const cell of state.notebook.cells) {
+      const before = shown.get(cell.cellId);
+      const run = typing.get(cell.cellId);
+      if (run && run.to !== cell.code) {
+        // The next answer came first: jump to it.
+        typing.delete(cell.cellId);
+      } else if (!run && before !== undefined && before !== cell.code) {
+        typing.set(cell.cellId, { from: before, to: cell.code, t0: t });
+      }
+      code.set(cell.cellId, cell.code);
+    }
+    for (const id of Array.from(typing.keys())) {
+      if (!code.has(id)) {
+        typing.delete(id);
+      }
+    }
+    typedNow(code, t);
+    shown.clear();
+    for (const [id, text] of code) {
+      shown.set(id, text);
+    }
+    renderGhostBook(target, {
+      state,
+      header,
+      loading: false,
+      focusedCell: session.focus.get().focusedCell,
+      onFocus: cellId => session.focus.focusCell(cellId),
+      onShow: live ? cellId => live.scrollToCell(cellId) : undefined,
+      renderOutput: quick?.output,
+      quick: { code }
+    });
+    scheduleTyping();
+  }
+
+  /** Puts each typing cell's text for time `t` into `code`; finished cells leave `typing`. */
+  function typedNow(code: Map<string, string>, t: number): void {
+    for (const [id, run] of typing) {
+      const text = typedText(
+        run.from,
+        run.to,
+        t - run.t0,
+        quick?.pace,
+        quick?.lagMs
+      );
+      code.set(id, text);
+      if (text === run.to) {
+        typing.delete(id);
+      }
+    }
+  }
+
+  function scheduleTyping(): void {
+    if (typing.size === 0 || typingFrame) {
+      return;
+    }
+    typingFrame = window.requestAnimationFrame(() => {
+      typingFrame = 0;
+      const code = new Map<string, string>();
+      typedNow(code, performance.now());
+      for (const [id, text] of code) {
+        shown.set(id, text);
+        const pre = target.querySelector(
+          `[data-cell-id="${CSS.escape(id)}"] .bv-gcell-code`
+        );
+        if (pre) {
+          pre.textContent = text;
+        }
+      }
+      scheduleTyping();
+    });
+  }
 
   function draw(): void {
     const view = session.view();
@@ -485,6 +596,15 @@ export function createGhost(
         view.mode === 'lookingBack'
           ? `notebook at ${ms === undefined ? '…' : formatTime(ms)} · tick ${tick}`
           : `notebook now · tick ${tick}`;
+    }
+    if (quick?.frames.isMoving() && ok) {
+      drawQuick(ok, header);
+      return;
+    }
+    typing.clear();
+    shown.clear();
+    for (const cell of ok?.notebook.cells ?? []) {
+      shown.set(cell.cellId, cell.code);
     }
     const against = session.focus.get().diffBase;
     const wanted = baseTick(against, view, entries, diffs?.mode ?? 'grouped');
@@ -530,6 +650,16 @@ export function createGhost(
           ? 'No notebook state could be built for this moment.'
           : undefined,
       header,
+      action:
+        view.mode === 'lookingBack' && ok
+          ? {
+              label: 'continue from here',
+              reason: session.switching()
+                ? 'switching…'
+                : session.continueBlocked(),
+              onClick: () => session.continueFromHere()
+            }
+          : undefined,
       loading: view.freshness === 'loading',
       focusedCell: session.focus.get().focusedCell,
       onFocus: cellId => session.focus.focusCell(cellId),
@@ -544,6 +674,31 @@ export function createGhost(
   session.focus.subscribe(f => {
     if (f.focusedCell !== drawnFocus) {
       drawnFocus = f.focusedCell;
+      draw();
+    }
+  });
+  // Settled: the full frame replaces the quick one once its marks are ready.
+  quick?.frames.subscribe(moving => {
+    if (moving) {
+      return;
+    }
+    const view = session.view();
+    const ok =
+      view.shown?.result.status === 'ok' ? view.shown.result.state : undefined;
+    const wanted = baseTick(
+      session.focus.get().diffBase,
+      view,
+      entries,
+      diffs?.mode ?? 'grouped'
+    );
+    if (
+      diffs &&
+      ok &&
+      wanted !== undefined &&
+      !diffs.cache.peek(view.branchId, wanted)
+    ) {
+      void diffs.cache.load(view.branchId, wanted).then(draw);
+    } else {
       draw();
     }
   });

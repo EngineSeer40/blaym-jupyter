@@ -140,5 +140,18 @@ export const DIFF_TOKENS: readonly {
   { token: '--bv-changed', light: '#2563c9', dark: '#5b9bff' }
 ];
 
+/**
+ * The tree's two colours: every lane and connector is one grey; only the
+ * selected branch is the highlight blue. No host source.
+ */
+export const TREE_TOKENS: readonly {
+  token: string;
+  light: string;
+  dark: string;
+}[] = [
+  { token: '--bv-lane', light: '#9a9fa6', dark: '#626970' },
+  { token: '--bv-highlight', light: '#4a86a8', dark: '#6aa9cc' }
+];
+
 /** The `--jp-*` names a JupyterLab host sends in `blaym:theme`. */
 export const JP_VARIABLES: readonly string[] = THEME_TOKENS.map(t => t.jp);

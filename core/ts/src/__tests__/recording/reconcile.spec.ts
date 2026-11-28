@@ -1,11 +1,17 @@
 import * as fc from 'fast-check';
+import { RecorderSession } from '../../recording';
 import {
   Applier,
   appliedModel,
   applyOp,
   expectedModel,
   FakeNotebook,
+  FakeTime,
+  FakeTransport,
   Harness,
+  POLICY,
+  SeqIds,
+  settle,
   stepsArb
 } from './generate';
 
@@ -149,5 +155,98 @@ describe('builder', () => {
     await h.finish();
     const src = h.events.filter(e => e.type === 'cell_source_changed') as any[];
     expect(src[0].payload.revision).toBe(2);
+  });
+});
+
+describe('RecorderSession.adoptBaseline', () => {
+  test('a new baseline sends nothing; the next edit is one event with the new revision', async () => {
+    const nb = new FakeNotebook();
+    const time = new FakeTime();
+    const transport = new FakeTransport();
+    const session = new RecorderSession(nb, {
+      transport,
+      clock: time,
+      scheduler: time,
+      ids: new SeqIds('s'),
+      policy: POLICY,
+      editor: 'jupyterlab',
+      path: () => 'a.ipynb'
+    });
+    nb.list = [
+      { id: 'a', type: 'code', source: 'old', metadata: {}, outputs: [] }
+    ];
+    session.setFingerprint({ nbformat: '4.5', sourceHash: 'h' } as any);
+    await session.register();
+    await session.start('nb1');
+    time.advance(1000);
+    await settle();
+    const sent = transport.requests.length;
+    (session as any).outbox.retarget('old-branch'); // where the last event landed
+    // the switch replaces the cells: a is gone, b and c arrive
+    nb.list = [
+      { id: 'b', type: 'code', source: 'one', metadata: {}, outputs: [] },
+      { id: 'c', type: 'code', source: 'two', metadata: {}, outputs: [] }
+    ];
+    session.adoptBaseline(
+      nb.list.map(c => ({
+        cellId: c.id,
+        cellType: 'code',
+        code: c.source,
+        revision: 4,
+        metadata: {},
+        outputs: []
+      }))
+    );
+    session.process();
+    time.advance(1000);
+    await settle();
+    expect(transport.requests.length).toBe(sent);
+    const resync = jest
+      .spyOn((session as any).outbox, 'requestResync')
+      .mockImplementation(() => undefined);
+    session.adoptBaseline([
+      {
+        cellId: 'b',
+        cellType: 'code',
+        code: 'one',
+        revision: 4,
+        metadata: {},
+        outputs: []
+      } as any
+    ]);
+    expect(resync).toHaveBeenCalledWith('switch:notebook_differs');
+    resync.mockClear();
+    session.adoptBaseline(
+      nb.list.map(
+        c =>
+          ({
+            cellId: c.id,
+            cellType: 'code',
+            code: c.source,
+            revision: 4,
+            metadata: {},
+            outputs: []
+          }) as any
+      )
+    );
+    expect(resync).not.toHaveBeenCalled();
+    nb.list[0].source = 'one!';
+    session.process();
+    time.advance(1000);
+    await settle();
+    const events = transport.requests
+      .slice(sent)
+      .reduce((all: any[], r) => all.concat(r.events), []);
+    // the next event goes to the service's active branch, not the old target
+    expect(
+      transport.requests[transport.requests.length - 1].targetBranchId
+    ).toBeUndefined();
+    expect(events.map((e: any) => [e.type, e.payload])).toEqual([
+      [
+        'cell_source_changed',
+        expect.objectContaining({ cellId: 'b', code: 'one!', revision: 5 })
+      ]
+    ]);
+    session.close();
   });
 });

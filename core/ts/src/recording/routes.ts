@@ -31,6 +31,8 @@ export const ROUTES = {
   timeline: { method: 'GET', path: '/timeline' },
   events_between: { method: 'GET', path: '/events-between' },
   search: { method: 'GET', path: '/search' },
+  create_branch: { method: 'POST', path: '/branches/create' },
+  set_active_branch: { method: 'POST', path: '/branches/active' },
   get_blob: { method: 'GET', path: '/blobs/{explorationId}/{contentHash}' },
   stream: { method: 'GET', path: '/stream' },
   viewer_asset: { method: 'GET', path: '/viewer/{name}' }

@@ -1,15 +1,23 @@
 import './viewer.css';
 import { createClient } from './client';
 import type { Backend } from './client';
-import { createHostChannel, windowPort } from './host';
+import {
+  createHostChannel,
+  requestSwitch,
+  watchRecorder,
+  windowPort
+} from './host';
 import { createBaseCache } from './diffbase';
 import { createGhost } from './ghost';
-import { createOutputRenderer } from './outputs';
-import { entryAt, renderContext } from './context';
-import type { ContextEntry } from './context';
-import { appendEntries } from './modes';
+import { createOutputRenderer, createQuickOutputRenderer } from './outputs';
+import { createFrames, createSizeMemory } from './frames';
+import { renderContext } from './context';
+import { createTimelines } from './timelines';
+import { branchLabel } from './treelayout';
 import { createSession } from './session';
 import { createChanges } from './changes';
+import { createTree } from './tree';
+import { createSearch } from './search';
 import { cellName } from './cellname';
 import { renderConversation } from './conversation';
 import { createShell } from './shell';
@@ -17,7 +25,7 @@ import type { PanelView, ShellStatus } from './shell';
 import { startTheme } from './theme';
 
 /** The address fragment: `#explorationId=..&mode=direct|host&base=..&branch=..&orientation=..`,
- * and optionally `versions=every` (the version list's mode), `view=changes` and `panel=collapsed|open` (the side panel), `tick=` (open looking back at that tick) and `select=` (select the timeline entry at that tick). */
+ * and optionally `versions=every|sessions` (the version list's mode), `view=changes` and `panel=collapsed|open` (the side panel), `search=` (open with a query typed), `tick=` (open looking back at that tick) and `select=` (select the timeline entry at that tick). */
 function readFragment(): URLSearchParams {
   return new URLSearchParams(window.location.hash.replace(/^#/, ''));
 }
@@ -47,12 +55,13 @@ const client = createClient({ backend, scheduler });
 const session = createSession({
   client,
   explorationId,
-  activeBranchId: params.get('branch') ?? ''
+  activeBranchId: params.get('branch') ?? '',
+  switchHost: requestSwitch
 });
 
 /** The remembered side panel choices; the webview may block local storage, so every use is guarded. */
 const STORE_KEY = 'blaym-panel';
-function recall(): { view?: string; collapsed?: boolean } {
+function recall(): { view?: string; collapsed?: boolean; follow?: boolean } {
   try {
     return JSON.parse(window.localStorage.getItem(STORE_KEY) ?? '{}');
   } catch {
@@ -73,8 +82,12 @@ function remember(patch: object): void {
 const app = document.getElementById('app');
 if (app) {
   const shell = createShell(app);
-  let entries: ContextEntry[] = [];
-  const versionMode = params.get('versions') === 'every' ? 'every' : 'grouped';
+  const timelines = createTimelines({ client, explorationId, session });
+  const versionsParam = params.get('versions');
+  const versionMode =
+    versionsParam === 'every' || versionsParam === 'sessions'
+      ? versionsParam
+      : 'grouped';
   // Cells are named by their place and first line, from the state on show when it has them.
   const nameCell = (cellId: string, entryIndex?: number | null): string => {
     const result = session.view().shown?.result;
@@ -90,17 +103,58 @@ if (app) {
     versionMode,
     nameCell
   );
-  // The view: changes is the only one so far; anything else, a remembered `list` included, falls back to it.
-  const isView = (v: unknown): v is PanelView => v === 'changes';
+  // `frames=moving` (harness) holds the moving state; `pace` and `lag` tune the typing.
+  const frames = createFrames({ hold: params.get('frames') === 'moving' });
+  const sizes = createSizeMemory();
+  const scrollParam = params.get('tscroll');
+  const treeView = createTree(shell.tree, session, timelines, nameCell, {
+    zoom: Number(params.get('zoom')) || undefined,
+    scroll:
+      scrollParam === 'oldest'
+        ? 'oldest'
+        : scrollParam
+          ? Number(scrollParam)
+          : undefined,
+    follow: params.get('follow') === '0' ? false : recall().follow !== false,
+    onFollowChange: follow => remember({ follow }),
+    frames
+  });
+  // The view: anything unknown, a remembered `list` included, falls back to changes.
+  const isView = (v: unknown): v is PanelView =>
+    v === 'changes' || v === 'tree';
+  // The view shown before a search began, and the one the panel returns to.
+  let before: PanelView = 'changes';
+  let searching = false;
   const wantView = params.get('view') ?? recall().view;
   const showView = (view: PanelView) => {
+    if (view !== 'search') {
+      before = view;
+    }
     shell.setView(view);
     changesList.refresh();
+    treeView.refresh();
   };
   shell.onViewChange(view => {
     remember({ view });
     showView(view);
   });
+  const search = createSearch(shell.search, {
+    client,
+    explorationId,
+    session,
+    timelines,
+    scheduler
+  });
+  // A query shows the hits; clearing it (Escape too) returns to the earlier view.
+  const onSearch = (text: string) => {
+    search.setQuery(text);
+    const active = text.trim() !== '';
+    if (active !== searching) {
+      searching = active;
+      showView(active ? 'search' : before);
+    }
+  };
+  shell.onSearch(onSearch);
   shell.onCollapseChange(collapsed => {
     remember({ collapsed });
     shell.setCollapsed(collapsed);
@@ -111,14 +165,27 @@ if (app) {
       : !!recall().collapsed
   );
   showView(isView(wantView) ? wantView : 'changes');
+  // `search=` opens with that query typed (the harness).
+  const wantSearch = params.get('search');
+  if (wantSearch) {
+    shell.setSearch(wantSearch);
+    onSearch(wantSearch);
+  }
   const ghost = createGhost(
     shell.ghost,
     session,
     channel?.live,
     createOutputRenderer({
-      fetchBlob: contentHash => client.blob({ explorationId, contentHash })
+      fetchBlob: contentHash => client.blob({ explorationId, contentHash }),
+      sizes
     }),
-    { cache: createBaseCache(client, explorationId), mode: versionMode }
+    { cache: createBaseCache(client, explorationId), mode: versionMode },
+    {
+      frames,
+      output: createQuickOutputRenderer(sizes),
+      pace: Number(params.get('pace')) || undefined,
+      lagMs: Number(params.get('lag')) || undefined
+    }
   );
   // The diff is against now unless the page says otherwise (`diff=previous|none`).
   const wantDiff = params.get('diff');
@@ -157,28 +224,52 @@ if (app) {
     );
     if (result !== namedFrom) {
       namedFrom = result;
-      changesList.setEntries(entries);
+      changesList.setEntries(timelines.viewed());
     }
+    // Only the active branch's own steps count; global ticks include other branches.
     const from = view.lookingBackFromTip;
-    const tip = session.activeTip();
     shell.setStatus(
       statusOf(view),
-      view.mode === 'lookingBack' && from !== undefined && tip !== undefined
-        ? Math.max(0, tip - from)
+      view.mode === 'lookingBack' && from !== undefined
+        ? timelines.own(session.activeBranchId()).filter(e => e.tick > from)
+            .length
         : 0
     );
     if (result && result.status === 'ok') {
       shell.setNotebook(result.state.notebook.path);
     }
   };
+  // The switch line: switching, a problem to dismiss, or the way back to the branch left.
+  const renderSwitch = () => {
+    const problem = session.problem();
+    const back = session.previousBranchId();
+    const meta = timelines.branches().find(b => b.branchId === back);
+    shell.setSwitch({
+      busy: session.switching(),
+      problem: problem
+        ? { text: problem, onDismiss: () => session.dismissProblem() }
+        : undefined,
+      back:
+        back && meta
+          ? {
+              label: `back to ${branchLabel(meta)}`,
+              note: 'Variables are not restored: the kernel was restarted.',
+              onClick: () => session.switchTo(back)
+            }
+          : undefined
+    });
+  };
   session.subscribe(renderView);
+  session.subscribe(renderSwitch);
   renderView();
+  renderSwitch();
+  shell.onRecordHere(watchRecorder(line => shell.setRecorder(line)));
 
   // Details of the selected moment: its index entry and the state at its tick.
   const showSelected = () => {
     const selected = session.focus.get().selected;
     const entry = selected
-      ? entries.find(e => e.tick === selected.firstTick)
+      ? timelines.viewed().find(e => e.tick === selected.firstTick)
       : undefined;
     const mine = ++asked;
     renderContext(shell.context, entry ?? null);
@@ -210,17 +301,17 @@ if (app) {
   session.focus.subscribe(showSelected);
   showSelected();
 
-  let loadedBranch = '';
-  let syncing: Promise<void> | undefined;
-  let syncAgain = false;
   const showEntries = () => {
+    const entries = timelines.viewed();
     changesList.setEntries(entries);
     ghost.setEntries(entries);
+    treeView.update();
+    renderView();
   };
-  void syncTimeline().then(() => {
+  void timelines.sync().then(() => {
     showEntries();
     const select = Number(params.get('select'));
-    const entry = entries.find(e => e.tick === select);
+    const entry = timelines.viewed().find(e => e.tick === select);
     if (entry) {
       session.focus.select({
         firstTick: entry.tick,
@@ -232,75 +323,10 @@ if (app) {
     if (tick > 0) {
       session.focus.goto(session.view().branchId, tick);
     }
-    // From here on, the timeline follows the active branch's tip.
+    // From here on, the timelines follow the active branch's tip.
     session.subscribe(() => {
-      void syncTimeline().then(showEntries);
+      void timelines.sync().then(showEntries);
     });
   });
-
-  /** Fetches the timeline index of `branchId` from `fromTick`, page by page. */
-  async function fetchEntries(
-    branchId: string,
-    fromTick?: number
-  ): Promise<ContextEntry[]> {
-    const got: ContextEntry[] = [];
-    for (;;) {
-      const page = await client.timeline({
-        explorationId,
-        branchId,
-        ...(fromTick === undefined ? {} : { fromTick })
-      });
-      for (let i = 0; i < page.ticks.length; i++) {
-        got.push(entryAt(page, i));
-      }
-      if (!page.truncated || page.nextTick === undefined) {
-        return got;
-      }
-      fromTick = page.nextTick;
-    }
-  }
-
-  /** Brings the entries up to the active tip: only the new ones, or all of them for another branch or after a gap. At most one fetch runs; a tip that moves meanwhile is fetched once more after it. */
-  function syncTimeline(): Promise<void> {
-    if (syncing) {
-      syncAgain = true;
-      return syncing;
-    }
-    syncing = (async () => {
-      try {
-        do {
-          syncAgain = false;
-          await syncOnce();
-        } while (syncAgain);
-      } finally {
-        syncing = undefined;
-      }
-    })();
-    return syncing;
-  }
-  async function syncOnce(): Promise<void> {
-    const branchId = session.activeBranchId() || (await session.branch());
-    const last = entries.length ? entries[entries.length - 1].tick : undefined;
-    try {
-      if (branchId === loadedBranch && last !== undefined) {
-        const tip = session.activeTip();
-        if (tip === undefined || tip <= last) {
-          return;
-        }
-        const next = appendEntries(
-          entries,
-          await fetchEntries(branchId, last + 1)
-        );
-        if (!next.gap) {
-          entries = next.entries;
-          return;
-        }
-      }
-      entries = await fetchEntries(branchId);
-      loadedBranch = branchId;
-    } catch {
-      // The panel keeps what it has; the page keeps working without a timeline.
-    }
-  }
 }
 session.start();

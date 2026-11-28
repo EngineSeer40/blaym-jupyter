@@ -11,8 +11,14 @@ export type ShellStatus = 'live' | 'ghost' | 'catchingUp' | 'disconnected';
 
 export type DiffChoice = 'now' | 'previous' | 'none';
 
-/** The side panel's views: the branch tree (not built yet) and the change rows. */
-export type PanelView = 'tree' | 'changes';
+/** The side panel's views: the branch tree and the change rows, and the search hits while a query is active (no tab). */
+export type PanelView = 'tree' | 'changes' | 'search';
+
+export interface SwitchLine {
+  busy?: boolean;
+  problem?: { text: string; onDismiss(): void };
+  back?: { label: string; note: string; onClick(): void };
+}
 
 export interface Shell {
   /** Shows the diff switch's choice; `enabled` is false while following now. */
@@ -21,14 +27,26 @@ export interface Shell {
   setNotebook(path: string): void;
   /** `newCount`: changes recorded since the user started looking back; shown after the ghost pill. */
   setStatus(status: ShellStatus, newCount?: number): void;
-  /** Shows one view of the side panel (the tree tab is disabled and never shown). */
+  /** The line shown when another tab or editor holds recording (`null` hides it); `onRecordHere` hears its button. */
+  setRecorder(line: { text: string; tooltip: string } | null): void;
+  onRecordHere(fn: () => void): void;
+  /** The switch line: a calm "switching…" while it runs, a problem to dismiss, the return point. All absent hides it. */
+  setSwitch(line: SwitchLine | null): void;
+  /** Shows one view of the side panel. */
   setView(view: PanelView): void;
   onViewChange(fn: (view: PanelView) => void): void;
+  /** The header search field: `onSearch` hears every edit; `setSearch('')` clears it. */
+  onSearch(fn: (text: string) => void): void;
+  setSearch(text: string): void;
   setCollapsed(collapsed: boolean): void;
   onCollapseChange(fn: (collapsed: boolean) => void): void;
   /** The side panel and the host of its changes view. */
   readonly panel: HTMLElement;
   readonly changes: HTMLElement;
+  /** The host of the tree view. */
+  readonly tree: HTMLElement;
+  /** The host of the search view. */
+  readonly search: HTMLElement;
   readonly ghost: HTMLElement;
   /** The conversation region under the ghost book: a collapsible `<details>` body. */
   readonly conversation: HTMLElement;
@@ -58,7 +76,7 @@ const DIFF_CHOICES: readonly [DiffChoice, string][] = [
 ];
 
 const PANEL_TABS: readonly [PanelView, string][] = [
-  ['tree', 'tree · S6c'],
+  ['tree', 'tree'],
   ['changes', 'changes']
 ];
 
@@ -96,6 +114,18 @@ export function createShell(root: HTMLElement): Shell {
   const nameText = document.createElement('span');
   name.append(notebookIcon(), nameText);
   const pill = div('bv-pill');
+  const recorder = div('bv-recorder');
+  recorder.hidden = true;
+  const recorderText = document.createElement('span');
+  const recordHere = document.createElement('button');
+  recordHere.type = 'button';
+  recordHere.className = 'bv-record-here';
+  recordHere.textContent = 'record here';
+  let recordClicked: () => void = () => undefined;
+  recordHere.addEventListener('click', () => recordClicked());
+  recorder.append(recorderText, recordHere);
+  const switchLine = div('bv-switch');
+  switchLine.hidden = true;
   const diffSwitch = div('bv-diff-switch');
   diffSwitch.setAttribute('role', 'group');
   diffSwitch.setAttribute('aria-label', 'diff against');
@@ -111,7 +141,23 @@ export function createShell(root: HTMLElement): Shell {
     buttons.set(choice, b);
     diffSwitch.append(b);
   }
-  header.append(name, diffSwitch, pill);
+  const find = document.createElement('input');
+  find.type = 'search';
+  find.className = 'bv-search';
+  find.placeholder = 'search history';
+  find.setAttribute('aria-label', 'search history');
+  let searched: (text: string) => void = () => undefined;
+  find.addEventListener('input', () => searched(find.value));
+  find.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && find.value !== '') {
+      ev.stopPropagation();
+      find.value = '';
+      searched('');
+    }
+  });
+  header.append(name, find, diffSwitch, recorder, pill);
+  const switchBar = div('bv-switch-bar');
+  switchBar.append(switchLine);
 
   const body = div('bv-body');
   const panel = div('bv-versions');
@@ -127,12 +173,7 @@ export function createShell(root: HTMLElement): Shell {
     b.className = 'bv-tab';
     b.textContent = text;
     b.setAttribute('role', 'tab');
-    if (view === 'tree') {
-      b.disabled = true;
-      b.title = 'The branch tree arrives with S6c';
-    } else {
-      b.addEventListener('click', () => viewChanged(view));
-    }
+    b.addEventListener('click', () => viewChanged(view));
     tabButtons.set(view, b);
     tabs.append(b);
   }
@@ -144,7 +185,9 @@ export function createShell(root: HTMLElement): Shell {
   );
   tabs.append(collapse);
   const changes = div('bv-pane');
-  panel.append(tabs, changes);
+  const tree = div('bv-pane');
+  const search = div('bv-pane');
+  panel.append(tabs, changes, tree, search);
   const main = div('bv-main');
   const ghost = div('bv-ghost');
   const details = document.createElement('details');
@@ -159,7 +202,7 @@ export function createShell(root: HTMLElement): Shell {
   const context = div('bv-context');
   body.append(panel, main, context);
 
-  card.append(header, body);
+  card.append(header, switchBar, body);
   const wrap = div('bv-shell');
   wrap.append(card);
   root.append(wrap);
@@ -188,11 +231,62 @@ export function createShell(root: HTMLElement): Shell {
           : PILL_TEXT[status];
       pill.setAttribute('data-status', status);
     },
+    setRecorder(line) {
+      recorder.hidden = line === null;
+      recorderText.textContent = line?.text ?? '';
+      recorder.title = line?.tooltip ?? '';
+    },
+    onRecordHere(fn) {
+      recordClicked = fn;
+    },
+    setSwitch(line) {
+      switchLine.replaceChildren();
+      switchLine.hidden = !line || (!line.busy && !line.problem && !line.back);
+      switchBar.hidden = switchLine.hidden;
+      if (!line) {
+        return;
+      }
+      const add = (text: string, className = 'bv-muted') =>
+        switchLine.append(div(className, text));
+      const act = (text: string, onClick: () => void, title: string) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'bv-record-here bv-switch-btn';
+        b.textContent = text;
+        b.title = title;
+        b.addEventListener('click', onClick);
+        switchLine.append(b);
+      };
+      if (line.busy) {
+        switchLine.setAttribute('role', 'status');
+        add('switching…');
+        return;
+      }
+      if (line.problem) {
+        switchLine.setAttribute('role', 'status');
+        add(line.problem.text);
+        act('dismiss', line.problem.onDismiss, 'Hide this message');
+        return;
+      }
+      if (line.back) {
+        add(line.back.note);
+        act(line.back.label, line.back.onClick, 'Switch the notebook back');
+      }
+    },
     setView(view) {
       for (const [v, b] of tabButtons) {
         b.setAttribute('aria-selected', String(v === view));
       }
       changes.hidden = view !== 'changes';
+      tree.hidden = view !== 'tree';
+      search.hidden = view !== 'search';
+      panel.classList.toggle('bv-versions-tree', view === 'tree');
+    },
+    onSearch(fn) {
+      searched = fn;
+    },
+    setSearch(text) {
+      find.value = text;
     },
     onViewChange(fn) {
       viewChanged = fn;
@@ -210,6 +304,8 @@ export function createShell(root: HTMLElement): Shell {
     },
     panel,
     changes,
+    tree,
+    search,
     ghost,
     conversation,
     context

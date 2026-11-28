@@ -2,13 +2,13 @@
  * View modes: pure functions from the timeline index to the version list's
  * items. "grouped" is the default: a run is one item, a structural change or an
  * edge is one item, and consecutive edits to one cell merge. "every" lists every
- * timeline entry.
+ * timeline entry. "sessions" is one item per working session (see `sessions`).
  */
 import type { AuthorConfidence, AuthorHint } from 'blaym-notebook-types';
 import type { ContextEntry } from './context';
 import type { CellNamer } from './cellname';
 
-export type VersionMode = 'grouped' | 'every';
+export type VersionMode = 'grouped' | 'every' | 'sessions';
 
 /** One changed cell of an item: where it sits (0 to 1 along the notebook) and how it changed. */
 export interface ChangeMark {
@@ -189,19 +189,20 @@ function summarise(
   return `unknown: ${lastKind}`;
 }
 
-/** Appends `incoming` (oldest first) to `existing`, ignoring ticks already held. `gap` is true when the first new tick does not follow the last held one: the caller refetches everything rather than guess. */
+/** Appends `incoming` (oldest first) to `existing`, ignoring ticks already held. Ticks are global, so another branch's ticks may lie between two of a line's own: a new tick above the last held one always continues the line. `gap` is true when the page contradicts the line, with a tick at or below the last held one that is not held: the caller refetches everything rather than guess. */
 export function appendEntries(
   existing: readonly ContextEntry[],
   incoming: readonly ContextEntry[]
 ): { entries: ContextEntry[]; gap: boolean } {
   const entries = existing.slice();
+  const held = new Set(existing.map(e => e.tick));
   let last = entries.length ? entries[entries.length - 1].tick : undefined;
   for (const e of incoming) {
     if (last !== undefined && e.tick <= last) {
+      if (!held.has(e.tick)) {
+        return { entries: existing.slice(), gap: true };
+      }
       continue;
-    }
-    if (last !== undefined && e.tick !== last + 1) {
-      return { entries: existing.slice(), gap: true };
     }
     entries.push(e);
     last = e.tick;
@@ -214,6 +215,9 @@ export function versions(
   index: readonly ContextEntry[],
   options: { mode: VersionMode; cellName?: CellNamer }
 ): VersionItem[] {
+  if (options.mode === 'sessions') {
+    return sessions(index);
+  }
   const items: VersionItem[] = [];
   const kinds: string[] = [];
   const push = (item: VersionItem, kind: string) => {
@@ -260,5 +264,72 @@ export function versions(
       item.summary = `unknown: ${item.kind}`;
     }
   });
+  return items;
+}
+
+/** More than this with nothing recorded ends a session. */
+export const SESSION_IDLE_MS = 30 * 60 * 1000;
+
+/** Entries that begin a new session: a kernel start or restart, and a snapshot (a page load). A gap ends the session it sits in. */
+const SESSION_STARTS = new Set(['kernel_start', 'kernel_restart', 'snapshot']);
+
+const clock = (ms: number) => new Date(ms).toISOString();
+
+/** One item per session, oldest first: first and last tick, counts, and the union of the change marks. */
+export function sessions(
+  index: readonly ContextEntry[],
+  options: { idleMs?: number } = {}
+): VersionItem[] {
+  const idleMs = options.idleMs ?? SESSION_IDLE_MS;
+  const items: VersionItem[] = [];
+  let runIds = new Set<string>();
+  let counts = { edits: 0, runs: 0, charts: 0, ai: 0 };
+  let startMs = 0;
+  let closed = false;
+  const finish = (item: VersionItem) => {
+    const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    item.summary = `session · ${clock(startMs).slice(5, 10)} ${clock(startMs).slice(11, 16)} to ${clock(item.timeMs).slice(11, 16)} · ${plural(counts.edits, 'edit')}, ${plural(counts.runs, 'run')}, ${plural(counts.charts, 'chart')}, ${counts.ai} AI ${counts.ai === 1 ? 'change' : 'changes'}`;
+  };
+  for (const e of index) {
+    const last = items[items.length - 1];
+    if (
+      !last ||
+      closed ||
+      SESSION_STARTS.has(e.kind) ||
+      e.timeMs - last.timeMs > idleMs
+    ) {
+      if (last) {
+        finish(last);
+      }
+      const item = itemOf(e);
+      item.kind = 'session';
+      items.push(item);
+      runIds = new Set();
+      counts = { edits: 0, runs: 0, charts: 0, ai: 0 };
+      startMs = e.timeMs;
+      closed = false;
+    } else {
+      extend(last, e);
+    }
+    if (e.kind === 'edit') {
+      counts.edits += 1;
+    }
+    if (e.kind === 'run_started' && !(e.runId && runIds.has(e.runId))) {
+      counts.runs += 1;
+      if (e.runId) {
+        runIds.add(e.runId);
+      }
+    }
+    if (e.kind === 'chart') {
+      counts.charts += 1;
+    }
+    if (e.author === 'ai' && TONE[e.kind]) {
+      counts.ai += 1;
+    }
+    closed = e.kind === 'gap';
+  }
+  if (items.length) {
+    finish(items[items.length - 1]);
+  }
   return items;
 }

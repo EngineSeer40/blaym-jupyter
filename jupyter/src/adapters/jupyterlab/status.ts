@@ -13,6 +13,10 @@ export interface Described {
   key: string;
   label: string;
   tooltip: string;
+  /** Recording is held by another tab or editor and this tab can take it. */
+  recordHere?: boolean;
+  /** The same line without the action words (the viewer shows its own button). */
+  line?: string;
 }
 
 const PROBLEMS: Record<string, string> = {
@@ -45,15 +49,22 @@ export function describeState(state: ObserverState): Described {
       if (state.reason === 'other_tab') {
         return {
           key: 'other-tab',
-          label: 'Blaym: another tab is recording',
-          tooltip: 'This tab records nothing and takes over if that tab closes'
+          label:
+            'Blaym: recording in another tab of this browser · record here',
+          tooltip:
+            'Recording stays with the other tab until it closes. Click to record in this tab instead.',
+          recordHere: true,
+          line: 'Blaym: recording in another tab of this browser'
         };
       }
       if (state.reason === 'other_recorder') {
         return {
           key: 'other-recorder',
-          label: 'Blaym: another editor is recording',
-          tooltip: 'This tab records nothing'
+          label: 'Blaym: recording in another tab or window · record here',
+          tooltip:
+            'Recording stays with the other tab until it closes, or about a minute after it stops answering.',
+          recordHere: true,
+          line: 'Blaym: recording in another tab or window'
         };
       }
       return {

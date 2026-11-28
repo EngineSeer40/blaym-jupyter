@@ -46,6 +46,7 @@ def test_every_create_branch_refusal_reason():
     r = create(rig, root, 1)
     assert r.status == "ok"
     child = r.branch.branchId  # tick 3
+    assert rig.root == root  # creating a branch does not move the active branch
     stored = list(rig.stored())
     assert create(rig, "nope", 1).reason == "unknown_moment"
     assert create(rig, root, 99).reason == "unknown_moment"  # above the highest tick
@@ -85,7 +86,7 @@ def test_late_delivery_to_a_non_active_branch_and_unknown_target():
     child = create(rig, root, 2).branch.branchId
     s.on("main").edit("c1", "late")
     out = rig.outcomes([s.events[-1]], target=root)[0]
-    assert out.status == "accepted" and out.branchId == root and rig.root == child
+    assert out.status == "accepted" and out.branchId == root and rig.root == root  # create_branch left the active branch alone
     assert rig.state(root, out.tick).state.notebook.cells[0].code == "late"
     s.edit("c1", "other")
     assert rig.outcomes([s.events[-1]], target="nope")[0].reason == "unknown_branch"
@@ -115,7 +116,7 @@ def run_generated(rig, h, rnd, sample=True):
                 break
             assert out.status == "ok", out
             ids[ev.branchId] = out.branch.branchId
-            active_model = ids[ev.branchId]
+            # creating a branch leaves the active branch unchanged
         else:
             before = rig.root if ids else None
             if not ids:

@@ -1,5 +1,6 @@
 import type {
   CellType,
+  NotebookCell,
   NotebookRegistration,
   NotebookStatus
 } from 'blaym-notebook-types';
@@ -110,6 +111,8 @@ export interface ObserverDeps {
   election: TabElection & {
     /** Resolves true when the lock is taken after the holder went away. */
     takeover?(notebookId: string): Promise<boolean>;
+    /** Resolves true when the lock is taken from the tab that holds it. */
+    steal?(notebookId: string): Promise<boolean>;
     releaseLock?(): void;
     cancelTakeover?(): void;
   };
@@ -118,7 +121,7 @@ export interface ObserverDeps {
   settings?: ObserverSettings;
   /** The author signals (default: none). */
   signals?: AuthorSignals;
-  /** The switching flag: not yet set; read at event time. */
+  /** The switching flag, read at event time. */
   switching?: () => boolean;
   /** Seams for the status and the toggle. */
   onState?: (state: ObserverState) => void;
@@ -143,6 +146,9 @@ export class NotebookObserver {
   private hadOutput = new Set<string>();
   private kernel?: KernelLike | null;
   private disposed = false;
+  private notebookId?: string;
+  /** The session is built (its heartbeat runs): a second `start` would build it twice. */
+  private built = false;
   private readonly disposers: Array<() => void> = [];
 
   constructor(
@@ -214,6 +220,8 @@ export class NotebookObserver {
       return;
     }
     const notebookId = status.notebookId;
+    this.notebookId = notebookId;
+    this.disposers.push(this.deps.election.onLost(() => this.lost()));
     if (status.reason === 'collaboration_not_supported') {
       this.session.setState({ kind: 'inactive', reason: 'collaboration' });
       return;
@@ -227,7 +235,49 @@ export class NotebookObserver {
       this.deps.election.releaseLock?.();
       return;
     }
-    await this.session.start(notebookId);
+    await this.startSession(notebookId);
+  }
+
+  private async startSession(notebookId: string): Promise<void> {
+    if (!this.built) {
+      this.built = true;
+      await this.session.start(notebookId);
+    }
+  }
+
+  /** Another tab of this browser took the lock: this one records nothing and queues for it. */
+  private lost(): void {
+    if (this.disposed || !this.notebookId) {
+      return;
+    }
+    // Typing still queued goes out while this tab is still the registered recorder.
+    this.session.flushTyping();
+    this.session.stopForOtherTab();
+    void this.waitForTakeover(this.notebookId);
+  }
+
+  /**
+   * "Record here": take recording from another tab (the lock, when it is in
+   * this browser) or editor (the registry, with `takeover`).
+   */
+  async recordHere(): Promise<void> {
+    const state = this.session.state;
+    const id = this.notebookId;
+    if (state.kind !== 'inactive' || state.reason === 'collaboration' || !id) {
+      return;
+    }
+    if (state.reason === 'other_tab') {
+      this.deps.election.cancelTakeover?.();
+      if (!(await this.deps.election.steal?.(id))) {
+        return;
+      }
+      if (this.disposed) {
+        this.deps.election.releaseLock?.();
+        return;
+      }
+      await this.startSession(id);
+    }
+    await this.session.takeover();
   }
 
   /** A tab that lost the election takes over when the holder goes away. */
@@ -242,7 +292,13 @@ export class NotebookObserver {
     if (!won) {
       return;
     }
-    await this.session.start(notebookId);
+    if (this.built) {
+      // This tab recorded before it lost the lock: its session is built, so ask
+      // the registry for the notebook instead (the lock proves the holder is gone).
+      await this.session.takeover();
+      return;
+    }
+    await this.startSession(notebookId);
   }
 
   /** Switch recording on or off for this notebook (the registry holds the flag). */
@@ -253,6 +309,16 @@ export class NotebookObserver {
   /** `visibilitychange` to hidden: send what is queued. `pagehide`: also a clean close. */
   hide(kind: 'hidden' | 'pagehide'): void {
     this.session.flushKeepalive(kind === 'pagehide');
+  }
+
+  /** Send the typing still waiting (the first step of a branch switch). */
+  flushTyping(): void {
+    this.session.flushTyping();
+  }
+
+  /** After a branch switch: the recorder's view becomes the new content (no events). */
+  adoptBaseline(cells: NotebookCell[]): void {
+    this.session.adoptBaseline(cells);
   }
 
   /** The model object behind the panel was replaced (revert, reload): a resync. */

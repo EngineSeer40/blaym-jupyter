@@ -613,7 +613,19 @@ function navigate(state: INavState, input: NavInput): INavResult {
         maxTickOf(candidate) > candidate.highestTick
           ? [{ type: 'fetchMissedSince', tick: candidate.highestTick }]
           : [];
-      return adoptActive(state, candidate, input.branch.branchId, gap);
+      // The branch is known now; the notebook follows it, and only a
+      // successful switch makes it active.
+      const next: INavState = {
+        ...state,
+        outline: candidate,
+        pending: { kind: 'switch', branchId: input.branch.branchId }
+      };
+      return {
+        state: next,
+        requests: gap.concat([
+          { type: 'switchBranch', branchId: input.branch.branchId }
+        ])
+      };
     }
     case 'switched': {
       if (

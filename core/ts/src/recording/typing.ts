@@ -44,6 +44,14 @@ export class TypingGrouper {
     this.recorded.set(cellId, code);
   }
 
+  /** Drop every step in progress and take `cells` as the recorded code (a branch switch). */
+  reset(cells: Array<{ id: string; code: string }>): void {
+    this.open.forEach(s => this.cancelTimers(s));
+    this.open.clear();
+    this.recorded.clear();
+    cells.forEach(c => this.recorded.set(c.id, c.code));
+  }
+
   forget(cellId: string): void {
     this.cancelTimers(this.open.get(cellId));
     this.open.delete(cellId);

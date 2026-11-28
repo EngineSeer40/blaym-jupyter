@@ -4,6 +4,8 @@
  * or host (messages to the embedding host). No token is held here.
  */
 import type {
+  CreateBranchRequest,
+  CreateBranchResponse,
   EventsBetweenRequest,
   EventsBetweenResponse,
   EventsSinceRequest,
@@ -15,6 +17,8 @@ import type {
   RebuildResult,
   SearchRequest,
   SearchResponse,
+  SetActiveBranchRequest,
+  SetActiveBranchResponse,
   StateAtRequest,
   TimelineIndexRequest,
   TimelineIndexResponse
@@ -51,6 +55,11 @@ export interface Client {
   eventsSince(req: EventsSinceRequest): Promise<EventsSinceResponse>;
   search(req: SearchRequest): Promise<SearchResponse>;
   blob(req: GetBlobRequest): Promise<ArrayBuffer>;
+  /** A refusal is an answer (`status: 'refused'`), not a thrown error. */
+  createBranch(req: CreateBranchRequest): Promise<CreateBranchResponse>;
+  setActiveBranch(
+    req: SetActiveBranchRequest
+  ): Promise<SetActiveBranchResponse>;
   /** Follow new history. Returns `stop`. */
   stream(
     explorationId: string,
@@ -126,9 +135,16 @@ export function createClient(o: ClientOptions): Client {
     const { path, query } = split(name, params);
     let res: Response;
     try {
-      res = await doFetch(base + path + query, {
-        method: 'GET',
-        credentials: 'same-origin'
+      const post = ROUTES[name].method === 'POST';
+      res = await doFetch(base + path + (post ? '' : query), {
+        method: ROUTES[name].method,
+        credentials: 'same-origin',
+        ...(post
+          ? {
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(params)
+            }
+          : {})
       });
     } catch (e) {
       throw new ClientError(String(e), 'network');
@@ -261,6 +277,12 @@ export function createClient(o: ClientOptions): Client {
     eventsSince: get<EventsSinceRequest, EventsSinceResponse>('events_since'),
     search: get<SearchRequest, SearchResponse>('search'),
     blob: get<GetBlobRequest, ArrayBuffer>('get_blob'),
+    createBranch: get<CreateBranchRequest, CreateBranchResponse>(
+      'create_branch'
+    ),
+    setActiveBranch: get<SetActiveBranchRequest, SetActiveBranchResponse>(
+      'set_active_branch'
+    ),
     stream
   };
 }

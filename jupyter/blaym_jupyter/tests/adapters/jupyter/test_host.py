@@ -15,10 +15,12 @@ from blaym_notebook.api import ROUTES
 from blaym_notebook.tests.history.scenario import Scenario
 from blaym_notebook.tests.service.helpers import recorder
 from blaym_notebook_types import (
+    CreateBranchResponse,
     IngestResponse,
     NotebookStatus,
     PrepareOutputsResponse,
     PutBlobResponse,
+    SetActiveBranchResponse,
 )
 
 API = ("blaym-jupyter", "api")
@@ -100,6 +102,35 @@ async def test_the_routes_work_with_the_token_and_round_trip(jp_fetch):
 
     closed = await call(jp_fetch, "notebooks/close", {"notebookId": exp, "instanceId": "tab-1"}, method="POST")
     assert closed.code == 204
+
+
+async def test_branches_are_created_and_switched_through_the_host(jp_fetch):
+    exp = (await register(jp_fetch)).explorationId
+    s = Scenario()
+    s.start(cells=[("c1", "x = 1")])
+    s.edit("c1", "x = 2")
+    ingest = await call(jp_fetch, "ingest", {
+        "explorationId": exp, "editor": "jupyterlab", "instanceId": "tab-1",
+        "events": [{**recorder(e), "explorationId": exp} for e in s.events]}, method="POST")
+    main = IngestResponse.model_validate_json(ingest.body).outcomes[0].root.branchId
+
+    made = CreateBranchResponse.model_validate_json((await call(
+        jp_fetch, "branches/create", {"explorationId": exp, "fromBranchId": main, "fromTick": 2, "name": "try"},
+        method="POST")).body).root
+    assert made.status == "ok", made
+    refused = CreateBranchResponse.model_validate_json((await call(
+        jp_fetch, "branches/create", {"explorationId": exp, "fromBranchId": "nope", "fromTick": 2, "name": "x"},
+        method="POST")).body).root
+    assert refused.status == "refused"  # a refusal is an answer, not an HTTP error
+
+    back = SetActiveBranchResponse.model_validate_json((await call(
+        jp_fetch, "branches/active", {"explorationId": exp, "branchId": main}, method="POST")).body).root
+    assert back.status == "ok", back
+    for route, body in (("branches/create", {"explorationId": exp, "fromBranchId": main, "fromTick": 2, "name": "z"}),
+                        ("branches/active", {"explorationId": exp, "branchId": main})):
+        with pytest.raises(HTTPClientError) as err:
+            await call(jp_fetch, route, body, method="POST", headers={"Authorization": ""})
+        assert err.value.code == 403
 
 
 async def test_shutdown_closes_the_recorders_and_the_stores(jp_serverapp):

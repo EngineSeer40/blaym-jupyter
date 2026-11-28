@@ -15,7 +15,11 @@ describe('named navigation scenarios', () => {
     s.send({
       type: 'branchCreated',
       branch: branchEntry({ ...B1, ticks: [11] })
-    }).answer();
+    });
+    // The new branch is known but not active until the switch is done.
+    expect(s.active).toBe('main');
+    expect(s.requests).toContainEqual({ type: 'switchBranch', branchId: 'b1' });
+    s.send({ type: 'switched', branchId: 'b1' }).answer();
     expect(s.active).toBe('b1');
     expect(s.state.view.mode).toBe('following');
 

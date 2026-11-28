@@ -672,7 +672,7 @@ class Service:
 
     def create_branch(self, credential: Any, request: CreateBranchRequest) -> CreateBranchResponse:
         """Branch from a settled moment: one transaction writes the branch point event, the
-        branch record and the active-branch change. The new branch becomes the active one."""
+        branch record. The active branch is unchanged: only `set_active_branch` moves recording."""
 
         def refuse(reason: str, detail: str) -> CreateBranchResponse:
             return CreateBranchResponse(CreateBranchRefused(status="refused", reason=reason, detail=detail))
@@ -703,14 +703,13 @@ class Service:
             record = BranchRecord(new, request.fromBranchId, tick, request.name)
             event = self._service_event(exp, request.explorationId, new, "branch_point_created", {
                 "parentBranchId": request.fromBranchId, "parentTick": tick, "name": request.name})
-            stored = self._append(request.explorationId, [event], branches=[record], active_branch_id=new)
+            stored = self._append(request.explorationId, [event], branches=[record])
             with exp.rlock:
                 exp.rebuilder.add(stored)
                 exp.committed.extend(stored)
                 exp.last_tick[new] = stored[0].tick
                 exp.tip_tick = stored[0].tick
                 exp.branches[new] = record
-                exp.active = new
             self._replay_revisions(exp, new)  # the new branch starts from the cells of its branch point
             branch = OutlineBranch(branchId=new, name=request.name, parentBranchId=request.fromBranchId,
                                    parentTick=tick, ownTicks=[stored[0].tick], runSpans=[])

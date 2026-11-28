@@ -114,6 +114,20 @@
       "response": "SearchResponse"
     },
     {
+      "name": "create_branch",
+      "method": "POST",
+      "path": "/branches/create",
+      "request": "CreateBranchRequest",
+      "response": "CreateBranchResponse"
+    },
+    {
+      "name": "set_active_branch",
+      "method": "POST",
+      "path": "/branches/active",
+      "request": "SetActiveBranchRequest",
+      "response": "SetActiveBranchResponse"
+    },
+    {
       "name": "get_blob",
       "method": "GET",
       "path": "/blobs/{explorationId}/{contentHash}",

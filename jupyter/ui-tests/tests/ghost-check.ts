@@ -68,6 +68,18 @@ export function outputFp(o: Any): OutFp {
       fp: `img:${svgSize(text(data['image/svg+xml']))}`
     };
   }
+  const plotly = data['application/vnd.plotly.v1+json'];
+  if (plotly !== undefined) {
+    // the ghost book draws a placeholder with the figure's title
+    const title = plotly?.layout?.title;
+    return {
+      type,
+      mimes,
+      fp:
+        'placeholder:application/vnd.plotly.v1+json' +
+        (typeof title === 'string' ? title : (title?.text ?? ''))
+    };
+  }
   const html = text(data['text/html']);
   if (/<table/i.test(html)) {
     return { type, mimes, fp: 'table:' + tableTexts(html) };
@@ -106,7 +118,7 @@ export function readModel(page: Any): Promise<CellFp[]> {
 
 /** The cells of an nbformat notebook (the file read through the contents API). */
 export function fileCells(content: Any): CellFp[] {
-  return content.cells.map((c: Any, i: number) => ({
+  return (content?.cells ?? []).map((c: Any, i: number) => ({
     index: i,
     id: String(c.id ?? ''),
     type: String(c.cell_type),
@@ -124,9 +136,20 @@ export function readGhost(page: Any): Promise<CellFp[]> {
       ...document.querySelectorAll('.bv-gcell:not(.bv-mark-ghost)')
     ];
     for (const [i, card] of cards.entries()) {
-      card
-        .querySelectorAll('.bv-out-item')
-        .forEach(m => m.scrollIntoView({ block: 'nearest' }));
+      // outputs fetch their blobs when they scroll into view: bring each in, then wait
+      // until its content stops changing before reading it
+      for (const m of card.querySelectorAll('.bv-out-item')) {
+        m.scrollIntoView({ block: 'nearest' });
+        let last = '';
+        let still = 0;
+        for (let k = 0; k < 40 && still < 3; k++) {
+          await new Promise(r => setTimeout(r, 100));
+          const now =
+            m.innerHTML.length + ':' + m.querySelectorAll('img').length;
+          still = now === last ? still + 1 : 0;
+          last = now;
+        }
+      }
       const isText = card.classList.contains('bv-gcell-text');
       const label = card.querySelector('.bv-gcell-label')?.textContent ?? '';
       const n = /In \[(\d+)\]/.exec(label);
@@ -214,7 +237,8 @@ export function compare(step: string, want: CellFp[], got: CellFp[]): string[] {
       const x = g.outputs[k];
       // a stream or error preview may be longer than the fingerprint: compare the start
       const same =
-        o.fp.startsWith('text:') && x.fp.startsWith('text:')
+        (o.fp.startsWith('text:') && x.fp.startsWith('text:')) ||
+        (o.fp.startsWith('placeholder:') && x.fp.startsWith('placeholder:'))
           ? flat(x.fp).includes(flat(o.fp))
           : o.fp === x.fp;
       if (!same) {

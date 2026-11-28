@@ -1,5 +1,6 @@
 import type {
   Editor,
+  NotebookCell,
   NotebookRegistration,
   NotebookStatus,
   RecorderEvent
@@ -141,6 +142,26 @@ export class RecorderSession {
   async start(notebookId: string): Promise<void> {
     this.build(notebookId);
     await this.heartbeat?.start();
+  }
+
+  /** Ask the registry to make this instance the active recorder, whoever holds it now. */
+  async takeover(): Promise<void> {
+    try {
+      this.onStatus(
+        await this.deps.transport.register({
+          ...this.registration(),
+          takeover: true
+        })
+      );
+    } catch (e) {
+      this.setState({ kind: 'problem', detail: String(e) });
+    }
+  }
+
+  /** This instance stops recording because another tab holds the lock; a later `takeover` resumes. */
+  stopForOtherTab(): void {
+    this.recordingOn = false;
+    this.setState({ kind: 'inactive', reason: 'other_tab' });
   }
 
   /** Switch recording on or off for this notebook (the registry holds the flag). */
@@ -338,6 +359,37 @@ export class RecorderSession {
     this.grouper?.flushAll();
   }
 
+  /**
+   * After a branch switch: the notebook's new content is the view, the cell
+   * identity and the cell revisions (taken from the cells, which carry the new
+   * branch's revisions). Typing in progress is dropped. Nothing is sent, and
+   * nothing the switch did is read as a user edit.
+   */
+  adoptBaseline(cells: NotebookCell[]): void {
+    // The outbox targets the branch its last event landed on. After a switch the
+    // service's active branch is the one to write to, so drop the old target.
+    this.outbox?.retarget(undefined);
+    this.identity = new CellIdentity(this.view.cellIdsStable, this.deps.ids);
+    this.builder?.adopt(cells);
+    this.grouper?.reset(cells.map(c => ({ id: c.cellId, code: c.code })));
+    this.reconciler.reset(this.view, this.identity);
+    // Typing that landed while the switch flag was open is in the notebook but
+    // not in `cells`: the next edit would be measured against the wrong text.
+    // A snapshot of what the notebook holds closes that gap.
+    const recorded = new Map(cells.map(c => [c.cellId, c.code]));
+    const view = this.view.cells();
+    const same =
+      view.length === cells.length &&
+      view.every(
+        (c, i) =>
+          cells[i].cellId === this.identity.blaymId(c.id) &&
+          recorded.get(cells[i].cellId) === c.source
+      );
+    if (!same) {
+      this.outbox?.requestResync('switch:notebook_differs');
+    }
+  }
+
   queue(draft: EventDraft, author?: AuthorMark): void {
     const builder = this.builder;
     if (!builder || !this.recordingOn) {
@@ -428,6 +480,9 @@ export class RecorderSession {
       this.setState({ kind: 'off' });
     } else if (status.active) {
       void this.startRecording();
+    } else if (this._state.kind === 'off') {
+      // switched on while another instance holds the notebook
+      this.setState({ kind: 'inactive', reason: 'other_recorder' });
     }
   }
 

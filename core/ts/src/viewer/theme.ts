@@ -9,8 +9,14 @@
  * are `JP_VARIABLES` below.
  */
 import type { HostPort, ThemeMessage } from './host';
-import { DIFF_TOKENS, KIND_TOKENS, THEME_TOKENS } from './tokens';
-export { DIFF_TOKENS, JP_VARIABLES, KIND_TOKENS, THEME_TOKENS } from './tokens';
+import { DIFF_TOKENS, KIND_TOKENS, THEME_TOKENS, TREE_TOKENS } from './tokens';
+export {
+  DIFF_TOKENS,
+  JP_VARIABLES,
+  KIND_TOKENS,
+  THEME_TOKENS,
+  TREE_TOKENS
+} from './tokens';
 export type { ThemeToken } from './tokens';
 
 export type ThemeKind = 'light' | 'dark';
@@ -34,6 +40,9 @@ export function applyTheme(root: HTMLElement, source: ThemeSource): void {
     root.style.setProperty(k.token, k[source.kind]);
   }
   for (const k of DIFF_TOKENS) {
+    root.style.setProperty(k.token, k[source.kind]);
+  }
+  for (const k of TREE_TOKENS) {
     root.style.setProperty(k.token, k[source.kind]);
   }
   root.setAttribute('data-bv-theme', source.kind);

@@ -55,6 +55,98 @@ export function windowPort(origin?: string): HostPort {
   };
 }
 
+/** What the host says about who records this notebook; `line` is present when another tab or editor does. */
+export interface RecorderMessage {
+  type: 'blaym:recorder';
+  here: boolean;
+  line?: string;
+  tooltip?: string;
+}
+
+/**
+ * Asks the page that embedded or opened this one (JupyterLab) whether this tab
+ * records, and hears the answer and every change. Nothing is heard when no host
+ * answers (a standalone page), so the line stays hidden. Returns the "record
+ * here" request.
+ */
+export function watchRecorder(
+  onChange: (line: { text: string; tooltip: string } | null) => void
+): () => void {
+  const peer = window.parent !== window ? window.parent : window.opener;
+  if (!peer) {
+    return () => undefined;
+  }
+  const origin = window.location.origin;
+  window.addEventListener('message', ev => {
+    const m = ev.data as Partial<RecorderMessage> | null;
+    if (ev.source !== peer || ev.origin !== origin) {
+      return;
+    }
+    if (m?.type === 'blaym:recorder') {
+      onChange(
+        m.here === false && typeof m.line === 'string'
+          ? { text: m.line, tooltip: m.tooltip ?? '' }
+          : null
+      );
+    }
+  });
+  peer.postMessage({ type: 'blaym:recorder', call: 'get' }, origin);
+  return () =>
+    peer.postMessage({ type: 'blaym:recorder', call: 'recordHere' }, origin);
+}
+
+/** The host's answer to `blaym:switch`. `cancelled` is the user's choice; `failed` carries a plain reason. */
+export interface SwitchAnswer {
+  status: 'ok' | 'cancelled' | 'failed';
+  reason?: string;
+}
+
+/**
+ * Asks the page that embedded or opened this one to switch the notebook to a
+ * branch (`blaym:switch {branchId}`) and waits for `{status, reason?}`. With no
+ * host, or one that does not answer within `timeoutMs`, it fails with a reason.
+ */
+export function requestSwitch(
+  branchId: string,
+  timeoutMs = 120000
+): Promise<SwitchAnswer> {
+  const peer = window.parent !== window ? window.parent : window.opener;
+  if (!peer) {
+    return Promise.resolve({
+      status: 'failed',
+      reason: 'Switching branches needs JupyterLab; it is not available here'
+    });
+  }
+  const origin = window.location.origin;
+  return new Promise(resolve => {
+    const done = (answer: SwitchAnswer) => {
+      window.removeEventListener('message', on);
+      window.clearTimeout(timer);
+      resolve(answer);
+    };
+    const on = (ev: MessageEvent) => {
+      const m = ev.data as
+        (Partial<SwitchAnswer> & { type?: string; branchId?: string }) | null;
+      if (ev.source !== peer || ev.origin !== origin) {
+        return;
+      }
+      if (m?.type === 'blaym:switch' && m.branchId === branchId) {
+        done({
+          status:
+            m.status === 'ok' || m.status === 'cancelled' ? m.status : 'failed',
+          ...(m.reason !== undefined ? { reason: m.reason } : {})
+        });
+      }
+    };
+    const timer = window.setTimeout(
+      () => done({ status: 'failed', reason: 'The notebook did not answer' }),
+      timeoutMs
+    );
+    window.addEventListener('message', on);
+    peer.postMessage({ type: 'blaym:switch', branchId }, origin);
+  });
+}
+
 export type RequestParams = Record<
   string,
   string | number | string[] | undefined

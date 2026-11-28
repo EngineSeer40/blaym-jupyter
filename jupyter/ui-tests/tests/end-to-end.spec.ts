@@ -96,7 +96,7 @@ test('end-to-end session', async ({
   baseURL,
   request
 }) => {
-  test.setTimeout(290000);
+  test.setTimeout(560000);
   let page = galata.page;
   page.on('dialog', d => void d.accept());
   writeNb(NB, ['a = 1', 'b = 2', 'c = 3']);
@@ -704,5 +704,571 @@ test('end-to-end session', async ({
         ? 'MISMATCH'
         : 'match')
   );
+
+  // the tree tab: click an earlier checkpoint's marker, then return to now with End and Escape
+  const treePill = view.locator('.bv-pill');
+  await view.locator('.bv-tab', { hasText: 'tree' }).click();
+  const cpTicks = new Set(checkpoints.slice(0, -1).map(c => String(c.tick)));
+  const marker = view.locator(
+    '.bv-tree-badge[data-tick], .bv-tree-row[data-tick]'
+  );
+  await expect(marker.first()).toBeVisible({ timeout: 20000 });
+  // zoom in until an earlier checkpoint's tick has a marker in the window
+  let target: string | undefined;
+  for (let k = 0; k < 6 && target === undefined; k++) {
+    target = (
+      await marker.evaluateAll(els =>
+        els.map(e => e.getAttribute('data-tick') ?? '')
+      )
+    ).find(t => cpTicks.has(t));
+    if (target === undefined) {
+      await view.getByRole('button', { name: 'Zoom in' }).click();
+      await view.waitForTimeout(400);
+    }
+  }
+  expect(target, 'a checkpoint tick has a marker in the tree').toBeDefined();
+  await view
+    .locator(
+      `.bv-tree-badge[data-tick="${target}"], .bv-tree-row[data-tick="${target}"]`
+    )
+    .first()
+    .click();
+  await expect(treePill).toContainText('ghost view', { timeout: 10000 });
+  await expect(view.locator('.bv-book-head .bv-label')).toContainText(
+    `tick ${target}`,
+    { timeout: 20000 }
+  );
+  const picked = checkpoints.find(c => String(c.tick) === target)!;
+  await settle(picked.name, picked.cells);
+  await view.locator('.bv-tree-root').focus();
+  await view.keyboard.press('End');
+  await view.keyboard.press('Escape');
+  await expect(treePill).toHaveText('live', { timeout: 10000 });
+  await settle('tree end vs file', onDisk);
+  await view.locator('.bv-tab', { hasText: 'changes' }).click();
+
+  // ---- S6d done-when checks ----
+  // 1. search finds a past chart by its title
+  const TITLE = 'Residuals zqplot';
+  const chartAt = (await sources(page)).length;
+  await active(page, chartAt - 1);
+  await cmd(page, 'notebook:insert-cell-below');
+  await setSource(
+    page,
+    chartAt,
+    'from IPython.display import display\n' +
+      `display({'application/vnd.plotly.v1+json': {'data': [], 'layout': {'title': {'text': '${TITLE}'}}}, 'text/plain': 'figure'}, raw=True)`
+  );
+  await active(page, chartAt);
+  await cmd(page, 'notebook:run-cell');
+  await ranOutputs(chartAt);
+  await checkpoint('titled chart run');
+  await setSource(page, chartAt, 'print("chart replaced")');
+  await checkpoint('titled chart replaced');
+  await view.goto(`${baseURL}${API}/viewer/index.html#${viewer}`);
+  await view.reload();
+  await expect(view.locator('.bv-gcell').first()).toBeVisible({
+    timeout: 30000
+  });
+  await view.locator('.bv-search').fill('zqplot');
+  const hit = view.locator('[aria-label="search hits"] .bv-version').first();
+  await expect(hit, 'search finds the chart by its title').toBeVisible({
+    timeout: 20000
+  });
+  await hit.click();
+  await expect(view.locator('.bv-pill')).toContainText('ghost view', {
+    timeout: 10000
+  });
+  await expect(view.locator('.bv-loading-tag')).toHaveCount(0, {
+    timeout: 20000
+  });
+  let seen: Any[] = [];
+  for (let k = 0; k < 12; k++) {
+    seen = await readGhost(view);
+    if (seen.some(c => c.code.includes('plotly') && c.outputs.length > 0)) {
+      break;
+    }
+    await view.waitForTimeout(600);
+  }
+  const chartCell = seen.find(c => c.code.includes('plotly'));
+  expect(chartCell, 'ghost book shows the chart cell at the hit').toBeDefined();
+  expect(chartCell.outputs.length).toBeGreaterThan(0);
+  expect(seen.some(c => c.code.includes('chart replaced'))).toBe(false);
+  await view.locator('.bv-search').fill('');
+
+  // 2. looking back never changes the notebook model, the file or the kernel id
+  const kernelId = () =>
+    page.evaluate(
+      () =>
+        (window as Any).jupyterapp.shell.currentWidget.sessionContext.session
+          ?.kernel?.id
+    );
+  const fileText = async () =>
+    JSON.stringify(
+      (await (await request.get(`/api/contents/${NB2}?content=1`)).json())
+        .content
+    );
+  void fire('docmanager:save');
+  await page.waitForTimeout(3000);
+  const modelBefore = JSON.stringify(await readModel(page));
+  const fileBefore = await fileText();
+  const kernelBefore = await kernelId();
+  await view.locator('.bv-tab', { hasText: 'tree' }).click();
+  await expect(marker.first()).toBeVisible({ timeout: 20000 });
+  const some = await marker.evaluateAll(els =>
+    els.slice(0, 6).map(e => e.getAttribute('data-tick') ?? '')
+  );
+  for (const t of some) {
+    await view
+      .locator(
+        `.bv-tree-badge[data-tick="${t}"], .bv-tree-row[data-tick="${t}"]`
+      )
+      .first()
+      .click();
+    await view.waitForTimeout(400);
+  }
+  await view.locator('.bv-tree-root').focus();
+  await view.keyboard.press('Home');
+  await view.keyboard.press('ArrowDown');
+  await view.locator('.bv-tab', { hasText: 'changes' }).click();
+  const rows = view.locator('[aria-label="versions"] .bv-version');
+  for (let k = 0; k < Math.min(4, await rows.count()); k++) {
+    await rows.nth(k).click();
+    await view.waitForTimeout(400);
+  }
+  await expect(view.locator('.bv-pill')).toContainText('ghost view');
+  await page.waitForTimeout(1500);
+  expect(JSON.stringify(await readModel(page)), 'model unchanged').toBe(
+    modelBefore
+  );
+  expect(await fileText(), 'file unchanged').toBe(fileBefore);
+  expect(await kernelId(), 'kernel id unchanged').toBe(kernelBefore);
+
+  // 3. back to now is already current: no stale frame
+  await setSource(page, 0, 'print("fresh")');
+  await active(page, 0);
+  await cmd(page, 'notebook:run-cell');
+  await ranOutputs(0);
+  await checkpoint('edited while looking back');
+  const nowModel = checkpoints[checkpoints.length - 1].cells;
+  await view
+    .locator('.bv-versions-top .bv-button', { hasText: 'back to now' })
+    .click();
+  await expect(view.locator('.bv-pill')).toHaveText('live', { timeout: 10000 });
+  const first = compare(
+    'back to now, first frame',
+    nowModel,
+    await readGhost(view)
+  );
+  expect(first, first.join('\n')).toEqual([]);
+
+  // ---- S8 done-when checks: branch from an earlier moment, switch, return, cancel ----
+  // The switch needs the host, so these run in the history panel inside JupyterLab.
+  const showNb = () =>
+    page.evaluate((r: string) => {
+      const s = (window as Any).jupyterapp.shell;
+      for (const w of s.widgets('main')) {
+        if (w.context?.path === r) {
+          s.activateById(w.id);
+          return;
+        }
+      }
+    }, NB2);
+  const hf = page.frameLocator('.blaym-history-frame');
+  const hframe = async (): Promise<Any> =>
+    (await page
+      .locator('.blaym-history-frame')
+      .elementHandle())!.contentFrame();
+  const openHistory = async () => {
+    await showNb();
+    await cmd(page, 'blaym-jupyter:show-history');
+    await expect(hf.locator('.bv-notebook-name')).toContainText(NB2, {
+      timeout: 30000
+    });
+    await hf.locator('.bv-tab', { hasText: 'tree' }).click();
+  };
+  const filePath = `/api/contents/${NB2}?content=1`;
+  const fileNow = async () =>
+    fileCells((await (await request.get(filePath)).json()).content);
+  const stateOn = async (bid: string): Promise<Any> => {
+    const o = await outline();
+    const b = o.branches.find((x: Any) => x.branchId === bid);
+    const tick = b.ownTicks[b.ownTicks.length - 1] ?? b.parentTick;
+    return (
+      await get(
+        `/state?explorationId=${explorationId}&branchId=${bid}&tick=${tick}`
+      )
+    ).state;
+  };
+  const ownTickCount = async (): Promise<Record<string, number>> =>
+    Object.fromEntries(
+      (await outline()).branches.map((b: Any) => [
+        b.branchId,
+        b.ownTicks.length
+      ])
+    );
+  const ghostNow = async (
+    step: string,
+    want: Checkpoint['cells'],
+    tries = 12
+  ) => {
+    let bad: string[] = [];
+    for (let k = 0; k < tries; k++) {
+      bad = compare(step, want, await readGhost(await hframe()));
+      if (bad.length === 0) {
+        break;
+      }
+      await page.waitForTimeout(600);
+    }
+    mismatches.push(...bad);
+    return bad;
+  };
+  const modelIs = async (step: string, want: Checkpoint['cells']) => {
+    await showNb();
+    const bad = compare(`${step}: model`, want, await readModel(page));
+    mismatches.push(...bad);
+    const badFile = compare(`${step}: file`, want, await fileNow());
+    mismatches.push(...badFile);
+    console.log(
+      `S8 ${step}: model ${bad.length ? 'MISMATCH ' + bad.join(' / ') : 'match'}, file ${badFile.length ? 'MISMATCH ' + badFile.join(' / ') : 'match'}`
+    );
+  };
+  const clickMarker = async (ticks: Set<string>): Promise<string> => {
+    const m = hf.locator('.bv-tree-badge[data-tick], .bv-tree-row[data-tick]');
+    await expect(m.first()).toBeVisible({ timeout: 20000 });
+    await hf.getByRole('button', { name: 'fit' }).click();
+    let t: string | undefined;
+    // the panel shows a short window of the tree: scroll through it, then zoom in and again
+    for (let z = 0; z < 4 && t === undefined; z++) {
+      for (let f = 0; f <= 10 && t === undefined; f++) {
+        await hf.locator('.bv-tree-scroll').evaluate((el, x) => {
+          el.scrollTop = ((el.scrollHeight - el.clientHeight) * x) / 10;
+        }, f);
+        await page.waitForTimeout(250);
+        t = (
+          await m.evaluateAll(els =>
+            els.map(e => e.getAttribute('data-tick') ?? '')
+          )
+        ).find(x => ticks.has(x));
+      }
+      if (t === undefined) {
+        await hf.getByRole('button', { name: 'Zoom in' }).click();
+        await page.waitForTimeout(400);
+      }
+    }
+    expect(t, 'a wanted tick has a marker in the tree').toBeDefined();
+    await hf
+      .locator(
+        `.bv-tree-badge[data-tick="${t}"], .bv-tree-row[data-tick="${t}"]`
+      )
+      .first()
+      .click();
+    return t!;
+  };
+  // the tree folds nearby ticks into one marker, so an exact tick is reached by keys
+  const stepTo = async (target: number) => {
+    const label = async (): Promise<number> =>
+      Number(
+        /tick (\d+)/.exec(
+          await hf.locator('.bv-book-head .bv-label').innerText()
+        )?.[1]
+      );
+    await hf.locator('.bv-tree-root').focus();
+    await page.keyboard.press('Home');
+    await page.waitForTimeout(400);
+    let prev = await label();
+    let key = 'ArrowDown';
+    for (let k = 0; k < 150 && prev !== target; k++) {
+      await page.keyboard.press(key);
+      await page.waitForTimeout(250);
+      const cur = await label();
+      if (k === 0 && cur > prev) {
+        key = 'ArrowUp';
+      }
+      if (k > 0 && cur < target) {
+        key = key === 'ArrowDown' ? 'ArrowUp' : 'ArrowDown';
+      }
+      prev = cur;
+    }
+    expect(prev, 'stepped to the checkpoint tick').toBe(target);
+  };
+  // select a branch by the name label of one of its rows (found by scrolling the tree)
+  const selectBranch = async (bid: string) => {
+    const lane = hf.locator(`line.bv-tree-lane[data-branch="${bid}"]`);
+    await hf.getByRole('button', { name: 'fit' }).click();
+    for (let z = 0; z < 4; z++) {
+      for (let f = 0; f <= 10; f++) {
+        await hf.locator('.bv-tree-scroll').evaluate((el, x) => {
+          el.scrollTop = ((el.scrollHeight - el.clientHeight) * x) / 10;
+        }, f);
+        await page.waitForTimeout(250);
+        const box = (await lane.count())
+          ? await lane.first().boundingBox()
+          : null;
+        if (box && box.height > 12) {
+          // a click on the lane line selects its branch
+          await page.mouse.click(box.x, box.y + box.height / 2);
+          await expect(hf.locator('.bv-tree-branch').first()).not.toHaveText(
+            ''
+          );
+          return;
+        }
+      }
+      await hf.getByRole('button', { name: 'Zoom in' }).click();
+      await page.waitForTimeout(400);
+    }
+    throw new Error(`no tree lane for branch ${bid}`);
+  };
+  // The panel's outputs fetch their content when they scroll into view, and a panel behind
+  // the notebook tab is never in view: bring it forward before reading the ghost book.
+  const showPanel = async () => {
+    await cmd(page, 'blaym-jupyter:show-history');
+    await expect(hf.locator('.bv-gcell').first()).toBeVisible({
+      timeout: 10000
+    });
+  };
+  const kernelIdle = async () => {
+    await showNb();
+    await expect.poll(kernelStatus, { timeout: 60000 }).toBe('idle');
+  };
+  const backBranch = hf.locator('.bv-switch-btn');
+  const continueHere = async () => {
+    await expect(hf.locator('.bv-pill')).toContainText('ghost view', {
+      timeout: 10000
+    });
+    await expect(hf.locator('.bv-loading-tag')).toHaveCount(0, {
+      timeout: 20000
+    });
+    await hf.getByRole('button', { name: 'continue from here' }).click();
+    await expect(hf.locator('.bv-pill')).toHaveText('live', { timeout: 60000 });
+  };
+
+  // main's tip, as it is now (the file saved first)
+  await showNb();
+  void fire('docmanager:save');
+  await page.waitForTimeout(3000);
+  await checkpoint('main tip');
+  const mainTip = checkpoints[checkpoints.length - 1];
+  const rootId: string = (await outline()).rootBranchId;
+  await openHistory();
+  const from = checkpoints[1];
+  const wantTick = String(from.tick);
+  await stepTo(from.tick);
+  console.log(`S8 earlier checkpoint "${from.name}" tick ${wantTick}`);
+
+  // 1. continue from here: the notebook and the file become that checkpoint
+  await continueHere();
+  await expect(
+    page.getByText(/Variables are not restored/).first()
+  ).toBeVisible({
+    timeout: 30000
+  });
+  await kernelIdle();
+  await modelIs('1 continue from here', from.cells);
+  const b1: string = (await outline()).branches.find(
+    (b: Any) => b.branchId !== rootId
+  ).branchId;
+  expect((await outline()).branches.length, 'two branches').toBe(2);
+  const lanes = await hf.locator('line.bv-tree-lane').count();
+  console.log(`S8 1 lane lines drawn: ${lanes}`);
+  expect(lanes, 'the tree draws two lanes').toBeGreaterThanOrEqual(2);
+
+  // 2. edit and run on the branch: the ghost book at now matches the notebook
+  await showNb();
+  await active(page, 0);
+  await setSource(page, 0, 'print("on branch one")');
+  await cmd(page, 'notebook:run-cell');
+  await ranOutputs(0);
+  await page.waitForTimeout(2500);
+  void fire('docmanager:save');
+  await page.waitForTimeout(2500);
+  const branchOne = await readModel(page);
+  await openHistory();
+  await expect(hf.locator('.bv-pill')).toHaveText('live');
+  await ghostNow('2 ghost at now on the branch', branchOne);
+  const oneState = await stateOn(b1);
+  expect(
+    oneState.notebook.cells.map((c: Any) => c.code),
+    'the store holds the branch edit'
+  ).toEqual(branchOne.map(c => c.code));
+
+  // 3. back to main: the first ghost book shown is main's tip
+  await hf.getByRole('button', { name: 'back to main' }).click();
+  await expect(backBranch).toContainText(/back to branch from/, {
+    timeout: 60000
+  });
+  await kernelIdle();
+  await expect(hf.locator('.bv-loading-tag')).toHaveCount(0, {
+    timeout: 20000
+  });
+  await showPanel();
+  const first3 = compare(
+    '3 back to main, first ghost',
+    mainTip.cells,
+    await readGhost(await hframe())
+  );
+  mismatches.push(...first3);
+  console.log(
+    `S8 3 first ghost after back to main: ${first3.length ? 'MISMATCH ' + first3.join(' / ') : 'match'}`
+  );
+  await modelIs('3 back to main', mainTip.cells);
+
+  // 4. branch again from the same checkpoint: not from branch one's edits
+  await openHistory();
+  await stepTo(from.tick);
+  await continueHere();
+  await kernelIdle();
+  await modelIs('4 second branch from the same point', from.cells);
+  const b2: string = (await outline()).branches.find(
+    (b: Any) => b.branchId !== rootId && b.branchId !== b1
+  ).branchId;
+  expect(
+    (await showNb(), (await sources(page)).join('\n')),
+    "branch one's edit is not on branch two"
+  ).not.toContain('on branch one');
+
+  // 5. jump around on branch two, then switch to main: the first state is main's tip
+  await openHistory();
+  const around = await hf
+    .locator('.bv-tree-badge[data-tick]')
+    .evaluateAll(els =>
+      els.slice(0, 5).map(e => e.getAttribute('data-tick') ?? '')
+    );
+  for (const t of around) {
+    await hf
+      .locator(
+        `.bv-tree-badge[data-tick="${t}"], .bv-tree-row[data-tick="${t}"]`
+      )
+      .first()
+      .click();
+    await page.waitForTimeout(500);
+  }
+  await selectBranch(rootId);
+  await hf.locator('.bv-tree-switch').click();
+  await expect(backBranch).toContainText(/back to branch from/, {
+    timeout: 60000
+  });
+  await kernelIdle();
+  await expect(hf.locator('.bv-loading-tag')).toHaveCount(0, {
+    timeout: 20000
+  });
+  await showPanel();
+  const first5 = compare(
+    '5 switch to main, first ghost',
+    mainTip.cells,
+    await readGhost(await hframe())
+  );
+  mismatches.push(...first5);
+  console.log(
+    `S8 5 first ghost after switch to main: ${first5.length ? 'MISMATCH ' + first5.join(' / ') : 'match'}`
+  );
+  await modelIs('5 switch to main', mainTip.cells);
+
+  // 6. a failed switch leaves the user where they were: dirty notebook, Cancel at the dialog
+  await showNb();
+  await active(page, 0);
+  await setSource(page, 0, 'print("unsaved edit")');
+  const dirtyModel = JSON.stringify(await readModel(page));
+  const dirtyFile = JSON.stringify(await fileNow());
+  await page.waitForTimeout(1500);
+  const ticksBefore = await ownTickCount();
+  await openHistory();
+  await selectBranch(b2);
+  await hf.locator('.bv-tree-switch').click();
+  await expect(page.locator('.jp-Dialog')).toContainText('Save and switch', {
+    timeout: 20000
+  });
+  await page.locator('.jp-Dialog button.jp-mod-reject').click();
+  await page.waitForTimeout(4000);
+  await showNb();
+  expect(JSON.stringify(await readModel(page)), 'cancel: model unchanged').toBe(
+    dirtyModel
+  );
+  expect(JSON.stringify(await fileNow()), 'cancel: file unchanged').toBe(
+    dirtyFile
+  );
+  const ticksAfter = await ownTickCount();
+  console.log(
+    `S8 6 own ticks before ${JSON.stringify(ticksBefore)} after ${JSON.stringify(ticksAfter)}`
+  );
+  expect(ticksAfter[b2], 'cancel: branch two got nothing').toBe(
+    ticksBefore[b2]
+  );
+  expect(
+    (await stateOn(rootId)).notebook.cells.map((c: Any) => c.code).join('\n'),
+    'cancel: the unsaved edit is recorded on main, where the notebook is'
+  ).toContain('unsaved edit');
+  await expect(page.locator('.jp-Dialog')).toHaveCount(0);
+
+  // 7. the tree shows a kernel restart on a branch
+  const restartsOn = async (bid: string): Promise<number> => {
+    const o = await outline();
+    const own = new Set(
+      o.branches.find((b: Any) => b.branchId === bid).ownTicks
+    );
+    const r = await get(
+      `/events-between?explorationId=${explorationId}&branchId=${bid}&fromTick=1&toTick=${o.highestTick}`
+    );
+    return (r.events ?? []).filter(
+      (e: Any) => e.type === 'kernel_restarted' && own.has(e.tick)
+    ).length;
+  };
+  console.log(
+    `S8 7 restarts on branch two ${await restartsOn(b2)}, on branch one ${await restartsOn(b1)}`
+  );
+  expect(
+    await restartsOn(b2),
+    'a restart is recorded on branch two'
+  ).toBeGreaterThan(0);
+  await openHistory();
+  await selectBranch(b2);
+  console.log(
+    `S8 7 restart icons in view: ${await hf.locator('svg[aria-label="kernel_restart"]').count()}`
+  );
+  await showNb();
+
+  // 4. the window placement opens a popup that loads and jumps
+  const putPlacement = async (v: string) =>
+    expect(
+      (
+        await request.put('/lab/api/settings/blaym-jupyter:plugin', {
+          data: { raw: JSON.stringify({ viewerPlacement: v }) }
+        })
+      ).ok()
+    ).toBe(true);
+  await putPlacement('window');
+  try {
+    await page.reload();
+    await page.waitForFunction(
+      (r: string) =>
+        (window as Any).jupyterapp?.shell?.currentWidget?.context?.path === r &&
+        !!(window as Any).jupyterapp.shell.currentWidget.model?.cells?.length,
+      NB2,
+      { timeout: 40000 }
+    );
+    await expect
+      .poll(() => barState(page), { timeout: 40000 })
+      .toBe('recording');
+    const [popup] = await Promise.all([
+      page.waitForEvent('popup', { timeout: 20000 }),
+      page.locator('.blaym-history-button').first().click()
+    ]);
+    await expect(popup.locator('.bv-gcell').first()).toBeVisible({
+      timeout: 30000
+    });
+    await popup.locator('.bv-tab', { hasText: 'tree' }).click();
+    const pm = popup.locator(
+      '.bv-tree-badge[data-tick], .bv-tree-row[data-tick]'
+    );
+    await expect(pm.first()).toBeVisible({ timeout: 20000 });
+    await pm.first().click();
+    await expect(popup.locator('.bv-pill')).toContainText('ghost view', {
+      timeout: 10000
+    });
+    await popup.close();
+  } finally {
+    await putPlacement('panel');
+  }
+
   expect(mismatches, mismatches.join('\n')).toEqual([]);
 });

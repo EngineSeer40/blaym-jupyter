@@ -9,6 +9,8 @@ import { PageConfig } from '@jupyterlab/coreutils';
 import type { INotebookTracker } from '@jupyterlab/notebook';
 import { Widget } from '@lumino/widgets';
 import { JP_VARIABLES } from 'blaym-notebook-core';
+import type { Described } from './status';
+import type { SwitchResult } from './switch';
 
 export const SHOW_HISTORY = 'blaym-jupyter:show-history';
 
@@ -32,6 +34,14 @@ export interface HistoryDeps {
   placement: () => string;
   /** The Blaym id (the history's `explorationId`) of a notebook, once it is registered. */
   notebookId: (panel: HistoryPanel) => string | undefined;
+  /** "Record here" for a notebook another tab or editor is recording. */
+  recordHere: (panel: HistoryPanel) => Promise<void>;
+  /** Switch the notebook at `path` to a branch (opening it first if it is closed). */
+  switchBranch: (
+    panel: HistoryPanel,
+    path: string,
+    branchId: string
+  ) => Promise<SwitchResult>;
 }
 
 function viewerUrl(id: string): string {
@@ -70,6 +80,9 @@ function scrollToCell(
 /** The "Blaym: show history" command, its toolbar button, and the panel or window it opens. */
 export class HistoryViews {
   private readonly panels = new Map<HistoryPanel, MainAreaWidget<Widget>>();
+  private readonly recorder = new Map<HistoryPanel, Described>();
+  /** The viewer pages that asked about the recorder, per notebook. */
+  private readonly pages = new Map<HistoryPanel, Set<Window>>();
 
   constructor(private readonly deps: HistoryDeps) {
     const { app, tracker, palette } = deps;
@@ -94,6 +107,26 @@ export class HistoryViews {
         className: 'blaym-history-button',
         onClick: () => this.show(panel)
       })
+    );
+  }
+
+  /** The recording state of a notebook changed: tell the viewer pages that asked. */
+  recorderChanged(panel: HistoryPanel, state: Described): void {
+    this.recorder.set(panel, state);
+    this.pages.get(panel)?.forEach(win => this.tell(win, panel));
+  }
+
+  private tell(win: Window, panel: HistoryPanel): void {
+    const d = this.recorder.get(panel);
+    win.postMessage(
+      {
+        type: 'blaym:recorder',
+        here: !d?.recordHere,
+        ...(d?.recordHere
+          ? { line: d.line ?? d.label, tooltip: d.tooltip }
+          : {})
+      },
+      window.location.origin
     );
   }
 
@@ -162,14 +195,46 @@ export class HistoryViews {
     return widget;
   }
 
-  /** Acts on `scrollToCell` from `source()` only; `decorateCell` is accepted and ignored. */
+  /** Acts on `scrollToCell` and `blaym:switch` from `source()` only; `decorateCell` is accepted and ignored. */
   private listen(source: () => Window | null, panel: HistoryPanel): () => void {
+    // The panel may be closed by the time the page asks to switch: keep the path.
+    const path = panel.context.path;
     const on = (ev: MessageEvent): void => {
       const win = source();
       if (!win || ev.source !== win || ev.origin !== window.location.origin) {
         return;
       }
       const m = ev.data as { type?: unknown; call?: unknown; args?: unknown };
+      if (m?.type === 'blaym:recorder') {
+        if (m.call === 'get') {
+          const pages = this.pages.get(panel) ?? new Set<Window>();
+          pages.forEach(p => p.closed && pages.delete(p));
+          pages.add(win);
+          this.pages.set(panel, pages);
+          this.tell(win, panel);
+        } else if (m.call === 'recordHere') {
+          void this.deps.recordHere(panel);
+        }
+        return;
+      }
+      if (m?.type === 'blaym:switch') {
+        const branchId = (m as { branchId?: unknown }).branchId;
+        if (typeof branchId === 'string') {
+          void this.deps
+            .switchBranch(panel, path, branchId)
+            .catch((e): SwitchResult => ({
+              status: 'failed',
+              reason: String(e)
+            }))
+            .then(r =>
+              win.postMessage(
+                { type: 'blaym:switch', branchId, ...r },
+                window.location.origin
+              )
+            );
+        }
+        return;
+      }
       if (m?.type !== 'blaym:live' || !Array.isArray(m.args)) {
         return;
       }

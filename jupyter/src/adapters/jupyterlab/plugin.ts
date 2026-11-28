@@ -3,9 +3,11 @@ import type {
   JupyterFrontEndPlugin
 } from '@jupyterlab/application';
 import {
+  Dialog,
   ICommandPalette,
   IThemeManager,
-  Notification
+  Notification,
+  showDialog
 } from '@jupyterlab/apputils';
 import { INotebookTracker } from '@jupyterlab/notebook';
 import { ISettingRegistry } from '@jupyterlab/settingregistry';
@@ -26,8 +28,11 @@ import { createSignals } from './signals';
 import { NotebookPresenter, toggleTarget } from './status';
 import type { Described, Notifier } from './status';
 import { ServerTransport } from './transport';
+import { BranchSwitch, ServiceTarget } from './switch';
+import type { SwitchResult, SwitchShared } from './switch';
 
 const TOGGLE = 'blaym-jupyter:toggle-recording';
+const RECORD_HERE = 'blaym-jupyter:record-here';
 
 /** A small text widget that shows a state (status bar item and toolbar toggle). */
 class StateWidget extends Widget {
@@ -45,6 +50,7 @@ class StateWidget extends Widget {
     this.node.dataset.blaymState = d.key;
     this.node.textContent = d.label;
     this.node.title = d.tooltip;
+    this.node.style.cursor = d.recordHere ? 'pointer' : '';
   }
 }
 
@@ -114,6 +120,21 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       const p = current();
       statusItem.render(p ? presenters.get(p)?.described : undefined);
     });
+    const recordHere = async (panel?: PanelLike | null): Promise<void> => {
+      const o = panel ? observers.get(panel) : undefined;
+      await o?.recordHere();
+    };
+    app.commands.addCommand(RECORD_HERE, {
+      label: 'Blaym: record here',
+      isEnabled: () => {
+        const p = current();
+        return !!p && !!presenters.get(p)?.described?.recordHere;
+      },
+      execute: () => recordHere(current())
+    });
+    statusItem.node.addEventListener('click', () => {
+      void app.commands.execute(RECORD_HERE);
+    });
     app.commands.addCommand(TOGGLE, {
       label: 'Toggle Blaym recording for this notebook',
       isEnabled: () => {
@@ -130,6 +151,114 @@ export const plugin: JupyterFrontEndPlugin<void> = {
         }
       }
     });
+    /** Notebooks in the middle of a branch switch (the recorder reads this at event time). */
+    const switching = new Set<PanelLike>();
+    const pause = (ms: number): Promise<void> =>
+      new Promise(resolve => window.setTimeout(resolve, ms));
+    type SwitchPanel = PanelLike & {
+      isDisposed: boolean;
+      isVisible: boolean;
+      id: string;
+      content: { activate(): void };
+      context: PanelLike['context'] & {
+        save(): Promise<void>;
+        model: { dirty: boolean };
+      };
+    };
+    /** The open notebook at `path`, opened through the document manager if it is closed. */
+    const notebookAt = async (
+      panel: HistoryPanel,
+      path: string
+    ): Promise<SwitchPanel> => {
+      let found = panel.isDisposed
+        ? tracker.find(w => w.context.path === path)
+        : panel;
+      if (!found) {
+        found = (await app.commands.execute('docmanager:open', {
+          path,
+          factory: 'Notebook'
+        })) as typeof found;
+      }
+      const p = found as unknown as SwitchPanel;
+      await p.context.ready;
+      // the recorder registers the notebook once it is open: wait for its id
+      for (let i = 0; i < 100 && !notebookIds.has(p); i++) {
+        await pause(50);
+      }
+      return p;
+    };
+    const switchBranch = async (
+      panel: HistoryPanel,
+      path: string,
+      branchId: string
+    ): Promise<SwitchResult> => {
+      let p: SwitchPanel;
+      try {
+        p = await notebookAt(panel, path);
+      } catch (e) {
+        return {
+          status: 'failed',
+          reason: `Could not open the notebook (${e})`
+        };
+      }
+      const id = notebookIds.get(p);
+      if (!id) {
+        return {
+          status: 'failed',
+          reason: 'Blaym has no history for this notebook yet'
+        };
+      }
+      const service = new ServiceTarget(id, app.serviceManager.serverSettings);
+      const ctx = p.context;
+      const observer = observers.get(p);
+      return new BranchSwitch({
+        key: path,
+        busy: () =>
+          (
+            ctx.sessionContext as unknown as {
+              session?: { kernel?: { status?: string } | null } | null;
+            }
+          ).session?.kernel?.status === 'busy',
+        shared: () => ctx.model.sharedModel as unknown as SwitchShared,
+        flushTyping: () => observer?.flushTyping(),
+        dirty: () => ctx.model.dirty,
+        confirm: async () =>
+          (
+            await showDialog({
+              title: 'Unsaved changes',
+              body: 'This notebook has changes that are not saved. Save them and switch, or cancel and stay as you are.',
+              buttons: [
+                Dialog.cancelButton(),
+                Dialog.okButton({ label: 'Save and switch' })
+              ]
+            })
+          ).button.accept,
+        save: () => ctx.save(),
+        fetchTarget: b => service.fetchTarget(b),
+        setActive: b => service.setActive(b),
+        setSwitching: on => (on ? switching.add(p) : switching.delete(p)),
+        wait: pause,
+        adoptBaseline: cells => observer?.adoptBaseline(cells),
+        restartKernel: async () => {
+          const sc = ctx.sessionContext as unknown as {
+            session?: { kernel?: unknown } | null;
+            restartKernel(): Promise<void>;
+          };
+          if (!sc.session?.kernel) {
+            return false;
+          }
+          await sc.restartKernel();
+          return true;
+        },
+        refocus: () => {
+          if (p.isVisible) {
+            p.content.activate();
+          }
+        },
+        notify: (severity, text) =>
+          Notification[severity](text, { autoClose: 8000 })
+      }).run(branchId);
+    };
     const history = new HistoryViews({
       app,
       tracker,
@@ -137,7 +266,9 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       themeManager,
       placement: () =>
         source?.composite.viewerPlacement === 'window' ? 'window' : 'panel',
-      notebookId: p => notebookIds.get(p as unknown as PanelLike)
+      notebookId: p => notebookIds.get(p as unknown as PanelLike),
+      recordHere: p => recordHere(p as unknown as PanelLike),
+      switchBranch
     });
     const transport = new ServerTransport(app.serviceManager.serverSettings);
     const deps: ObserverDeps = {
@@ -155,6 +286,7 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       const button = new StateWidget('button', 'blaym-toggle');
       const presenter = new NotebookPresenter(notifier, d => {
         button.render(d);
+        history.recorderChanged(panel as unknown as HistoryPanel, d);
         if (current() === panel) {
           statusItem.render(d);
         }
@@ -163,6 +295,7 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       const observer = new NotebookObserver(panel, {
         ...deps,
         election: new WebLocksElection(),
+        switching: () => switching.has(panel),
         onState: s => presenter.onState(s),
         onStatus: s => {
           notebookIds.set(panel, s.notebookId);
@@ -171,7 +304,9 @@ export const plugin: JupyterFrontEndPlugin<void> = {
       });
       observers.set(panel, observer);
       button.node.addEventListener('click', () => {
-        void app.commands.execute(TOGGLE);
+        void (presenter.described?.recordHere
+          ? recordHere(panel)
+          : app.commands.execute(TOGGLE));
       });
       (
         panel as unknown as {

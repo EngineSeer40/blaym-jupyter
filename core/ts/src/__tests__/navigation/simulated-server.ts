@@ -238,7 +238,6 @@ export class SimulatedServer {
           return;
         }
         const e = this.addBranchAt(request.fromBranchId, request.fromTick);
-        this.active = e.branchId;
         const branch = outlineOfHistory(
           truncatedAt(this.h, e.tick)
         ).branches.find(x => x.branchId === e.branchId) as OutlineBranch;

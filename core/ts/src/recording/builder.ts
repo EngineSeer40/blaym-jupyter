@@ -58,6 +58,15 @@ export class EventBuilder {
     });
   }
 
+  /** A branch switch: the revisions are exactly the new branch's (they may go down). */
+  adopt(
+    cells: Array<{ cellId: string; revision: number; code: string }>
+  ): void {
+    this.revisions = new Map(
+      cells.map(c => [c.cellId, { revision: c.revision, code: c.code }])
+    );
+  }
+
   /** The recorded code of cells at the tip (from alignment), so an unchanged cell keeps its revision. */
   noteTip(tip: Array<{ cellId: string; code: string }>): void {
     tip.forEach(t => {

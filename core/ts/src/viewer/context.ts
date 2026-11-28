@@ -45,7 +45,7 @@ export function entryAt(index: TimelineIndexResponse, i: number): ContextEntry {
   };
 }
 
-const LABELS: Record<string, string> = {
+export const LABELS: Record<string, string> = {
   edit: 'Code edit',
   insert: 'Cell added',
   delete: 'Cell deleted',
